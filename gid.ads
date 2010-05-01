@@ -6,7 +6,7 @@
 -- The Generic Image Decoder is a package for decoding a broad
 -- variety of image formats, from any data stream, to any kind
 -- of in-memory bitmap. Unconditionally portable code, independent
--- of operating system, processor and choice of compiler.
+-- of operating system, processor, endianess and choice of compiler.
 --
 -- Image types supported:
 -- bla bla bla
@@ -24,9 +24,15 @@ package GID is
   ---------------------------------------------------
 
   procedure Load_image_header (
-    image: out Image_descriptor;
-    from :     Ada.Streams.Root_Stream_Type'Class
+    image   : out Image_descriptor;
+    from    :     Ada.Streams.Root_Stream_Type'Class;
+    try_tga :     Boolean:= False
   );
+
+  -- try_tga: if no known signature is found, assume it is the TGA
+  -- format (which hasn't a signature) and try to load an image
+  -- of this format
+
   unknown_image_type: exception;
 
   ------------------------------------------------------
@@ -54,6 +60,7 @@ package GID is
       rgb   : Color;
       alpha : Opacity_range
      );
+    pragma Inline(Put_Pixel);
   procedure Load_image_contents (
     image: in Image_descriptor;
     from :    Ada.Streams.Root_Stream_Type'Class
@@ -83,7 +90,7 @@ private
 
   type Image_descriptor is record
     width, height    : Positive;
-    opt_pal          : p_Palette;
+    opt_pal          : p_Palette:= null;
     img_type         : Image_format_Type;
     detailed_img_type: Bounded_255.Bounded_String;
   end record;
