@@ -35,7 +35,7 @@
 -- NB: this is the MIT License, as found 2-May-2010 on the site
 -- http://www.opensource.org/licenses/mit-license.php
 
-with Ada.Streams, Ada.Strings.Bounded;
+with Ada.Calendar, Ada.Streams, Ada.Strings.Bounded;
 
 package GID is
 
@@ -51,9 +51,9 @@ package GID is
     try_tga :     Boolean:= False
   );
 
-  -- try_tga: if no known signature is found, assume it is the TGA
-  -- format (which hasn't a signature) and try to load an image
-  -- of this format
+  -- try_tga: if no known signature is found, assume it might be
+  -- the TGA format (which hasn't a signature) and try to load an
+  -- image of this format
 
   unknown_image_format: exception;
 
@@ -64,9 +64,10 @@ package GID is
   function Pixel_width (image: Image_descriptor) return Positive;
   function Pixel_height (image: Image_descriptor) return Positive;
 
-  -----------------------------------------
-  -- 3) Load and decode the image itself --
-  -----------------------------------------
+  --------------------------------------------------------------------
+  -- 3) Load and decode the image itself. If the image is animated, --
+  --    call Load_image_contents until next_frame is 0.0            --
+  --------------------------------------------------------------------
 
   generic
     type Fundamental_color_range is range <>;
@@ -86,8 +87,11 @@ package GID is
     pragma Inline(Put_Pixel);
     --
   procedure Load_image_contents (
-    image: in Image_descriptor;
-    from :    Ada.Streams.Root_Stream_Type'Class
+    image     : in  Image_descriptor;
+    from      :     Ada.Streams.Root_Stream_Type'Class;
+    next_frame: out Ada.Calendar.Day_Duration
+      -- real time lapse foreseen between the first image
+      -- and the image right after this one; 0.0 if no next frame
   );
 
   unsupported_image_format,
