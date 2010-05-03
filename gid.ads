@@ -46,9 +46,9 @@ package GID is
   ---------------------------------------------------
 
   procedure Load_image_header (
-    image   : out Image_descriptor;
-    from    :     Ada.Streams.Root_Stream_Type'Class;
-    try_tga :     Boolean:= False
+    image   :    out Image_descriptor;
+    from    : in out Ada.Streams.Root_Stream_Type'Class;
+    try_tga :        Boolean:= False
   );
 
   -- try_tga: if no known signature is found, assume it might be
@@ -70,8 +70,8 @@ package GID is
   --------------------------------------------------------------------
 
   generic
-    type Fundamental_color_range is range <>;
-    -- range for each fundamental color (red, green or blue)
+    type Primary_color_range is range <>;
+    -- range for each primary color (red, green or blue)
     -- usually 0..255 (TrueColor, PC graphics, etc.);
     -- in some high-end apps/devices/formats: 0..65535
     --
@@ -81,7 +81,7 @@ package GID is
     --
     with procedure Put_Pixel (
       x, y             : Natural;
-      red, green, blue : Fundamental_color_range;
+      red, green, blue : Primary_color_range;
       alpha            : Opacity_range
     );
     pragma Inline(Put_Pixel);
@@ -94,7 +94,7 @@ package GID is
       -- and the image right after this one; 0.0 if no next frame
   );
 
-  unsupported_image_format,
+  known_but_unsupported_image_format,
   unsupported_image_subformat: exception;
 
   ---------------------------------------
@@ -108,6 +108,12 @@ package GID is
   function Image_detailed_format (image: Image_descriptor) return String;
   -- example: "GIF89a, interlaced"
 
+  --------------------------------------------------------------
+  -- Information about this package - e.g. for an "about" box --
+  --------------------------------------------------------------
+
+  version   : constant String:= "0.1";
+  reference : constant String:= "xx-yyy-2010";
   web: constant String:= "http://sf.net/projects/gen-img-dec/";
   -- hopefully the latest version is at that URL...
 
@@ -117,9 +123,9 @@ private
     new Ada.Strings.Bounded.Generic_Bounded_Length(255);
 
   type Image_descriptor is record
-    width, height    : Positive;
-    img_type         : Image_format_Type;
-    detailed_img_type: Bounded_255.Bounded_String;
+    width, height      : Positive;
+    img_format         : Image_format_type;
+    detailed_img_format: Bounded_255.Bounded_String;
   end record;
 
 end GID;
