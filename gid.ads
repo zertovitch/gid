@@ -108,6 +108,8 @@ package GID is
   function Image_detailed_format (image: Image_descriptor) return String;
   -- example: "GIF89a, interlaced"
 
+  function Bits_per_pixel (image: Image_descriptor) return Positive;
+
   --------------------------------------------------------------
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
@@ -123,9 +125,10 @@ private
     new Ada.Strings.Bounded.Generic_Bounded_Length(255);
 
   type Image_descriptor is record
+    format             : Image_format_type;
+    detailed_format    : Bounded_255.Bounded_String; -- for humans only!
     width, height      : Positive;
-    img_format         : Image_format_type;
-    detailed_img_format: Bounded_255.Bounded_String;
+    bits_per_pixel     : Positive;
   end record;
 
 end GID;

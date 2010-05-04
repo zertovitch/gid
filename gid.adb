@@ -25,6 +25,8 @@
 -- NB: this is the MIT License, as found 2-May-2010 on the site
 -- http://www.opensource.org/licenses/mit-license.php
 
+with GID.Headers;
+
 package body GID is
 
   -----------------------
@@ -37,64 +39,22 @@ package body GID is
     try_tga :        Boolean:= False
   )
   is
-    use Bounded_255;
-    --
-    -- Crude image signature detection
-    --
-    procedure Read_image_signature is
-      c: Character;
-      signature: String(1..5); -- without the initial
-    begin
-      Character'Read(from'Access, c);
-      case c is
-        when 'B' =>
-          Character'Read(from'Access, c);
-          if c='M' then
-            image.detailed_img_format:= To_Bounded_String("BMP");
-            image.img_format:= BMP;
-            return;
-          end if;
-        when 'S' =>
-          String'Read(from'Access, signature);
-          if signature = "IMPLE"  then
-            image.detailed_img_format:= To_Bounded_String("FITS");
-            image.img_format:= FITS;
-            return;
-          end if;
-        when 'G' =>
-          String'Read(from'Access, signature);
-          if signature = "IF87a" or signature = "IF89a" then
-            image.detailed_img_format:= To_Bounded_String('G' & signature & ", ");
-            image.img_format:= GIF;
-            return;
-          end if;
-        when Character'Val(16#FF#) =>
-          Character'Read(from'Access, c);
-          if c=Character'Val(16#D8#) then
-            image.detailed_img_format:= To_Bounded_String("JPEG");
-            image.img_format:= JPEG;
-            return;
-          end if;
-        when Character'Val(16#89#) =>
-          String'Read(from'Access, signature(1..3));
-          if signature(1..3) = "PNG" then
-            image.detailed_img_format:= To_Bounded_String("PNG");
-            image.img_format:= PNG;
-            return;
-          end if;
-        when others =>
-          if try_tga then
-            null;
-          else
-            raise unknown_image_format;
-          end if;
-      end case;
-      raise unknown_image_format;
-    end;
-
   begin
-    Read_image_signature;
-    -- !! width,... !!
+    Headers.Load_signature(image, from, try_tga);
+    case image.format is
+      when BMP =>
+        null; -- !!
+      when FITS =>
+        null; -- !!
+      when GIF =>
+        Headers.Load_GIF_header(image, from);
+      when JPEG =>
+        null; -- !!
+      when PNG =>
+        null; -- !!
+      when TGA =>
+        null; -- !!
+    end case;
   end Load_image_header;
 
   -----------------
@@ -129,22 +89,23 @@ package body GID is
     raise Program_Error;
   end Load_image_contents;
 
-  ------------------
-  -- Image_format --
-  ------------------
+  ---------------------------------------
+  -- Some informations about the image --
+  ---------------------------------------
 
   function Image_format (image: Image_descriptor) return Image_format_type is
   begin
-    return image.img_format;
+    return image.format;
   end Image_format;
-
-  ---------------------------
-  -- Image_detailed_format --
-  ---------------------------
 
   function Image_detailed_format (image: Image_descriptor) return String is
   begin
-    return Bounded_255.To_String(image.detailed_img_format);
+    return Bounded_255.To_String(image.detailed_format);
   end Image_detailed_format;
+
+  function Bits_per_pixel (image: Image_descriptor) return Positive is
+  begin
+    return image.bits_per_pixel;
+  end Bits_per_pixel;
 
 end GID;
