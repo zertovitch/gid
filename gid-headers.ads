@@ -12,18 +12,19 @@ private package GID.Headers is
   --
   procedure Load_signature (
     image   :    out Image_descriptor;
-    from    : in out Ada.Streams.Root_Stream_Type'Class;
     try_tga :        Boolean:= False
   );
 
 
   --
-  -- Loading of various format's headers
+  -- Loading of various format's headers (past signature)
   --
 
-  procedure Load_GIF_header (
-    image   :    out Image_descriptor;
-    from    : in out Ada.Streams.Root_Stream_Type'Class
-  );
+  procedure Load_BMP_header (image: in out Image_descriptor);
+  procedure Load_FITS_header (image: in out Image_descriptor);
+  procedure Load_GIF_header (image: in out Image_descriptor);
+  procedure Load_JPEG_header (image: in out Image_descriptor);
+  procedure Load_PNG_header (image: in out Image_descriptor);
+  procedure Load_TGA_header (image: in out Image_descriptor);
 
 end;

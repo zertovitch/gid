@@ -55,11 +55,13 @@ package GID is
   -- the TGA format (which hasn't a signature) and try to load an
   -- image of this format
 
-  unknown_image_format: exception;
+  unknown_image_format,
+  known_but_unsupported_image_format,
+  unsupported_image_subformat: exception;
 
-  ------------------------------------------------------------------
-  -- 2) Use dimensions to reserve an in-memory bitmap (if needed) --
-  ------------------------------------------------------------------
+  -----------------------------------------------------------------
+  -- 2) If needed, use dimensions to reserve an in-memory bitmap --
+  -----------------------------------------------------------------
 
   function Pixel_width (image: Image_descriptor) return Positive;
   function Pixel_height (image: Image_descriptor) return Positive;
@@ -72,12 +74,13 @@ package GID is
   generic
     type Primary_color_range is range <>;
     -- range for each primary color (red, green or blue)
-    -- usually 0..255 (TrueColor, PC graphics, etc.);
+    -- usually: 0..255 (TrueColor, PC graphics, etc.);
     -- in some high-end apps/devices/formats: 0..65535
     --
     type Opacity_range is range <>;
-    -- Opacity_range'First: fully tranparent: pixel is invisible
-    -- Opacity_range'Last : fully opaque    : pixel replaces background pixel
+    -- Opacity_range'First: fully transparent: pixel is invisible
+    -- Opacity_range'Last : fully opaque     : pixel replaces
+    --   background pixel
     --
     with procedure Put_Pixel (
       x, y             : Natural;
@@ -85,17 +88,12 @@ package GID is
       alpha            : Opacity_range
     );
     pragma Inline(Put_Pixel);
-    --
   procedure Load_image_contents (
-    image     : in  Image_descriptor;
-    from      :     Ada.Streams.Root_Stream_Type'Class;
-    next_frame: out Ada.Calendar.Day_Duration
+    image     : in     Image_descriptor;
+    next_frame:    out Ada.Calendar.Day_Duration
       -- real time lapse foreseen between the first image
       -- and the image right after this one; 0.0 if no next frame
   );
-
-  known_but_unsupported_image_format,
-  unsupported_image_subformat: exception;
 
   ---------------------------------------
   -- Some informations about the image --
@@ -121,14 +119,21 @@ package GID is
 
 private
 
+  type U8  is mod 2 ** 8;   for U8'Size  use 8;
+  type U16 is mod 2 ** 16;  for U16'Size use 16;
+  type U32 is mod 2 ** 32;  for U32'Size use 32;
+
   package Bounded_255 is
     new Ada.Strings.Bounded.Generic_Bounded_Length(255);
+
+  type Stream_Access is access all Ada.Streams.Root_Stream_Type'Class;
 
   type Image_descriptor is record
     format             : Image_format_type;
     detailed_format    : Bounded_255.Bounded_String; -- for humans only!
     width, height      : Positive;
     bits_per_pixel     : Positive;
+    stream             : Stream_Access;
   end record;
 
 end GID;

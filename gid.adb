@@ -25,7 +25,8 @@
 -- NB: this is the MIT License, as found 2-May-2010 on the site
 -- http://www.opensource.org/licenses/mit-license.php
 
-with GID.Headers;
+with GID.Headers,
+     GID.Decoding_BMP;
 
 package body GID is
 
@@ -40,20 +41,21 @@ package body GID is
   )
   is
   begin
-    Headers.Load_signature(image, from, try_tga);
+    image.stream:= from'Unchecked_Access;
+    Headers.Load_signature(image, try_tga);
     case image.format is
       when BMP =>
-        null; -- !!
+        Headers.Load_BMP_header(image);
       when FITS =>
-        null; -- !!
+        Headers.Load_FITS_header(image);
       when GIF =>
-        Headers.Load_GIF_header(image, from);
+        Headers.Load_GIF_header(image);
       when JPEG =>
-        null; -- !!
+        Headers.Load_JPEG_header(image);
       when PNG =>
-        null; -- !!
+        Headers.Load_PNG_header(image);
       when TGA =>
-        null; -- !!
+        Headers.Load_TGA_header(image);
     end case;
   end Load_image_header;
 
@@ -79,14 +81,26 @@ package body GID is
   -- Load_image_contents --
   -------------------------
 
-  procedure Load_image_contents
-   (image     : in  Image_descriptor;
-    from      :     Ada.Streams.Root_Stream_Type'Class;
-    next_frame: out Ada.Calendar.Day_Duration)
+  procedure Load_image_contents (
+    image     : in     Image_descriptor;
+    next_frame:    out Ada.Calendar.Day_Duration
+  )
   is
+    procedure BMP_Load is
+     new GID.Decoding_BMP.Load(
+       Primary_color_range,
+       Opacity_range,
+       Put_Pixel
+     );
   begin
-    --  Generated stub: replace with real body!
-    raise Program_Error;
+    next_frame:= 0.0;
+    -- will be changed in case of animation and current frame < last frame
+    case image.format is
+      when BMP =>
+        BMP_Load(image);
+      when others =>
+        raise known_but_unsupported_image_format; -- !!
+    end case;
   end Load_image_contents;
 
   ---------------------------------------
