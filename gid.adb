@@ -56,6 +56,8 @@ package body GID is
         Headers.Load_PNG_header(image);
       when TGA =>
         Headers.Load_TGA_header(image);
+      when TIFF =>
+        Headers.Load_TIFF_header(image);
     end case;
   end Load_image_header;
 

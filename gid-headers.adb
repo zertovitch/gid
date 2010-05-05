@@ -6,7 +6,7 @@
 -- image formats and reading header informations.
 --
 
-with text_io;
+-- with text_io;
 
 package body GID.Headers is
 
@@ -17,7 +17,7 @@ package body GID.Headers is
   )
   is
     use Bounded_255;
-    c: Character;
+    c, d: Character;
     signature: String(1..5); -- without the initial
   begin
     Character'Read(image.stream, c);
@@ -41,6 +41,17 @@ package body GID.Headers is
         if signature = "IF87a" or signature = "IF89a" then
           image.detailed_format:= To_Bounded_String('G' & signature & ", ");
           image.format:= GIF;
+          return;
+        end if;
+      when 'I' | 'M' =>
+        Character'Read(image.stream, d);
+        if c=d then
+          if c = 'I' then
+            image.detailed_format:= To_Bounded_String("TIFF, little-endian");
+          else
+            image.detailed_format:= To_Bounded_String("TIFF, big-endian");
+          end if;
+          image.format:= TIFF;
           return;
         end if;
       when Character'Val(16#FF#) =>
@@ -71,13 +82,13 @@ package body GID.Headers is
     type Number is mod <>;
   procedure Read_Intel_x86_number(
     n    :    out Number;
-    from : in out Stream_Access
+    from : in     Stream_Access
   );
   pragma Inline(Read_Intel_x86_number);
 
   procedure Read_Intel_x86_number(
     n    :    out Number;
-    from : in out Stream_Access
+    from : in     Stream_Access
   )
   is
     b: U8;
@@ -180,5 +191,10 @@ package body GID.Headers is
   begin
     raise known_but_unsupported_image_format; -- !!
   end Load_TGA_header;
+
+  procedure Load_TIFF_header (image: in out Image_descriptor) is
+  begin
+    raise known_but_unsupported_image_format; -- !!
+  end Load_TIFF_header;
 
 end;

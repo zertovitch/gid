@@ -99,7 +99,7 @@ package GID is
   -- Some informations about the image --
   ---------------------------------------
 
-  type Image_format_type is (BMP, FITS, GIF, JPEG, PNG, TGA);
+  type Image_format_type is (BMP, FITS, GIF, JPEG, PNG, TGA, TIFF);
 
   function Image_format (image: Image_descriptor) return Image_format_type;
 
