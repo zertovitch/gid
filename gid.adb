@@ -90,7 +90,7 @@ package body GID is
   is
     procedure BMP_Load is
      new GID.Decoding_BMP.Load(
-       Primary_color_range,
+       Primary_color_coding,
        Opacity_range,
        Put_Pixel
      );

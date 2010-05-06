@@ -1,0 +1,47 @@
+-- This is a GNAT, GCC or GNAT Programming Studio (GPS) project file
+-- for the Generic Image Decoder ( http://sf.net/projects/gen-img-dec/ )
+-- Build me with "gnatmake -P gid.gpr", or open me with GPS
+--
+project GID is
+
+   for Main use ("to_bmp.adb");
+   for Source_Dirs use (".");
+   for Exec_Dir use ".";
+   type Build_Mode_Type is
+      ("Debug", "Fast");
+   Build_Mode : Build_Mode_Type := external ("Build_Mode", "Debug");
+
+   case Build_Mode is
+
+      when "Debug" =>
+         for Object_Dir use "obj_debug";
+
+      when "Fast" =>
+         for Object_Dir use "obj_fast";
+   end case;
+
+   package Compiler is
+
+      case Build_Mode is
+
+         when "Debug" =>
+            for Default_Switches ("ada") use ("-gnatwal", "-gnatVa", "-gnato", "-g", "-fstack-check");
+
+         when "Fast" =>
+            for Default_Switches ("ada") use ("-gnatpn", "-O2", "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers");
+      end case;
+   end Compiler;
+
+   package Linker is
+
+      case Build_Mode is
+
+         when "Debug" =>
+
+         when "Fast" =>
+            for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections");
+      end case;
+   end Linker;
+
+end GID;
+

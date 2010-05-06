@@ -5,6 +5,7 @@
 WINDOWS_TARGET
 
 
+pair
 .bmp
 u8
 / 4
@@ -14,7 +15,6 @@ null; -- !!
 Color_Palette
 GIFDescriptor
 Descriptor
-intel
 -- Begin compiler switches
 RELEASE <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

@@ -71,16 +71,25 @@ package GID is
   --    call Load_image_contents until next_frame is 0.0            --
   --------------------------------------------------------------------
 
+  type Primary_color_mode is (bits_8_mode, bits_16_mode);
+  -- coding of primary colors (red, green or blue)
+  -- 8-bit is usual: TrueColor, PC graphics, etc.;
+  -- it is 16-bit in some high-end apps/devices/formats
+
+  subtype Primary_color_range is Natural;
+  -- We assume that Natural is large enough to contain
+  -- all possible Primary_color_range in the generic parts of GID
+
   generic
-    type Primary_color_range is range <>;
-    -- range for each primary color (red, green or blue)
-    -- usually: 0..255 (TrueColor, PC graphics, etc.);
-    -- in some high-end apps/devices/formats: 0..65535
+    primary_color_coding: Primary_color_mode;
     --
     type Opacity_range is range <>;
     -- Opacity_range'First: fully transparent: pixel is invisible
     -- Opacity_range'Last : fully opaque     : pixel replaces
     --   background pixel
+    --
+    -- !! Put_Pixel might be split into Set_XY and a Put_Pixel without x,y
+    --    for performance reasons
     --
     with procedure Put_Pixel (
       x, y             : Natural;
@@ -128,12 +137,21 @@ private
 
   type Stream_Access is access all Ada.Streams.Root_Stream_Type'Class;
 
+  type RGB_Color is record
+    red, green, blue : Primary_color_range;
+  end record;
+
+  type Color_table is array (Integer range <>) of RGB_Color;
+
+  type p_Color_table is access Color_table;
+
   type Image_descriptor is record
     format             : Image_format_type;
     detailed_format    : Bounded_255.Bounded_String; -- for humans only!
     width, height      : Positive;
     bits_per_pixel     : Positive;
     stream             : Stream_Access;
+    palette            : p_Color_table:= null;
   end record;
 
 end GID;

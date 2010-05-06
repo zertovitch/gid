@@ -1,35 +1,43 @@
-with GID.Buffering, GID.Color_tables;
+with GID.Buffering;                     use GID.Buffering;
 
 package body GID.Decoding_BMP is
 
-  use GID.Buffering;
-  use GID.Color_tables;
-
-  procedure Load (image: Image_descriptor) is
-     stream_buf: Input_buffer;
-     b01, b: U8:= 0;
-     pair: Boolean:= True;
-     bit: Natural range 0..7:= 0;
-     --
-     x, x_max, y: Natural;
-     --
-     palette: Color_table(0 .. 2**image.bits_per_pixel - 1);
-     --
-     procedure Fill_palettized is
-       pragma Inline(Fill_palettized);
-     begin
-       Put_Pixel_2(
-         x,y,
-         Primary_color_range_2(palette(Integer(b)).Red),
-         Primary_color_range_2(palette(Integer(b)).Green),
-         Primary_color_range_2(palette(Integer(b)).Blue),
-         Opacity_range_2'Last
-       );
-     end Fill_palettized;
-     --
-  begin
-    Load_palette(image, palette);
+  procedure Load (image: in Image_descriptor) is
+    b01, b: U8:= 0;
+    x, x_max, y: Natural;
     --
+    procedure Fill_palettized is
+      pragma Inline(Fill_palettized);
+    begin
+      case primary_color_coding_2 is
+        when bits_8_mode =>
+          Put_Pixel_2(
+            x,y,
+            image.palette(Integer(b)).Red,
+            image.palette(Integer(b)).Green,
+            image.palette(Integer(b)).Blue,
+            Opacity_range_2'Last
+          );
+        when bits_16_mode =>
+          Put_Pixel_2(
+            x,y,
+            256 * image.palette(Integer(b)).Red,
+            256 * image.palette(Integer(b)).Green,
+            256 * image.palette(Integer(b)).Blue,
+            Opacity_range_2'Last
+          );
+      end case;
+    end Fill_palettized;
+    --
+    stream_buf: Input_buffer;
+    pair: Boolean;
+    bit: Natural range 0..7;
+    --
+    line_bits: constant Float:= Float(image.width * image.bits_per_pixel);
+    padded_line_size: constant Positive:= 4 * Integer(Float'Ceiling(line_bits / 32.0));
+    unpadded_line_size: constant Positive:= Integer(Float'Ceiling(line_bits / 8.0));
+    -- (in bytes)
+  begin
     Attach_Stream(stream_buf, image.stream);
     y:= 0;
     while y <= image.height-1 loop
@@ -37,6 +45,7 @@ package body GID.Decoding_BMP is
       x_max:= image.width-1;
       case image.bits_per_pixel is
         when 1 => -- B/W
+          bit:= 0;
           while x <= x_max loop
             if bit=0 then
               Get_Byte(stream_buf, b01);
@@ -52,6 +61,7 @@ package body GID.Decoding_BMP is
             x:= x + 1;
           end loop;
         when 4 => -- 16 colour image
+          pair:= True;
           while x <= x_max loop
             if pair then
               Get_Byte(stream_buf, b01);
@@ -72,6 +82,9 @@ package body GID.Decoding_BMP is
         when others =>
           null;
       end case;
+      for i in unpadded_line_size + 1 .. padded_line_size loop
+        Get_Byte(stream_buf, b);
+      end loop;
       y:= y + 1;
     end loop;
   end Load;

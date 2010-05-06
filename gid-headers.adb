@@ -6,6 +6,9 @@
 -- image formats and reading header informations.
 --
 
+with GID.Color_tables;
+
+with Ada.Unchecked_Deallocation;
 -- with text_io;
 
 package body GID.Headers is
@@ -19,7 +22,10 @@ package body GID.Headers is
     use Bounded_255;
     c, d: Character;
     signature: String(1..5); -- without the initial
+    procedure Dispose is
+      new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
   begin
+    Dispose(image.palette);
     Character'Read(image.stream, c);
     case c is
       when 'B' =>
@@ -111,15 +117,14 @@ package body GID.Headers is
   --
 
   procedure Load_BMP_header (image: in out Image_descriptor) is
-    file_size, offset, info_header, n: U32;
+    file_size, offset, info_header, n, dummy: U32;
+    pragma Warnings(off, dummy);
     w, dummy16: U16;
-    str4:  String(1..4);
-    str20: String(1..20);
   begin
     --   Pos= 3, read the file size
     Read_Intel(file_size, image.stream);
     --   Pos= 7, read four bytes, unknown
-    String'Read(image.stream, Str4);
+    Read_Intel(dummy, image.stream);
     --   Pos= 11, read four bytes offset, file top to bitmap data.
     --            For 256 colors, this is usually 36 04 00 00
     Read_Intel(offset, image.stream);
@@ -141,14 +146,26 @@ package body GID.Headers is
        raise unsupported_image_subformat;
     end if;
     image.bits_per_pixel:= Integer(w);
-    --   Pos= 31, read four bytees
-    Read_Intel(n, image.stream);           --Type of compression used
+    --   Pos= 31, read four bytes
+    Read_Intel(n, image.stream);          -- Type of compression used
     if n /= 0 then
       raise unsupported_image_subformat;
     end if;
-    --   Pos= 35 (23H), skip twenty bytes
-    String'Read(image.stream, Str20);     -- perform the skip
+    --
+    Read_Intel(dummy, image.stream); -- Pos= 35, image size
+    Read_Intel(dummy, image.stream); -- Pos= 39, horizontal resolution
+    Read_Intel(dummy, image.stream); -- Pos= 43, vertical resolution
+    Read_Intel(n, image.stream); -- Pos= 47, number of palette colors
+    if image.bits_per_pixel <= 8 then
+      if n = 0 then
+        image.palette:= new Color_Table(0..2**image.bits_per_pixel-1);
+      else
+        image.palette:= new Color_Table(0..Natural(n)-1);
+      end if;
+    end if;
+    Read_Intel(dummy, image.stream); -- Pos= 51, number of important colors
     --   Pos= 55 (36H), - start of palette
+    Color_tables.Load_palette(image);
   end Load_BMP_header;
 
   procedure Load_FITS_header (image: in out Image_descriptor) is
@@ -175,6 +192,9 @@ package body GID.Headers is
     image.bits_per_pixel:= Natural((packed and 16#7F#)/16#10#) + 1;
     U8'Read(image.stream, background);
     U8'Read(image.stream, aspect_ratio_code);
+    if global_palette then
+      Color_tables.Load_palette(image);
+    end if;
   end Load_GIF_header;
 
   procedure Load_JPEG_header (image: in out Image_descriptor) is
