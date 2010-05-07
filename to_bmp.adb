@@ -116,6 +116,51 @@ procedure To_BMP is
   procedure Process(name: String; as_background, test_only: Boolean) is
     f: Ada.Streams.Stream_IO.File_Type;
     i: GID.Image_descriptor;
+    --
+    generic
+      type Number is mod <>;
+    procedure Write_Intel_x86_number(n: in Number);
+
+    procedure Write_Intel_x86_number(n: in Number) is
+      m: Number:= n;
+      bytes: constant Integer:= Number'Size/8;
+    begin
+      for i in 1..bytes loop
+        Unsigned_8'Write(Stream(f), Unsigned_8(m and 255));
+        m:= m / 256;
+      end loop;
+    end Write_Intel_x86_number;
+    procedure Write_Intel is new Write_Intel_x86_number( Unsigned_16 );
+    procedure Write_Intel is new Write_Intel_x86_number( Unsigned_32 );
+    --
+    type BITMAPFILEHEADER is record
+      bfType     : Unsigned_16;
+      bfSize     : Unsigned_32;
+      bfReserved1: Unsigned_16;
+      bfReserved2: Unsigned_16;
+      bfOffBits  : Unsigned_32;
+    end record;
+    -- No packing needed
+    BITMAPFILEHEADER_Bytes: constant:= 14;
+
+    type BITMAPINFOHEADER is record
+      biSize         : Unsigned_32;
+      biWidth        : Unsigned_32;
+      biHeight       : Unsigned_32;
+      biPlanes       : Unsigned_16;
+      biBitCount     : Unsigned_16;
+      biCompression  : Unsigned_32;
+      biSizeImage    : Unsigned_32;
+      biXPelsPerMeter: Unsigned_32;
+      biYPelsPerMeter: Unsigned_32;
+      biClrUsed      : Unsigned_32;
+      biClrImportant : Unsigned_32;
+    end record;
+    -- No packing needed
+    BITMAPINFOHEADER_Bytes: constant:= 40;
+
+    FileInfo  : BITMAPINFOHEADER;
+    FileHeader: BITMAPFILEHEADER;
   begin
     --
     -- Load the image in its original format
@@ -156,104 +201,49 @@ procedure To_BMP is
 		return;
     end;
     --
-    -- Now, save the image as BMP 24-bit
+    -- Now, save the image as BMP 24-bit (code from GL.IO...)
     --
-    declare
-      -- BMP output code from GL.IO...
-      type BITMAPFILEHEADER is record
-        bfType     : Unsigned_16;
-        bfSize     : Unsigned_32;
-        bfReserved1: Unsigned_16;
-        bfReserved2: Unsigned_16;
-        bfOffBits  : Unsigned_32;
-      end record;
-      pragma Pack(BITMAPFILEHEADER);
-      for BITMAPFILEHEADER'Size use 8 * 14;
+    FileHeader.bfType := 16#4D42#; -- 'BM'
+    FileHeader.bfOffBits := BITMAPINFOHEADER_Bytes + BITMAPFILEHEADER_Bytes;
+    FileHeader.bfReserved1:= 0;
+    FileHeader.bfReserved2:= 0;
 
-      type BITMAPINFOHEADER is record
-        biSize         : Unsigned_32;
-        biWidth        : Unsigned_32;
-        biHeight       : Unsigned_32;
-        biPlanes       : Unsigned_16;
-        biBitCount     : Unsigned_16;
-        biCompression  : Unsigned_32;
-        biSizeImage    : Unsigned_32;
-        biXPelsPerMeter: Unsigned_32;
-        biYPelsPerMeter: Unsigned_32;
-        biClrUsed      : Unsigned_32;
-        biClrImportant : Unsigned_32;
-      end record;
-      pragma Pack(BITMAPINFOHEADER);
-      for BITMAPINFOHEADER'Size use 8 * 40;
+    FileInfo.biSize       := BITMAPINFOHEADER_Bytes;
+    FileInfo.biWidth      := Unsigned_32(GID.Pixel_width(i));
+    FileInfo.biHeight     := Unsigned_32(GID.Pixel_height(i));
+    FileInfo.biPlanes     := 1;
+    FileInfo.biBitCount   := 24;
+    FileInfo.biCompression:= 0;
+    FileInfo.biSizeImage  := Unsigned_32(img_buf.all'Length);
+    FileInfo.biXPelsPerMeter:= 0;
+    FileInfo.biYPelsPerMeter:= 0;
+    FileInfo.biClrUsed      := 0;
+    FileInfo.biClrImportant := 0;
 
-      FileInfo  : BITMAPINFOHEADER;
-      FileHeader: BITMAPFILEHEADER;
-    begin
-      FileHeader.bfType := 16#4D42#; -- 'BM'
-      FileHeader.bfOffBits :=
-        BITMAPINFOHEADER'Size / 8 +
-        BITMAPFILEHEADER'Size / 8;
-      FileHeader.bfReserved1:= 0;
-      FileHeader.bfReserved2:= 0;
+    FileHeader.bfSize := FileHeader.bfOffBits + FileInfo.biSizeImage;
 
-      FileInfo.biSize       := BITMAPINFOHEADER'Size / 8;
-      FileInfo.biWidth      := Unsigned_32(GID.Pixel_width(i));
-      FileInfo.biHeight     := Unsigned_32(GID.Pixel_height(i));
-      FileInfo.biPlanes     := 1;
-      FileInfo.biBitCount   := 24;
-      FileInfo.biCompression:= 0;
-      FileInfo.biSizeImage  :=
-        Unsigned_32(FileInfo.biWidth * FileInfo.biHeight) *
-        Unsigned_32(FileInfo.biBitCount / 8);
-      FileInfo.biXPelsPerMeter:= 0;
-      FileInfo.biYPelsPerMeter:= 0;
-      FileInfo.biClrUsed      := 0;
-      FileInfo.biClrImportant := 0;
-
-      FileHeader.bfSize := FileHeader.bfOffBits + FileInfo.biSizeImage;
-
-      Create(f, Out_File, name & ".dib");
-      declare
-        generic
-          type Number is mod <>;
-          s: Stream_Access;
-        procedure Write_Intel_x86_number(n: in Number);
-
-        procedure Write_Intel_x86_number(n: in Number) is
-          m: Number:= n;
-          bytes: constant Integer:= Number'Size/8;
-        begin
-          for i in 1..bytes loop
-            Unsigned_8'Write(s, Unsigned_8(m and 255));
-            m:= m / 256;
-          end loop;
-        end Write_Intel_x86_number;
-        procedure Write_Intel is new Write_Intel_x86_number( Unsigned_16, Stream(f) );
-        procedure Write_Intel is new Write_Intel_x86_number( Unsigned_32, Stream(f) );
-      begin
-        -- ** Endian-safe: ** --
-        Write_Intel(FileHeader.bfType);
-        Write_Intel(FileHeader.bfSize);
-        Write_Intel(FileHeader.bfReserved1);
-        Write_Intel(FileHeader.bfReserved2);
-        Write_Intel(FileHeader.bfOffBits);
-        --
-        Write_Intel(FileInfo.biSize);
-        Write_Intel(FileInfo.biWidth);
-        Write_Intel(FileInfo.biHeight);
-        Write_Intel(FileInfo.biPlanes);
-        Write_Intel(FileInfo.biBitCount);
-        Write_Intel(FileInfo.biCompression);
-        Write_Intel(FileInfo.biSizeImage);
-        Write_Intel(FileInfo.biXPelsPerMeter);
-        Write_Intel(FileInfo.biYPelsPerMeter);
-        Write_Intel(FileInfo.biClrUsed);
-        Write_Intel(FileInfo.biClrImportant);
-        --
-        Byte_Buffer'Write(Stream(f), img_buf.all);
-        Close(f);
-      end;
-    end;
+    Create(f, Out_File, name & ".dib");
+    -- BMP Header, endian-safe:
+    Write_Intel(FileHeader.bfType);
+    Write_Intel(FileHeader.bfSize);
+    Write_Intel(FileHeader.bfReserved1);
+    Write_Intel(FileHeader.bfReserved2);
+    Write_Intel(FileHeader.bfOffBits);
+    --
+    Write_Intel(FileInfo.biSize);
+    Write_Intel(FileInfo.biWidth);
+    Write_Intel(FileInfo.biHeight);
+    Write_Intel(FileInfo.biPlanes);
+    Write_Intel(FileInfo.biBitCount);
+    Write_Intel(FileInfo.biCompression);
+    Write_Intel(FileInfo.biSizeImage);
+    Write_Intel(FileInfo.biXPelsPerMeter);
+    Write_Intel(FileInfo.biYPelsPerMeter);
+    Write_Intel(FileInfo.biClrUsed);
+    Write_Intel(FileInfo.biClrImportant);
+    -- BMP raw BGR image:
+    Byte_Buffer'Write(Stream(f), img_buf.all);
+    Close(f);
   end Process;
 
   test_only: Boolean:= False;

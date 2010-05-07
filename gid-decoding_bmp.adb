@@ -3,7 +3,7 @@ with GID.Buffering;                     use GID.Buffering;
 package body GID.Decoding_BMP is
 
   procedure Load (image: in Image_descriptor) is
-    b01, b: U8:= 0;
+    b01, b, br, bg, bb: U8:= 0;
     x, x_max, y: Natural;
     --
     procedure Fill_palettized is
@@ -77,6 +77,31 @@ package body GID.Decoding_BMP is
           while x <= x_max loop
             Get_Byte(stream_buf, b);
             Fill_palettized;
+            x:= x + 1;
+          end loop;
+        when 24 => -- RGB, 256 colour per primary colour
+          while x <= x_max loop
+            Get_Byte(stream_buf, bb);
+            Get_Byte(stream_buf, bg);
+            Get_Byte(stream_buf, br);
+            case primary_color_coding_2 is
+              when bits_8_mode =>
+                Put_Pixel_2(
+                  x,y,
+                  Integer(br),
+                  Integer(bg),
+                  Integer(bb),
+                  Opacity_range_2'Last
+                );
+              when bits_16_mode =>
+                Put_Pixel_2(
+                  x,y,
+                  256 * Integer(br),
+                  256 * Integer(bg),
+                  256 * Integer(bb),
+                  Opacity_range_2'Last
+                );
+            end case;
             x:= x + 1;
           end loop;
         when others =>

@@ -5,16 +5,16 @@
 WINDOWS_TARGET
 
 
+_size
+'size
+=
+pack(
+biSizeImage
+bfSize
 pair
 .bmp
 u8
 / 4
-palett
-color_palet
-null; -- !!
-Color_Palette
-GIFDescriptor
-Descriptor
 -- Begin compiler switches
 RELEASE <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

@@ -89,7 +89,8 @@ package GID is
     --   background pixel
     --
     -- !! Put_Pixel might be split into Set_XY and a Put_Pixel without x,y
-    --    for performance reasons
+    --    for performance reasons (quick index incrementation for successive
+    --    Put_Pixel's without Set_XY inbetween).
     --
     with procedure Put_Pixel (
       x, y             : Natural;
@@ -108,7 +109,10 @@ package GID is
   -- Some informations about the image --
   ---------------------------------------
 
-  type Image_format_type is (BMP, FITS, GIF, JPEG, PNG, TGA, TIFF);
+  type Image_format_type is
+    ( -- Bitmap formats
+      BMP, FITS, GIF, JPEG, PNG, TGA, TIFF
+    );
 
   function Image_format (image: Image_descriptor) return Image_format_type;
 

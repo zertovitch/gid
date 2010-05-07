@@ -142,9 +142,12 @@ package body GID.Headers is
     --   Pos= 29, Number of bits per pixel
     --   Value 8, denoting 256 color, is expected
     Read_Intel(w, image.stream);
-    if w/=8 and w/=4 and w/=1 then
-       raise unsupported_image_subformat;
-    end if;
+    case w is
+      when 1 | 4 | 8 | 24 =>
+        null;
+      when others =>
+        raise unsupported_image_subformat;
+    end case;
     image.bits_per_pixel:= Integer(w);
     --   Pos= 31, read four bytes
     Read_Intel(n, image.stream);          -- Type of compression used
