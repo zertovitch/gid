@@ -8,7 +8,7 @@ project GID is
    for Source_Dirs use (".");
    for Exec_Dir use ".";
    type Build_Mode_Type is
-      ("Debug", "Fast");
+      ("Debug", "Fast", "Profiling");
    Build_Mode : Build_Mode_Type := external ("Build_Mode", "Debug");
 
    case Build_Mode is
@@ -18,6 +18,10 @@ project GID is
 
       when "Fast" =>
          for Object_Dir use "obj_fast";
+         
+      when "Profiling" =>
+         for Object_Dir use "obj_profiling";
+
    end case;
 
    package Compiler is
@@ -29,6 +33,10 @@ project GID is
 
          when "Fast" =>
             for Default_Switches ("ada") use ("-gnatpn", "-O2", "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers");
+
+         when "Profiling" =>
+            for Default_Switches ("ada") use ("-O2", "-gnatp",  "-funroll-loops", "-fpeel-loops", "-funswitch-loops", "-ftracer", "-fweb", "-frename-registers", "-g", "-pg");
+
       end case;
    end Compiler;
 
@@ -40,6 +48,10 @@ project GID is
 
          when "Fast" =>
             for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections");
+
+         when "Profiling" =>
+            for Default_Switches ("ada") use ("-pg");
+            
       end case;
    end Linker;
 
