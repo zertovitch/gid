@@ -5,6 +5,9 @@
 WINDOWS_TARGET
 
 
+mapping_possible
+workaround_possible
+SE_Buffer
 _size
 'size
 =
@@ -12,9 +15,6 @@ pack(
 biSizeImage
 bfSize
 pair
-.bmp
-u8
-/ 4
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

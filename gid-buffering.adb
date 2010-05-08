@@ -2,14 +2,13 @@ with Ada.IO_Exceptions;
 
 package body GID.Buffering is
 
-  -- Workaround for the severe xxx'Read xxx'Write performance
-  -- problems in the GNAT and ObjectAda compilers (as in 2009)
-  -- This is possible if and only if Byte = Stream_Element and
-  -- arrays types are both packed the same way.
-  --
+  -- Compile-time test to check if a Byte_Array is equivalemnt to a
+  -- Ada.Streams.Stream_Element_Array
+
   subtype Size_test_a is Byte_Array(1..19);
   subtype Size_test_b is Ada.Streams.Stream_Element_Array(1..19);
-  workaround_possible: constant Boolean:=
+  --
+  is_mapping_possible: constant Boolean:=
     Size_test_a'Size = Size_test_b'Size and then
     Size_test_a'Alignment = Size_test_b'Alignment;
   --
@@ -29,19 +28,19 @@ package body GID.Buffering is
       use Ada.Streams;
       Last_Read: Stream_Element_Offset;
     begin
-      if workaround_possible then
+      if is_mapping_possible then
         declare
-          SE_Buffer: Stream_Element_Array (1 .. buffer'Length);
-          -- direct mapping: buffer = SE_Buffer
-          for SE_Buffer'Address use buffer'Address;
-          pragma Import (Ada, SE_Buffer);
+          SE_Buffer_mapped: Stream_Element_Array (1 .. buffer'Length);
+          -- direct mapping: buffer = SE_Buffer_mapped
+          for SE_Buffer_mapped'Address use buffer'Address;
+          pragma Import (Ada, SE_Buffer_mapped);
         begin
-          Read(b.stm_a.all, SE_Buffer, Last_Read);
+          Read(b.stm_a.all, SE_Buffer_mapped, Last_Read);
         end;
       else
         declare
           SE_Buffer: Stream_Element_Array (1 .. buffer'Length);
-          -- need to copy array
+          -- need to copy array (slightly slower)
         begin
           Read(b.stm_a.all, SE_Buffer, Last_Read);
           for i in buffer'Range loop
