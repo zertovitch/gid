@@ -12,7 +12,6 @@ package body GID.Decoding_BMP is
       case primary_color_coding_2 is
         when bits_8_mode =>
           Put_Pixel_2(
-            x,y,
             image.palette(Integer(b)).Red,
             image.palette(Integer(b)).Green,
             image.palette(Integer(b)).Blue,
@@ -20,7 +19,6 @@ package body GID.Decoding_BMP is
           );
         when bits_16_mode =>
           Put_Pixel_2(
-            x,y,
             256 * image.palette(Integer(b)).Red,
             256 * image.palette(Integer(b)).Green,
             256 * image.palette(Integer(b)).Blue,
@@ -46,6 +44,7 @@ package body GID.Decoding_BMP is
       case image.bits_per_pixel is
         when 1 => -- B/W
           bit:= 0;
+          Set_X_Y_2(x,y);
           while x <= x_max loop
             if bit=0 then
               Get_Byte(stream_buf, b01);
@@ -62,6 +61,7 @@ package body GID.Decoding_BMP is
           end loop;
         when 4 => -- 16 colour image
           pair:= True;
+          Set_X_Y_2(x,y);
           while x <= x_max loop
             if pair then
               Get_Byte(stream_buf, b01);
@@ -74,12 +74,14 @@ package body GID.Decoding_BMP is
             x:= x + 1;
           end loop;
         when 8 => -- 256 colour image
+          Set_X_Y_2(x,y);
           while x <= x_max loop
             Get_Byte(stream_buf, b);
             Fill_palettized;
             x:= x + 1;
           end loop;
         when 24 => -- RGB, 256 colour per primary colour
+          Set_X_Y_2(x,y);
           while x <= x_max loop
             Get_Byte(stream_buf, bb);
             Get_Byte(stream_buf, bg);
@@ -87,7 +89,6 @@ package body GID.Decoding_BMP is
             case primary_color_coding_2 is
               when bits_8_mode =>
                 Put_Pixel_2(
-                  x,y,
                   Integer(br),
                   Integer(bg),
                   Integer(bb),
@@ -95,7 +96,6 @@ package body GID.Decoding_BMP is
                 );
               when bits_16_mode =>
                 Put_Pixel_2(
-                  x,y,
                   256 * Integer(br),
                   256 * Integer(bg),
                   256 * Integer(bb),

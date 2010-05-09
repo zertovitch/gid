@@ -59,18 +59,21 @@ procedure To_BMP is
     -- (in bytes)
     type Opacity_range is range 0..255;
     --
+    idx: Natural;
+    procedure Set_X_Y (x, y: Natural) is
+    begin
+      idx:= 3 * x + padded_line_size * y;
+    end Set_X_Y;
+    --
     -- White background version
     --
     procedure Put_Pixel_with_white_bkg (
-      x, y             : Natural;
       red, green, blue : Natural;
       alpha            : Opacity_range
     )
     is
     pragma Inline(Put_Pixel_with_white_bkg);
-      idx: Natural;
     begin
-      idx:= 3 * x + padded_line_size * y;
       if alpha = Opacity_range'Last then
         buffer(idx)  := Unsigned_8(blue);
         buffer(idx+1):= Unsigned_8(green);
@@ -81,6 +84,8 @@ procedure To_BMP is
         buffer(idx+1):= Unsigned_8(green);
         buffer(idx+2):= Unsigned_8(red);
       end if;
+      idx:= idx + 3;
+      -- ^ GID requires us to look to next pixel of the right for next time.
     end Put_Pixel_with_white_bkg;
     -- Here, the exciting thing: the instanciation of
     -- GID.Load_image_contents. We load here the image
@@ -91,6 +96,7 @@ procedure To_BMP is
       new GID.Load_image_contents(
         GID.bits_8_mode,
         Opacity_range,
+        Set_X_Y,
         Put_Pixel_with_white_bkg
       );
     next_frame_dummy: Ada.Calendar.Day_Duration;

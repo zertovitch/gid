@@ -88,16 +88,18 @@ package GID is
     -- Opacity_range'Last : fully opaque     : pixel replaces
     --   background pixel
     --
-    -- !! Put_Pixel might be split into Set_XY and a Put_Pixel without x,y
-    --    for performance reasons (quick index incrementation for successive
-    --    Put_Pixel's without Set_XY inbetween).
-    --
+    with procedure Set_X_Y (x, y: Natural);
+    pragma Inline(Set_X_Y);
+    -- After Set_X_Y, next pixel is meant to be displayed at position (x,y)
     with procedure Put_Pixel (
-      x, y             : Natural;
       red, green, blue : Primary_color_range;
       alpha            : Opacity_range
     );
     pragma Inline(Put_Pixel);
+    -- When Put_Pixel is called twice without a Set_X_Y inbetween,
+    -- the pixel must be displayed on the next X position after the last one.
+    -- [Rationale: if the image lands into an array, the address calculation
+    --  can be made only at the beginning of each line]
   procedure Load_image_contents (
     image     : in     Image_descriptor;
     next_frame:    out Ada.Calendar.Day_Duration
