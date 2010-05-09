@@ -15,14 +15,14 @@ package body GID.Decoding_BMP is
             image.palette(Integer(b)).Red,
             image.palette(Integer(b)).Green,
             image.palette(Integer(b)).Blue,
-            Opacity_range_2'Last
+            255
           );
         when bits_16_mode =>
           Put_Pixel_2(
             256 * image.palette(Integer(b)).Red,
             256 * image.palette(Integer(b)).Green,
             256 * image.palette(Integer(b)).Blue,
-            Opacity_range_2'Last
+            65_535
           );
       end case;
     end Fill_palettized;
@@ -92,14 +92,14 @@ package body GID.Decoding_BMP is
                   Integer(br),
                   Integer(bg),
                   Integer(bb),
-                  Opacity_range_2'Last
+                  255
                 );
               when bits_16_mode =>
                 Put_Pixel_2(
                   256 * Integer(br),
                   256 * Integer(bg),
                   256 * Integer(bb),
-                  Opacity_range_2'Last
+                  65_535
                 );
             end case;
             x:= x + 1;

@@ -57,8 +57,6 @@ procedure To_BMP is
     padded_line_size: constant Positive:=
       4 * Integer(Float'Ceiling(Float(image_width) * 3.0 / 4.0));
     -- (in bytes)
-    type Opacity_range is range 0..255;
-    --
     idx: Natural;
     procedure Set_X_Y (x, y: Natural) is
     begin
@@ -68,13 +66,13 @@ procedure To_BMP is
     -- White background version
     --
     procedure Put_Pixel_with_white_bkg (
-      red, green, blue : Natural;
-      alpha            : Opacity_range
+      red, green, blue : GID.Primary_color_range;
+      alpha            : GID.Primary_color_range
     )
     is
     pragma Inline(Put_Pixel_with_white_bkg);
     begin
-      if alpha = Opacity_range'Last then
+      if alpha = 255 then
         buffer(idx)  := Unsigned_8(blue);
         buffer(idx+1):= Unsigned_8(green);
         buffer(idx+2):= Unsigned_8(red);
@@ -95,7 +93,6 @@ procedure To_BMP is
     procedure BMP24_Load_with_white_bkg is
       new GID.Load_image_contents(
         GID.bits_8_mode,
-        Opacity_range,
         Set_X_Y,
         Put_Pixel_with_white_bkg
       );

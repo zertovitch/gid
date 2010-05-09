@@ -73,6 +73,8 @@ package GID is
 
   type Primary_color_mode is (bits_8_mode, bits_16_mode);
   -- coding of primary colors (red, green or blue)
+  -- and of opacity (also known as alpha channel)
+  --
   -- 8-bit is usual: TrueColor, PC graphics, etc.;
   -- it is 16-bit in some high-end apps/devices/formats
 
@@ -83,27 +85,23 @@ package GID is
   generic
     primary_color_coding: Primary_color_mode;
     --
-    type Opacity_range is range <>;
-    -- Opacity_range'First: fully transparent: pixel is invisible
-    -- Opacity_range'Last : fully opaque     : pixel replaces
-    --   background pixel
-    --
     with procedure Set_X_Y (x, y: Natural);
     pragma Inline(Set_X_Y);
     -- After Set_X_Y, next pixel is meant to be displayed at position (x,y)
     with procedure Put_Pixel (
       red, green, blue : Primary_color_range;
-      alpha            : Opacity_range
+      alpha            : Primary_color_range
     );
     pragma Inline(Put_Pixel);
     -- When Put_Pixel is called twice without a Set_X_Y inbetween,
     -- the pixel must be displayed on the next X position after the last one.
     -- [Rationale: if the image lands into an array, the address calculation
     --  can be made only at the beginning of each line]
+    --
   procedure Load_image_contents (
     image     : in     Image_descriptor;
     next_frame:    out Ada.Calendar.Day_Duration
-      -- real time lapse foreseen between the first image
+      -- ^ real time lapse foreseen between the first image
       -- and the image right after this one; 0.0 if no next frame
   );
 
@@ -127,8 +125,8 @@ package GID is
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
 
-  version   : constant String:= "0.1";
-  reference : constant String:= "xx-yyy-2010";
+  version   : constant String:= "00.2";
+  reference : constant String:= "09-May-2010";
   web: constant String:= "http://sf.net/projects/gen-img-dec/";
   -- hopefully the latest version is at that URL...
 
