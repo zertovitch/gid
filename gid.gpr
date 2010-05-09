@@ -5,7 +5,7 @@
 project GID is
 
    for Main use ("to_bmp.adb");
-   for Source_Dirs use (".");
+   for Source_Dirs use (".", "test");
    for Exec_Dir use ".";
    type Build_Mode_Type is
       ("Debug", "Fast", "Profiling");

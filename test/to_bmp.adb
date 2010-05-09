@@ -53,6 +53,7 @@ procedure To_BMP is
   )
   is
     image_width: constant Positive:= GID.Pixel_Width(image);
+    -- y_cache: array(0..GID.Pixel_Height(image)-1) of Integer;
     padded_line_size: constant Positive:=
       4 * Integer(Float'Ceiling(Float(image_width) * 3.0 / 4.0));
     -- (in bytes)
@@ -96,6 +97,9 @@ procedure To_BMP is
   begin
     Dispose(buffer);
     buffer:= new Byte_Buffer(0..padded_line_size * GID.Pixel_height(image) - 1);
+    --  for y in y_cache'Range loop
+    --    y_cache(y):= padded_line_size * y;
+    --  end loop;
 
     if background_image_name = Null_Unbounded_String then
       BMP24_Load_with_white_bkg(image, next_frame_dummy);
