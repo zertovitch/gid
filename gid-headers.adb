@@ -21,12 +21,17 @@ package body GID.Headers is
   is
     use Bounded_255;
     c, d: Character;
-    signature: String(1..5); -- without the initial
+    FITS_challenge: String(1..5); -- without the initial
+    GIF_challenge : String(1..5); -- without the initial
+    PNG_challenge : String(1..7); -- without the initial
+    PNG_signature: constant String:=
+      "PNG" & ASCII.CR & ASCII.LF & ASCII.SUB & ASCII.LF;
     procedure Dispose is
       new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
   begin
     Dispose(image.palette);
     Character'Read(image.stream, c);
+    image.first_byte:= Character'Pos(c);
     case c is
       when 'B' =>
         Character'Read(image.stream, c);
@@ -36,16 +41,16 @@ package body GID.Headers is
           return;
         end if;
       when 'S' =>
-        String'Read(image.stream, signature);
-        if signature = "IMPLE"  then
+        String'Read(image.stream, FITS_challenge);
+        if FITS_challenge = "IMPLE"  then
           image.detailed_format:= To_Bounded_String("FITS");
           image.format:= FITS;
           return;
         end if;
       when 'G' =>
-        String'Read(image.stream, signature);
-        if signature = "IF87a" or signature = "IF89a" then
-          image.detailed_format:= To_Bounded_String('G' & signature & ", ");
+        String'Read(image.stream, GIF_challenge);
+        if GIF_challenge = "IF87a" or GIF_challenge = "IF89a" then
+          image.detailed_format:= To_Bounded_String('G' & GIF_challenge & ", ");
           image.format:= GIF;
           return;
         end if;
@@ -68,15 +73,17 @@ package body GID.Headers is
           return;
         end if;
       when Character'Val(16#89#) =>
-        String'Read(image.stream, signature(1..3));
-        if signature(1..3) = "PNG" then
+        String'Read(image.stream, PNG_challenge);
+        if PNG_challenge = PNG_signature  then
           image.detailed_format:= To_Bounded_String("PNG");
           image.format:= PNG;
           return;
         end if;
       when others =>
         if try_tga then
-          null;
+          image.detailed_format:= To_Bounded_String("TGA");
+          image.format:= TGA;
+          return;
         else
           raise unknown_image_format;
         end if;
@@ -151,6 +158,8 @@ package body GID.Headers is
     image.bits_per_pixel:= Integer(w);
     --   Pos= 31, read four bytes
     Read_Intel(n, image.stream);          -- Type of compression used
+    -- BI_RLE8 = 1
+    -- BI_RLE4 = 2
     if n /= 0 then
       raise unsupported_image_subformat;
     end if;
@@ -211,8 +220,53 @@ package body GID.Headers is
   end Load_PNG_header;
 
   procedure Load_TGA_header (image: in out Image_descriptor) is
+    TGA_type: Byte_Array(0..3);
+    info    : Byte_Array(0..5);
+    dummy   : Byte_Array(1..8);
+    image_type: Integer;
   begin
-    raise known_but_unsupported_image_format; -- !!
+    -- read in colormap info and image type
+    TGA_type(0):= image.first_byte;
+    Byte_Array'Read( image.stream, TGA_type(1..3) );
+    -- seek past the header and useless info
+    Byte_Array'Read( image.stream, dummy );
+    Byte_Array'Read( image.stream, info );
+
+    if TGA_type(1) /= U8'Val(0) then
+      raise unsupported_image_subformat;
+        -- palette;
+    end if;
+
+    -- Image type:
+    --      1 = 8-bit palette style
+    --      2 = Direct [A]RGB image
+    --      3 = grayscale
+    --      9 = RLE version of Type 1
+    --     10 = RLE version of Type 2
+    --     11 = RLE version of Type 3
+
+    image_type:= U8'Pos(TGA_type(2));
+    image.RLE_encoded:= image_Type >= 9;
+    if image.RLE_encoded then
+      image_type:= image_type - 8;
+    end if;
+    if image_type /= 2 and image_type /= 3 then
+      raise unsupported_image_subformat;
+        -- "TGA type =" & Integer'Image(image_type);
+    end if;
+
+    image.width  := U8'Pos(info(0)) + U8'Pos(info(1)) * 256;
+    image.height := U8'Pos(info(2)) + U8'Pos(info(3)) * 256;
+    image.bits_per_pixel := U8'Pos(info(4));
+
+    -- make sure we are loading a supported TGA_type
+    case image.bits_per_pixel is
+      when 32 | 24 | 8 =>
+        null;
+      when others =>
+        raise unsupported_image_subformat;
+        -- bpp
+    end case;
   end Load_TGA_header;
 
   procedure Load_TIFF_header (image: in out Image_descriptor) is

@@ -26,7 +26,8 @@
 -- http://www.opensource.org/licenses/mit-license.php
 
 with GID.Headers,
-     GID.Decoding_BMP;
+     GID.Decoding_BMP,
+     GID.Decoding_TGA;
 
 package body GID is
 
@@ -94,12 +95,20 @@ package body GID is
        Set_X_Y,
        Put_Pixel
      );
+    procedure TGA_Load is
+     new GID.Decoding_TGA.Load(
+       Primary_color_coding,
+       Set_X_Y,
+       Put_Pixel
+     );
   begin
     next_frame:= 0.0;
     -- will be changed in case of animation and current frame < last frame
     case image.format is
       when BMP =>
         BMP_Load(image);
+      when TGA =>
+        TGA_Load(image);
       when others =>
         raise known_but_unsupported_image_format; -- !!
     end case;
@@ -123,5 +132,10 @@ package body GID is
   begin
     return image.bits_per_pixel;
   end Bits_per_pixel;
+
+  function RLE_encoded (image: Image_descriptor) return Boolean is
+  begin
+    return image.RLE_encoded;
+  end RLE_encoded;
 
 end GID;

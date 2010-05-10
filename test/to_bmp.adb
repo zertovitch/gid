@@ -192,6 +192,9 @@ procedure To_BMP is
         Integer'Image(GID.Bits_per_pixel(i)) & " bits," &
         Integer'Image(2**GID.Bits_per_pixel(i)) & " colors"
       );
+      Put_Line(Standard_Error,
+        "  RLE encoding: " & Boolean'Image(GID.RLE_encoded(i))
+      );
       --
       if as_background then
         Load_raw_image(i, bkg_buf);

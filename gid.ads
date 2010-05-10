@@ -105,9 +105,9 @@ package GID is
       -- and the image right after this one; 0.0 if no next frame
   );
 
-  ---------------------------------------
-  -- Some informations about the image --
-  ---------------------------------------
+  -------------------------------------------------------------------
+  -- Some informations about the image, not necessary for decoding --
+  -------------------------------------------------------------------
 
   type Image_format_type is
     ( -- Bitmap formats
@@ -120,6 +120,7 @@ package GID is
   -- example: "GIF89a, interlaced"
 
   function Bits_per_pixel (image: Image_descriptor) return Positive;
+  function RLE_encoded (image: Image_descriptor) return Boolean;
 
   --------------------------------------------------------------
   -- Information about this package - e.g. for an "about" box --
@@ -154,8 +155,12 @@ private
     detailed_format    : Bounded_255.Bounded_String; -- for humans only!
     width, height      : Positive;
     bits_per_pixel     : Positive;
+    RLE_encoded        : Boolean:= False;
     stream             : Stream_Access;
     palette            : p_Color_table:= null;
+    first_byte         : U8;
   end record;
+
+  type Byte_Array is array(Integer range <>) of U8;
 
 end GID;

@@ -12,8 +12,6 @@ private package GID.Buffering is
 
 private
 
-  type Byte_Array is array(Integer range <>) of U8;
-
   type Input_buffer is record
     data       : Byte_Array(1..1024);
     stm_a      : Stream_Access;

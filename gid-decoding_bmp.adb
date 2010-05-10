@@ -89,16 +89,16 @@ package body GID.Decoding_BMP is
             case primary_color_coding_2 is
               when bits_8_mode =>
                 Put_Pixel_2(
-                  Integer(br),
-                  Integer(bg),
-                  Integer(bb),
+                  Primary_color_range(br),
+                  Primary_color_range(bg),
+                  Primary_color_range(bb),
                   255
                 );
               when bits_16_mode =>
                 Put_Pixel_2(
-                  256 * Integer(br),
-                  256 * Integer(bg),
-                  256 * Integer(bb),
+                  256 * Primary_color_range(br),
+                  256 * Primary_color_range(bg),
+                  256 * Primary_color_range(bb),
                   65_535
                 );
             end case;

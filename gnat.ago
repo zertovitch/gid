@@ -5,16 +5,16 @@
 WINDOWS_TARGET
 
 
+unkno
+Get_RGBA
+tga_ty
+atta
+the_Image
+stream_buf
+GL.UByte
+signature
 mapping_possible
 workaround_possible
-SE_Buffer
-_size
-'size
-=
-pack(
-biSizeImage
-bfSize
-pair
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?
@@ -29,7 +29,7 @@ debug trace_back false
 debug all_validity_checks false
 debug strip_all_symbols false
 debug profiling false
-debug verbose_details false
+debug verbose_details true
 debug all_warnings true
 debug build_in_place true
 release o2 true
