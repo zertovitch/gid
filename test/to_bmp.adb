@@ -40,16 +40,16 @@ procedure To_BMP is
 
   use Interfaces;
 
-  type Byte_Buffer is array(Integer range <>) of Unsigned_8;
-  type p_Byte_Buffer is access Byte_Buffer;
-  procedure Dispose is new Ada.Unchecked_Deallocation(Byte_Buffer, p_Byte_Buffer);
+  type Byte_Array is array(Integer range <>) of Unsigned_8;
+  type p_Byte_Array is access Byte_Array;
+  procedure Dispose is new Ada.Unchecked_Deallocation(Byte_Array, p_Byte_Array);
 
-  img_buf, bkg_buf: p_Byte_Buffer:= null;
+  img_buf, bkg_buf: p_Byte_Array:= null;
 
   -- Load image into a 24-bit truecolor raw bitmap
   procedure Load_raw_image(
     image : in     GID.Image_descriptor;
-    buffer: in out p_Byte_Buffer
+    buffer: in out p_Byte_Array
   )
   is
     image_width: constant Positive:= GID.Pixel_Width(image);
@@ -99,7 +99,7 @@ procedure To_BMP is
     next_frame_dummy: Ada.Calendar.Day_Duration;
   begin
     Dispose(buffer);
-    buffer:= new Byte_Buffer(0..padded_line_size * GID.Pixel_height(image) - 1);
+    buffer:= new Byte_Array(0..padded_line_size * GID.Pixel_height(image) - 1);
     --  for y in y_cache'Range loop
     --    y_cache(y):= padded_line_size * y;
     --  end loop;
@@ -252,7 +252,32 @@ procedure To_BMP is
     Write_Intel(FileInfo.biClrUsed);
     Write_Intel(FileInfo.biClrImportant);
     -- BMP raw BGR image:
-    Byte_Buffer'Write(Stream(f), img_buf.all);
+    declare
+      -- Workaround for the severe xxx'Read xxx'Write performance
+      -- problems in the GNAT and ObjectAda compilers (as in 2009)
+      -- This is possible if and only if Byte = Stream_Element and
+      -- arrays types are both packed the same way.
+      --
+      subtype Size_test_a is Byte_Array(1..19);
+      subtype Size_test_b is Ada.Streams.Stream_Element_Array(1..19);
+      workaround_possible: constant Boolean:=
+        Size_test_a'Size = Size_test_b'Size and then
+        Size_test_a'Alignment = Size_test_b'Alignment;
+      --
+    begin
+      if workaround_possible then
+        declare
+          use Ada.Streams;
+          SE_Buffer   : Stream_Element_Array (0..Stream_Element_Offset(img_buf'Length-1));
+          for SE_Buffer'Address use img_buf.all'Address;
+          pragma Import (Ada, SE_Buffer);
+        begin
+          Ada.Streams.Write(Stream(f).all, SE_Buffer(0..Stream_Element_Offset(img_buf'Length-1)));
+        end;
+      else
+        Byte_Array'Write(Stream(f), img_buf.all); -- the workaround is about this line...
+      end if;
+    end;
     Close(f);
   end Process;
 
