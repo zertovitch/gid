@@ -9,21 +9,23 @@ package body GID.Decoding_BMP is
     procedure Fill_palettized is
       pragma Inline(Fill_palettized);
     begin
-      case primary_color_coding_2 is
-        when bits_8_mode =>
-          Put_Pixel_2(
-            image.palette(Integer(b)).Red,
-            image.palette(Integer(b)).Green,
-            image.palette(Integer(b)).Blue,
+      case Primary_color_range'Modulus is
+        when 256 =>
+          Put_Pixel(
+            Primary_color_range(image.palette(Integer(b)).Red),
+            Primary_color_range(image.palette(Integer(b)).Green),
+            Primary_color_range(image.palette(Integer(b)).Blue),
             255
           );
-        when bits_16_mode =>
-          Put_Pixel_2(
-            256 * image.palette(Integer(b)).Red,
-            256 * image.palette(Integer(b)).Green,
-            256 * image.palette(Integer(b)).Blue,
+        when 65_536 =>
+          Put_Pixel(
+            256 * Primary_color_range(image.palette(Integer(b)).Red),
+            256 * Primary_color_range(image.palette(Integer(b)).Green),
+            256 * Primary_color_range(image.palette(Integer(b)).Blue),
             65_535
           );
+        when others =>
+          raise invalid_primary_color_range;
       end case;
     end Fill_palettized;
     --
@@ -44,7 +46,7 @@ package body GID.Decoding_BMP is
       case image.bits_per_pixel is
         when 1 => -- B/W
           bit:= 0;
-          Set_X_Y_2(x,y);
+          Set_X_Y(x,y);
           while x <= x_max loop
             if bit=0 then
               Get_Byte(stream_buf, b01);
@@ -61,7 +63,7 @@ package body GID.Decoding_BMP is
           end loop;
         when 4 => -- 16 colour image
           pair:= True;
-          Set_X_Y_2(x,y);
+          Set_X_Y(x,y);
           while x <= x_max loop
             if pair then
               Get_Byte(stream_buf, b01);
@@ -74,33 +76,35 @@ package body GID.Decoding_BMP is
             x:= x + 1;
           end loop;
         when 8 => -- 256 colour image
-          Set_X_Y_2(x,y);
+          Set_X_Y(x,y);
           while x <= x_max loop
             Get_Byte(stream_buf, b);
             Fill_palettized;
             x:= x + 1;
           end loop;
         when 24 => -- RGB, 256 colour per primary colour
-          Set_X_Y_2(x,y);
+          Set_X_Y(x,y);
           while x <= x_max loop
             Get_Byte(stream_buf, bb);
             Get_Byte(stream_buf, bg);
             Get_Byte(stream_buf, br);
-            case primary_color_coding_2 is
-              when bits_8_mode =>
-                Put_Pixel_2(
+            case Primary_color_range'Modulus is
+              when 256 =>
+                Put_Pixel(
                   Primary_color_range(br),
                   Primary_color_range(bg),
                   Primary_color_range(bb),
                   255
                 );
-              when bits_16_mode =>
-                Put_Pixel_2(
+              when 65_536 =>
+                Put_Pixel(
                   256 * Primary_color_range(br),
                   256 * Primary_color_range(bg),
                   256 * Primary_color_range(bb),
                   65_535
                 );
+              when others =>
+                raise invalid_primary_color_range;
             end case;
             x:= x + 1;
           end loop;
@@ -111,6 +115,7 @@ package body GID.Decoding_BMP is
         Get_Byte(stream_buf, b);
       end loop;
       y:= y + 1;
+      Feedback((y*100)/image.height);
     end loop;
   end Load;
 

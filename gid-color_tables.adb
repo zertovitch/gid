@@ -14,21 +14,21 @@ package body GID.Color_tables is
           when BMP =>
             -- order is BGRx
             U8'Read(image.stream, c);
-            Palette(i).Blue:= Primary_color_range(c);
+            Palette(i).Blue:= c;
             U8'Read(image.stream, c);
-            Palette(i).Green:= Primary_color_range(c);
+            Palette(i).Green:= c;
             U8'Read(image.stream, c);
-            Palette(i).Red:= Primary_color_range(c);
+            Palette(i).Red:= c;
             U8'Read(image.stream, c);
             -- discarded
           when GIF =>
             -- order is RGB
             U8'Read(image.stream, c);
-            Palette(i).Red:= Primary_color_range(c);
+            Palette(i).Red:= c;
             U8'Read(image.stream, c);
-            Palette(i).Green:= Primary_color_range(c);
+            Palette(i).Green:= c;
             U8'Read(image.stream, c);
-            Palette(i).Blue:= Primary_color_range(c);
+            Palette(i).Blue:= c;
           when others =>
             null; -- !!
         end case;

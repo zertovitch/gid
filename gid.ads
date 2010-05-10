@@ -57,7 +57,8 @@ package GID is
 
   unknown_image_format,
   known_but_unsupported_image_format,
-  unsupported_image_subformat: exception;
+  unsupported_image_subformat,
+  invalid_primary_color_range: exception;
 
   -----------------------------------------------------------------
   -- 2) If needed, use dimensions to reserve an in-memory bitmap --
@@ -71,33 +72,28 @@ package GID is
   --    call Load_image_contents until next_frame is 0.0            --
   --------------------------------------------------------------------
 
-  type Primary_color_mode is (bits_8_mode, bits_16_mode);
-  -- coding of primary colors (red, green or blue)
-  -- and of opacity (also known as alpha channel)
-  --
-  -- 8-bit is usual: TrueColor, PC graphics, etc.;
-  -- it is 16-bit in some high-end apps/devices/formats
-
-  subtype Primary_color_range is Natural;
-  -- We assume that Natural is large enough to contain
-  -- all possible Primary_color_range in the generic parts of GID
-
   generic
-    primary_color_coding: Primary_color_mode;
+    type Primary_color_range is mod <>;
+    -- Coding of primary colors (red, green or blue)
+    -- and of opacity (also known as alpha channel).
+    -- Currently, only 8-bit and 16-bit is admitted.
+    -- 8-bit is usual: TrueColor, PC graphics, etc.;
+    -- 16-bit is seen in some high-end apps/devices/formats.
     --
     with procedure Set_X_Y (x, y: Natural);
-    pragma Inline(Set_X_Y);
+      pragma Inline(Set_X_Y);
     -- After Set_X_Y, next pixel is meant to be displayed at position (x,y)
     with procedure Put_Pixel (
       red, green, blue : Primary_color_range;
       alpha            : Primary_color_range
     );
-    pragma Inline(Put_Pixel);
+      pragma Inline(Put_Pixel);
     -- When Put_Pixel is called twice without a Set_X_Y inbetween,
     -- the pixel must be displayed on the next X position after the last one.
     -- [Rationale: if the image lands into an array, the address calculation
     --  can be made only at the beginning of each line]
     --
+    with procedure Feedback (percents: Natural);
   procedure Load_image_contents (
     image     : in     Image_descriptor;
     next_frame:    out Ada.Calendar.Day_Duration
@@ -143,7 +139,7 @@ private
   type Stream_Access is access all Ada.Streams.Root_Stream_Type'Class;
 
   type RGB_Color is record
-    red, green, blue : Primary_color_range;
+    red, green, blue : U8;
   end record;
 
   type Color_table is array (Integer range <>) of RGB_Color;

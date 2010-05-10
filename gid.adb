@@ -91,15 +91,17 @@ package body GID is
   is
     procedure BMP_Load is
      new GID.Decoding_BMP.Load(
-       Primary_color_coding,
+       Primary_color_range,
        Set_X_Y,
-       Put_Pixel
+       Put_Pixel,
+       Feedback
      );
     procedure TGA_Load is
      new GID.Decoding_TGA.Load(
-       Primary_color_coding,
+       Primary_color_range,
        Set_X_Y,
-       Put_Pixel
+       Put_Pixel,
+       Feedback
      );
   begin
     next_frame:= 0.0;

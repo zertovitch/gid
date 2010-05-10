@@ -74,21 +74,23 @@ package body GID.Decoding_TGA is
     procedure Output_Pixel is
     pragma Inline(Output_Pixel);
     begin
-      case primary_color_coding_2 is
-        when bits_8_mode =>
-          Put_Pixel_2(
+      case Primary_color_range'Modulus is
+        when 256 =>
+          Put_Pixel(
             Primary_color_range(pix.br),
             Primary_color_range(pix.bg),
             Primary_color_range(pix.bb),
             Primary_color_range(pix.ba)
           );
-        when bits_16_mode =>
-          Put_Pixel_2(
+        when 65_536 =>
+          Put_Pixel(
             256 * Primary_color_range(pix.br),
             256 * Primary_color_range(pix.bg),
             256 * Primary_color_range(pix.bb),
             256 * Primary_color_range(pix.ba)
           );
+        when others =>
+          raise invalid_primary_color_range;
       end case;
     end Output_Pixel;
 
@@ -96,11 +98,12 @@ package body GID.Decoding_TGA is
       procedure Get_pixel_32 is new Get_pixel(32);
     begin
       for y in 0..image.height-1 loop
-        Set_X_Y_2(0, y);
+        Set_X_Y(0, y);
         for x in 0..image.width-1 loop
           Get_pixel_32;
           Output_Pixel;
         end loop;
+        Feedback(((y+1)*100)/image.height);
       end loop;
     end Get_RGBA;
 
@@ -108,11 +111,12 @@ package body GID.Decoding_TGA is
       procedure Get_pixel_24 is new Get_pixel(24);
     begin
       for y in 0..image.height-1 loop
-        Set_X_Y_2(0, y);
+        Set_X_Y(0, y);
         for x in 0..image.width-1 loop
           Get_pixel_24;
           Output_Pixel;
         end loop;
+        Feedback(((y+1)*100)/image.height);
       end loop;
     end Get_RGB;
 
@@ -120,11 +124,12 @@ package body GID.Decoding_TGA is
       procedure Get_pixel_8  is new Get_pixel(8);
     begin
       for y in 0..image.height-1 loop
-        Set_X_Y_2(0, y);
+        Set_X_Y(0, y);
         for x in 0..image.width-1 loop
           Get_pixel_8;
           Output_Pixel;
         end loop;
+        Feedback(((y+1)*100)/image.height);
       end loop;
     end Get_Gray;
 
@@ -138,7 +143,7 @@ package body GID.Decoding_TGA is
     if image.RLE_encoded then
       RLE_pixels_remaining:= 0;
       for y in 0..image.height-1 loop
-        Set_X_Y_2(0, y);
+        Set_X_Y(0, y);
         case image.bits_per_pixel is
           when 32 =>
             for x in 0..image.width-1 loop
@@ -157,6 +162,7 @@ package body GID.Decoding_TGA is
             end loop;
           when others => null;
         end case;
+        Feedback(((y+1)*100)/image.height);
       end loop;
     else
       case image.bits_per_pixel is

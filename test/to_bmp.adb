@@ -52,6 +52,7 @@ procedure To_BMP is
     buffer: in out p_Byte_Array
   )
   is
+    subtype Primary_color_range is Unsigned_8;
     image_width: constant Positive:= GID.Pixel_Width(image);
     -- y_cache: array(0..GID.Pixel_Height(image)-1) of Integer;
     padded_line_size: constant Positive:=
@@ -66,8 +67,8 @@ procedure To_BMP is
     -- White background version
     --
     procedure Put_Pixel_with_white_bkg (
-      red, green, blue : GID.Primary_color_range;
-      alpha            : GID.Primary_color_range
+      red, green, blue : Primary_color_range;
+      alpha            : Primary_color_range
     )
     is
     pragma Inline(Put_Pixel_with_white_bkg);
@@ -85,16 +86,28 @@ procedure To_BMP is
       idx:= idx + 3;
       -- ^ GID requires us to look to next pixel of the right for next time.
     end Put_Pixel_with_white_bkg;
+
+    stars: Natural:= 0;
+    procedure Feedback(percents: Natural) is
+      so_far: Natural:= percents / 5;
+    begin
+      for i in stars+1..so_far loop
+        Put( Standard_Error, '*');
+      end loop;
+      stars:= so_far;
+    end Feedback;
+
     -- Here, the exciting thing: the instanciation of
-    -- GID.Load_image_contents. We load here the image
+    -- GID.Load_image_contents. In our case, we load the image
     -- into a 24-bit bitmap (because we provide a Put_Pixel
     -- that does that with the pixels), but we could do plenty
-    -- of other things instead, like display the image on a GUI.
+    -- of other things instead, like display the image live on a GUI.
     procedure BMP24_Load_with_white_bkg is
       new GID.Load_image_contents(
-        GID.bits_8_mode,
+        Primary_color_range,
         Set_X_Y,
-        Put_Pixel_with_white_bkg
+        Put_Pixel_with_white_bkg,
+        Feedback
       );
     next_frame_dummy: Ada.Calendar.Day_Duration;
   begin
@@ -201,6 +214,7 @@ procedure To_BMP is
       else
         Load_raw_image(i, img_buf);
       end if;
+      New_Line(Standard_Error);
       Close(f);
       if as_background or test_only then
         return;
