@@ -1,9 +1,30 @@
-with GID.Headers;
-
 package body GID.Decoding_PNG is
 
-  procedure Read_Intel is new Headers.Read_Intel_x86_number( U16 );
-  procedure Read_Intel is new Headers.Read_Intel_x86_number( U32 );
+  generic
+    type Number is mod <>;
+  procedure Read_Intel_x86_number(
+    n    :    out Number;
+    from : in     Stream_Access
+  );
+  pragma Inline(Read_Intel_x86_number);
+
+  procedure Read_Intel_x86_number(
+    n    :    out Number;
+    from : in     Stream_Access
+  )
+  is
+    b: U8;
+    m: Number:= 1;
+  begin
+    n:= 0;
+    for i in 1..Number'Size/8 loop
+      U8'Read(from, b);
+      n:= n + m * Number(b);
+      m:= m * 256;
+    end loop;
+  end Read_Intel_x86_number;
+
+  procedure Read_Intel is new Read_Intel_x86_number( U32 );
 
   ----------
   -- Read --
@@ -16,8 +37,9 @@ package body GID.Decoding_PNG is
     String'Read(image.stream, str4);
     begin
       ch.kind:= PNG_Chunk_tag'Value(str4);
---    exception
---      when !!
+    exception
+      when Constraint_Error =>
+        raise unknown_chunk_type;
     end;
   end Read;
 

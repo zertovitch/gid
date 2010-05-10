@@ -89,7 +89,7 @@ procedure To_BMP is
 
     stars: Natural:= 0;
     procedure Feedback(percents: Natural) is
-      so_far: Natural:= percents / 5;
+      so_far: constant Natural:= percents / 5;
     begin
       for i in stars+1..so_far loop
         Put( Standard_Error, '*');

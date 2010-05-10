@@ -58,6 +58,7 @@ package GID is
   unknown_image_format,
   known_but_unsupported_image_format,
   unsupported_image_subformat,
+  error_in_image_data,
   invalid_primary_color_range: exception;
 
   -----------------------------------------------------------------
@@ -152,6 +153,9 @@ private
     width, height      : Positive;
     bits_per_pixel     : Positive;
     RLE_encoded        : Boolean:= False;
+    transparency       : Boolean:= False;
+    greyscale          : Boolean:= False;
+    interlaced         : Boolean:= False;
     stream             : Stream_Access;
     palette            : p_Color_table:= null;
     first_byte         : U8;

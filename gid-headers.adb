@@ -6,7 +6,8 @@
 -- image formats and reading header informations.
 --
 
-with GID.Color_tables;
+with GID.Color_tables,
+     GID.Decoding_PNG;
 
 with Ada.Unchecked_Deallocation;
 -- with text_io;
@@ -91,6 +92,22 @@ package body GID.Headers is
     raise unknown_image_format;
   end Load_signature;
 
+  generic
+    type Number is mod <>;
+  procedure Read_Intel_x86_number(
+    n    :    out Number;
+    from : in     Stream_Access
+  );
+    pragma Inline(Read_Intel_x86_number);
+
+  generic
+    type Number is mod <>;
+  procedure Big_endian_number(
+    n    :    out Number;
+    from : in     Stream_Access
+  );
+    pragma Inline(Big_endian_number);
+
   procedure Read_Intel_x86_number(
     n    :    out Number;
     from : in     Stream_Access
@@ -107,8 +124,23 @@ package body GID.Headers is
     end loop;
   end Read_Intel_x86_number;
 
+  procedure Big_endian_number(
+    n    :    out Number;
+    from : in     Stream_Access
+  )
+  is
+    b: U8;
+  begin
+    n:= 0;
+    for i in 1..Number'Size/8 loop
+      U8'Read(from, b);
+      n:= n * 256 + Number(b);
+    end loop;
+  end Big_endian_number;
+
   procedure Read_Intel is new Read_Intel_x86_number( U16 );
   procedure Read_Intel is new Read_Intel_x86_number( U32 );
+  procedure Big_endian is new Big_endian_number( U32 );
 
   --
   -- Loading of various format's headers (past signature)
@@ -206,9 +238,52 @@ package body GID.Headers is
   end Load_JPEG_header;
 
   procedure Load_PNG_header (image: in out Image_descriptor) is
+    use Decoding_PNG;
+    ch: Chunk_head;
+    n, dummy: U32;
+    pragma Warnings(off, dummy);
+    b, color_type: U8;
+    palette: Boolean:= False;
   begin
-
-    raise known_but_unsupported_image_format; -- !!
+    Read(image, ch);
+    if ch.kind /= IHDR then
+      raise error_in_image_data;
+    end if;
+    Big_endian(n, image.stream);
+    image.width:=  Natural(n);
+    Big_endian(n, image.stream);
+    image.height:= Natural(n);
+    U8'Read(image.stream, b);
+    image.bits_per_pixel:= Integer(b);
+    U8'Read(image.stream, color_type);
+    case color_type is
+      when 0 =>
+        image.greyscale:= True;
+      when 2 =>
+        image.bits_per_pixel:= 3 * image.bits_per_pixel; -- RGB
+      when 3 =>
+        image.bits_per_pixel:= 3 * image.bits_per_pixel; -- RGB
+        palette:= True;
+      when 4 =>
+        image.greyscale:= True;
+        image.transparency:= True;
+      when 6 =>
+        image.bits_per_pixel:= 3 * image.bits_per_pixel; -- RGB
+        image.transparency:= True;
+      when others =>
+        raise error_in_image_data;
+    end case;
+    U8'Read(image.stream, b);
+    -- compression, discarded: only 0 (deflate)
+    U8'Read(image.stream, b);
+    -- filter, discarded: only 0 (standard filter)
+    U8'Read(image.stream, b);
+    image.interlaced:= b = 1; -- Adam7
+    Big_endian(dummy, image.stream); -- Chunk's CRC
+    -- !! load palette if needed (type 3 image)
+  exception
+    when unknown_chunk_type =>
+      raise error_in_image_data;
   end Load_PNG_header;
 
   procedure Load_TGA_header (image: in out Image_descriptor) is
