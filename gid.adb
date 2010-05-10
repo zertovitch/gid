@@ -103,7 +103,8 @@ package body GID is
      );
   begin
     next_frame:= 0.0;
-    -- will be changed in case of animation and current frame < last frame
+    -- ^ value updated in case of animation and when
+    --   current frame is not the last frame
     case image.format is
       when BMP =>
         BMP_Load(image);

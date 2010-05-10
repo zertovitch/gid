@@ -28,4 +28,14 @@ private package GID.Headers is
   procedure Load_TGA_header (image: in out Image_descriptor);
   procedure Load_TIFF_header (image: in out Image_descriptor);
 
+  --
+
+  generic
+    type Number is mod <>;
+  procedure Read_Intel_x86_number(
+    n    :    out Number;
+    from : in     Stream_Access
+  );
+  pragma Inline(Read_Intel_x86_number);
+
 end;

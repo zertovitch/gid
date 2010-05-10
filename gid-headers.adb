@@ -91,14 +91,6 @@ package body GID.Headers is
     raise unknown_image_format;
   end Load_signature;
 
-  generic
-    type Number is mod <>;
-  procedure Read_Intel_x86_number(
-    n    :    out Number;
-    from : in     Stream_Access
-  );
-  pragma Inline(Read_Intel_x86_number);
-
   procedure Read_Intel_x86_number(
     n    :    out Number;
     from : in     Stream_Access
@@ -110,7 +102,6 @@ package body GID.Headers is
     n:= 0;
     for i in 1..Number'Size/8 loop
       U8'Read(from, b);
---text_io.put( b'img & ',') ; --!!
       n:= n + m * Number(b);
       m:= m * 256;
     end loop;
@@ -216,6 +207,7 @@ package body GID.Headers is
 
   procedure Load_PNG_header (image: in out Image_descriptor) is
   begin
+
     raise known_but_unsupported_image_format; -- !!
   end Load_PNG_header;
 

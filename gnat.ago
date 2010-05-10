@@ -5,6 +5,7 @@
 WINDOWS_TARGET
 
 
+read_intel
 unkno
 Get_RGBA
 tga_ty
@@ -14,7 +15,6 @@ stream_buf
 GL.UByte
 signature
 mapping_possible
-workaround_possible
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?
