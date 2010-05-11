@@ -35,7 +35,7 @@
 -- NB: this is the MIT License, as found 2-May-2010 on the site
 -- http://www.opensource.org/licenses/mit-license.php
 
-with Ada.Calendar, Ada.Streams, Ada.Strings.Bounded;
+with Ada.Calendar, Ada.Streams, Ada.Strings.Bounded, Ada.Finalization;
 
 package GID is
 
@@ -111,13 +111,16 @@ package GID is
       BMP, FITS, GIF, JPEG, PNG, TGA, TIFF
     );
 
-  function Image_format (image: Image_descriptor) return Image_format_type;
-
-  function Image_detailed_format (image: Image_descriptor) return String;
+  function Format (image: Image_descriptor) return Image_format_type;
+  function Detailed_format (image: Image_descriptor) return String;
   -- example: "GIF89a, interlaced"
+  function Subformat (image: Image_descriptor) return Integer;
+  -- example the 'color type' in PNG
 
   function Bits_per_pixel (image: Image_descriptor) return Positive;
   function RLE_encoded (image: Image_descriptor) return Boolean;
+  function Interlaced (image: Image_descriptor) return Boolean;
+  function Greyscale (image: Image_descriptor) return Boolean;
 
   --------------------------------------------------------------
   -- Information about this package - e.g. for an "about" box --
@@ -147,9 +150,10 @@ private
 
   type p_Color_table is access Color_table;
 
-  type Image_descriptor is record
+  type Image_descriptor is new Ada.Finalization.Controlled with record
     format             : Image_format_type;
     detailed_format    : Bounded_255.Bounded_String; -- for humans only!
+    subformat_id       : Integer:= 0;
     width, height      : Positive;
     bits_per_pixel     : Positive;
     RLE_encoded        : Boolean:= False;
@@ -160,6 +164,8 @@ private
     palette            : p_Color_table:= null;
     first_byte         : U8;
   end record;
+
+  procedure Finalize (Object : in out Image_descriptor);
 
   type Byte_Array is array(Integer range <>) of U8;
 

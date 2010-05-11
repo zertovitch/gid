@@ -9,10 +9,15 @@
 with GID.Color_tables,
      GID.Decoding_PNG;
 
-with Ada.Unchecked_Deallocation;
--- with text_io;
+with Ada.Exceptions, Ada.Unchecked_Deallocation;
 
 package body GID.Headers is
+
+  use Ada.Exceptions;
+
+  -------------------------------------------------------
+  -- The very first: read signature to identify format --
+  -------------------------------------------------------
 
   procedure Load_signature (
     image   :    out Image_descriptor;
@@ -142,9 +147,13 @@ package body GID.Headers is
   procedure Read_Intel is new Read_Intel_x86_number( U32 );
   procedure Big_endian is new Big_endian_number( U32 );
 
-  --
-  -- Loading of various format's headers (past signature)
-  --
+  ----------------------------------------------------------
+  -- Loading of various format's headers (past signature) --
+  ----------------------------------------------------------
+
+  ----------------
+  -- BMP header --
+  ----------------
 
   procedure Load_BMP_header (image: in out Image_descriptor) is
     file_size, offset, info_header, n, dummy: U32;
@@ -176,7 +185,10 @@ package body GID.Headers is
       when 1 | 4 | 8 | 24 =>
         null;
       when others =>
-        raise unsupported_image_subformat;
+        Raise_exception(
+          unsupported_image_subformat'Identity,
+          "bit depth =" & U16'Image(w)
+        );
     end case;
     image.bits_per_pixel:= Integer(w);
     --   Pos= 31, read four bytes
@@ -184,7 +196,10 @@ package body GID.Headers is
     -- BI_RLE8 = 1
     -- BI_RLE4 = 2
     if n /= 0 then
-      raise unsupported_image_subformat;
+      Raise_exception(
+        unsupported_image_subformat'Identity,
+        "RLE compression"
+      );
     end if;
     --
     Read_Intel(dummy, image.stream); -- Pos= 35, image size
@@ -207,6 +222,10 @@ package body GID.Headers is
   begin
     raise known_but_unsupported_image_format; -- !!
   end Load_FITS_header;
+
+  ----------------
+  -- GIF header --
+  ----------------
 
   procedure Load_GIF_header (image: in out Image_descriptor) is
     -- GIF - logical screen descriptor
@@ -237,6 +256,10 @@ package body GID.Headers is
     raise known_but_unsupported_image_format; -- !!
   end Load_JPEG_header;
 
+  ----------------
+  -- PNG header --
+  ----------------
+
   procedure Load_PNG_header (image: in out Image_descriptor) is
     use Decoding_PNG;
     ch: Chunk_head;
@@ -247,7 +270,10 @@ package body GID.Headers is
   begin
     Read(image, ch);
     if ch.kind /= IHDR then
-      raise error_in_image_data;
+      Raise_exception(
+        error_in_image_data'Identity,
+        "Expected 'IHDR' chunk in PNG stream"
+      );
     end if;
     Big_endian(n, image.stream);
     image.width:=  Natural(n);
@@ -256,6 +282,7 @@ package body GID.Headers is
     U8'Read(image.stream, b);
     image.bits_per_pixel:= Integer(b);
     U8'Read(image.stream, color_type);
+    image.subformat_id:= Integer(color_type);
     case color_type is
       when 0 =>
         image.greyscale:= True;
@@ -271,20 +298,56 @@ package body GID.Headers is
         image.bits_per_pixel:= 3 * image.bits_per_pixel; -- RGB
         image.transparency:= True;
       when others =>
-        raise error_in_image_data;
+        Raise_exception(
+          error_in_image_data'Identity,
+          "Unknown PNG color type"
+        );
     end case;
     U8'Read(image.stream, b);
-    -- compression, discarded: only 0 (deflate)
+    if b /= 0 then
+      Raise_exception(
+        error_in_image_data'Identity,
+        "Unknown PNG compression; ISO/IEC 15948:2003" &
+        " knows only 'method 0' (deflate)"
+      );
+    end if;
     U8'Read(image.stream, b);
-    -- filter, discarded: only 0 (standard filter)
+    if b /= 0 then
+      Raise_exception(
+        error_in_image_data'Identity,
+        "Unknown PNG filtering; ISO/IEC 15948:2003 knows only 'method 0'"
+      );
+    end if;
     U8'Read(image.stream, b);
     image.interlaced:= b = 1; -- Adam7
     Big_endian(dummy, image.stream); -- Chunk's CRC
-    -- !! load palette if needed (type 3 image)
-  exception
-    when unknown_chunk_type =>
-      raise error_in_image_data;
+    if palette then
+      loop
+        Read(image, ch);
+        case ch.kind is
+          when IEND =>
+            raise error_in_image_data; -- must be a palette
+          when PLTE =>
+            if ch.length rem 3 /= 0 then
+              raise error_in_image_data; -- must be a multiple of 3
+            end if;
+            image.palette:= new Color_Table(0..Integer(ch.length/3)-1);
+            Color_tables.Load_palette(image);
+            Big_endian(dummy, image.stream); -- Chunk's CRC
+            exit;
+          when others =>
+            -- skip chunk data and CRC
+            for i in 1..ch.length + 4 loop
+              U8'Read(image.stream, b);
+            end loop;
+        end case;
+      end loop;
+    end if;
   end Load_PNG_header;
+
+  ------------------------
+  -- TGA (Targa) header --
+  ------------------------
 
   procedure Load_TGA_header (image: in out Image_descriptor) is
     TGA_type: Byte_Array(0..3);

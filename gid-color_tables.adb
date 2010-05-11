@@ -20,8 +20,8 @@ package body GID.Color_tables is
             U8'Read(image.stream, c);
             Palette(i).Red:= c;
             U8'Read(image.stream, c);
-            -- discarded
-          when GIF =>
+            -- x discarded
+          when GIF | PNG =>
             -- order is RGB
             U8'Read(image.stream, c);
             Palette(i).Red:= c;

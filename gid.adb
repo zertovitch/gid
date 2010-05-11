@@ -27,7 +27,10 @@
 
 with GID.Headers,
      GID.Decoding_BMP,
+     GID.Decoding_PNG,
      GID.Decoding_TGA;
+
+with Ada.Unchecked_Deallocation;
 
 package body GID is
 
@@ -96,6 +99,13 @@ package body GID is
        Put_Pixel,
        Feedback
      );
+    procedure PNG_Load is
+     new GID.Decoding_PNG.Load(
+       Primary_color_range,
+       Set_X_Y,
+       Put_Pixel,
+       Feedback
+     );
     procedure TGA_Load is
      new GID.Decoding_TGA.Load(
        Primary_color_range,
@@ -110,6 +120,8 @@ package body GID is
     case image.format is
       when BMP =>
         BMP_Load(image);
+      when PNG =>
+        PNG_Load(image);
       when TGA =>
         TGA_Load(image);
       when others =>
@@ -121,15 +133,20 @@ package body GID is
   -- Some informations about the image --
   ---------------------------------------
 
-  function Image_format (image: Image_descriptor) return Image_format_type is
+  function Format (image: Image_descriptor) return Image_format_type is
   begin
     return image.format;
-  end Image_format;
+  end Format;
 
-  function Image_detailed_format (image: Image_descriptor) return String is
+  function Detailed_format (image: Image_descriptor) return String is
   begin
     return Bounded_255.To_String(image.detailed_format);
-  end Image_detailed_format;
+  end Detailed_format;
+
+  function Subformat (image: Image_descriptor) return Integer is
+  begin
+    return image.subformat_id;
+  end Subformat;
 
   function Bits_per_pixel (image: Image_descriptor) return Positive is
   begin
@@ -140,5 +157,22 @@ package body GID is
   begin
     return image.RLE_encoded;
   end RLE_encoded;
+
+  function Interlaced (image: Image_descriptor) return Boolean is
+  begin
+    return image.interlaced;
+  end Interlaced;
+
+  function Greyscale (image: Image_descriptor) return Boolean is
+  begin
+    return image.greyscale;
+  end Greyscale;
+
+  procedure Finalize (Object : in out Image_descriptor) is
+    procedure Dispose is
+      new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
+  begin
+    Dispose(Object.palette);
+  end Finalize;
 
 end GID;

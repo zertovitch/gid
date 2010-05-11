@@ -33,7 +33,6 @@ private package GID.Decoding_PNG is
   end record;
 
   procedure Read( image: image_descriptor; ch: out Chunk_head);
-  unknown_chunk_type: exception;
 
   generic
     type Primary_color_range is mod <>;
@@ -46,5 +45,9 @@ private package GID.Decoding_PNG is
       pragma Inline(Put_Pixel);
     with procedure Feedback (percents: Natural);
   procedure Load (image: in Image_descriptor);
+
+private
+
+  full_trace: constant Boolean:= False;
 
 end GID.Decoding_PNG;

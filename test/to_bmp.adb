@@ -190,10 +190,10 @@ procedure To_BMP is
     begin
       GID.Load_image_header(i, Stream(f).all, try_tga => True);
       Put_Line(Standard_Error,
-        "  Image format: " & GID.Image_format_type'Image(GID.Image_format(i))
+        "  Image format: " & GID.Image_format_type'Image(GID.Format(i))
       );
       Put_Line(Standard_Error,
-        "  Image detailed format: " & GID.Image_detailed_format(i)
+        "  Image detailed format: " & GID.Detailed_format(i)
       );
       Put_Line(Standard_Error,
         "  Dimensions in pixels: " &
