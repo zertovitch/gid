@@ -289,7 +289,6 @@ package body GID.Headers is
       when 2 =>
         image.bits_per_pixel:= 3 * image.bits_per_pixel; -- RGB
       when 3 =>
-        image.bits_per_pixel:= 3 * image.bits_per_pixel; -- RGB
         palette:= True;
       when 4 =>
         image.greyscale:= True;

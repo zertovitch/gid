@@ -63,17 +63,264 @@ package body GID.Decoding_PNG is
 
   procedure Load (image: in Image_descriptor) is
 
-     ---------------------------------------------------------------------
-     -- Excerpt and simplification from UnZip.Decompress (Inflate only) --
-     ---------------------------------------------------------------------
+    subtype Mem_row_bytes_array is Byte_array(0..image.width*4);
+
+    mem_row_bytes: array(0..1) of Mem_row_bytes_array;
+    -- We need to memorize two image rows, for un-filtering
+    curr_row: Natural:= 1;
+    -- either current is 1 and old is 0, or the reverse
+
+    subtype Width_range is Integer range -1..image.width-1;
+    subtype Height_range is Integer range 0..image.height-1;
+
+    x: Width_range:= -1;
+    y: Height_range:= 0;
+
+    bytes_pp: Integer;
+
+    ------------------
+    -- 9: Filtering --
+    ------------------
+
+    type Filter_method_0 is (None, Sub, Up, Average, Paeth);
+
+    current_filter: Filter_method_0;
+
+    procedure Unfilter_bytes(f: in out Byte_array) is
+      pragma Inline(Unfilter_bytes);
+      -- c b
+      -- a f
+      a,b,c,p,pa,pb,pc,pr: Integer;
+      j: Integer:= 0;
+    begin
+     ada.text_io.put(current_filter'img & ' ');
+      case current_filter is
+        when None    =>
+          -- Recon(x) = Filt(x)
+          null;
+        when Sub     =>
+          -- Recon(x) = Filt(x) + Recon(a)
+          if x > 0 then
+            for i in f'Range loop
+              f(i):= f(i) + mem_row_bytes(curr_row)((x-1)*bytes_pp+j);
+              j:= j + 1;
+            end loop;
+          end if;
+        when Up      =>
+          -- Recon(x) = Filt(x) + Recon(b)
+          if y > 0 then
+            for i in f'Range loop
+              f(i):= f(i) + mem_row_bytes(1-curr_row)(x*bytes_pp+j);
+              j:= j + 1;
+            end loop;
+          end if;
+        when Average =>
+          -- Recon(x) = Filt(x) + floor((Recon(a) + Recon(b)) / 2)
+          for i in f'Range loop
+            if x > 0 then
+              a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_pp+j));
+            else
+              a:= 0;
+            end if;
+            if y > 0 then
+              b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_pp+j));
+            else
+              b:= 0;
+            end if;
+            f(i):= f(i) + U8((a+b)/2);
+            j:= j + 1;
+          end loop;
+        when Paeth   =>
+          -- Recon(x) = Filt(x) + PaethPredictor(Recon(a), Recon(b), Recon(c))
+          for i in f'Range loop
+            if x > 0 then
+              a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_pp+j));
+            else
+              a:= 0;
+            end if;
+            if y > 0 then
+              b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_pp+j));
+            else
+              b:= 0;
+            end if;
+            if x > 0 and y > 0 then
+              c:= Integer(mem_row_bytes(1-curr_row)((x-1)*bytes_pp+j));
+            else
+              c:= 0;
+            end if;
+            p := a + b - c;
+            pa:= abs(p - a);
+            pb:= abs(p - b);
+            pc:= abs(p - c);
+            if pa <= pb and pa <= pc then
+              pr:= a;
+            elsif pb <= pc then
+              pr:= b;
+            else
+              pr:= c;
+            end if;
+            f(i):= f(i) + U8(pr);
+            j:= j + 1;
+          end loop;
+      end case;
+      j:= 0;
+      for i in f'Range loop
+        mem_row_bytes(curr_row)(x*bytes_pp+j):= f(i);
+        j:= j + 1;
+      end loop;
+    end Unfilter_bytes;
+
+    old_bytes: Natural:= 0; -- how many bytes from last Inflate output
+
+    byte_mem: Byte_array(1..3);
+
+    -- Output bytes from decompression
+    --
+    procedure Output_uncompressed(data: in out Byte_array) is
+      i, color_idx: Integer;
+
+      procedure Out_Pixel(br, bg, bb, ba: U8) is
+        pragma Inline(Out_Pixel);
+      begin
+        case Primary_color_range'Modulus is
+          when 256 =>
+            Put_Pixel(
+              Primary_color_range(br),
+              Primary_color_range(bg),
+              Primary_color_range(bb),
+              Primary_color_range(ba)
+            );
+          when 65_536 =>
+            Put_Pixel(
+              256 * Primary_color_range(br),
+              256 * Primary_color_range(bg),
+              256 * Primary_color_range(bb),
+              256 * Primary_color_range(ba)
+            );
+          when others =>
+            raise invalid_primary_color_range;
+        end case;
+      end Out_Pixel;
+
+      procedure Inc_XY is
+      begin
+        if x = Width_range'Last then
+          x:= Width_range'First;
+          if y < Height_range'Last then
+            y:= y + 1;
+            curr_row:= 1-curr_row;
+            Feedback((y*100)/image.height);
+          end if;
+        else
+          x:= x + 1;
+        end if;
+      end Inc_XY;
+
+    begin
+      -- Depending on the row size, bpp, etc., we can have
+      -- several rows, or less than one, being displayed
+      -- with uncompressed data.
+      --
+      -- !! all branches (image.subformat_id) inside loop as generic
+      --
+      i:= data'First;
+      if i > data'Last then
+        return; -- data is empty, do nothing
+      end if;
+      --
+      -- Multi-byte pixels may have data in this batch, and other data in
+      -- the next one, or even over more than two batches.
+      -- We address this here.
+      --
+      if old_bytes > 0 then
+        for k in old_bytes + 1 .. bytes_pp loop
+          byte_mem(k):= data(i); -- append new bytes to old ones
+          old_bytes:= k;
+          if i = data'Last and k < bytes_pp then
+            return;
+            -- Data had not even enough bytes to complete the old pixel!
+            -- But we have copied at least one byte to byte_mem
+          end if;
+          i:= i + 1;
+        end loop;
+        case image.subformat_id is
+          when 2 => -- RGB
+            Unfilter_bytes(byte_mem(1..3));
+            Out_Pixel(byte_mem(1), byte_mem(2), byte_mem(3), 255);
+          when 4 => -- Greyscale & Alpha
+            null; -- !!
+          when 6 => -- RGBA
+            null; -- !!
+          when others =>
+            null; -- !!
+        end case;
+        Inc_XY;
+      end if;
+      --
+      -- Main loop over data
+      --
+      loop
+        if x = Width_range'First then
+          exit when i > data'Last;
+          begin
+            current_filter:= Filter_method_0'Val(data(i));
+          exception
+            when Constraint_Error =>
+              Raise_exception(
+                error_in_image_data'Identity,
+                "PNG: wrong filter code, row #" &
+                Integer'Image(y) & " code: " & U8'Image(data(i))
+              );
+          end;
+          Set_X_Y(0, image.height - y - 1);
+          i:= i + 1;
+        else
+          exit when i > data'Last - (bytes_pp - 1);
+          case image.subformat_id is
+            when 0 => -- Greyscale
+              null; -- !!
+            when 2 => -- RGB
+              Unfilter_bytes(data(i..i+2));
+              Out_Pixel(data(i), data(i+1), data(i+2), 255);
+              i:= i + 3;
+            when 3 => -- RGB with palette
+              Unfilter_bytes(data(i..i));
+              color_idx:= Integer(data(i));
+              Out_Pixel(
+                image.palette(color_idx).red,
+                image.palette(color_idx).green,
+                image.palette(color_idx).blue,
+                255
+              );
+              i:= i + 1;
+            when 4 => -- Greyscale & Alpha
+              null; -- !!
+            when 6 => -- RGBA
+              null; -- !!
+            when others =>
+              null; -- !!
+          end case;
+        end if;
+        Inc_XY;
+      end loop;
+      -- i is between data'Last-(bytes_pp-2) and data'Last+1
+      old_bytes:= data'Last + 1 - i;
+      if old_bytes > 0 then
+        byte_mem(1..old_bytes):= data(i .. data'Last);
+      end if;
+    end Output_uncompressed;
+
+    ---------------------------------------------------------------------
+    -- 10: Compression                                                 --
+    -- Excerpt and simplification from UnZip.Decompress (Inflate only) --
+    ---------------------------------------------------------------------
 
     --  Size of sliding dictionary and output buffer
-    wsize     : constant:= 16#10000#; -- (orig: 16#8000# B = 32 KB)
+    wsize: constant:= 16#10000#;
 
     --------------------------------------
     -- Specifications of UnZ_* packages --
     --------------------------------------
-    use Interfaces;
 
     package UnZ_Glob is
       -- I/O Buffers
@@ -82,6 +329,8 @@ package body GID.Decoding_PNG is
       slide_index: Integer:= 0; -- Current Position in slide
       Zip_EOF  : constant Boolean:= False;
     end UnZ_Glob;
+
+    use Interfaces;
 
     package UnZ_IO is
 
@@ -207,7 +456,7 @@ package body GID.Decoding_PNG is
         if full_trace then
           Ada.Text_IO.Put("[Flush...");
         end if;
-        -- !! Output: UnZ_Glob.slide(0..x-1)
+        Output_uncompressed(UnZ_Glob.slide(0..x-1));
         if full_trace then
           Ada.Text_IO.Put_Line("finished]");
         end if;
@@ -696,25 +945,39 @@ package body GID.Decoding_PNG is
     dummy: U32;
 
   begin
-      loop
-        Read(image, ch);
-        case ch.kind is
-          when IEND =>
-            exit; -- must be a palette
-          when IDAT =>
-            U8'Read(image.stream, b); -- zlib compression method/flags code
-            U8'Read(image.stream, b); -- Additional flags/check bits
-            UnZ_IO.Init_Buffers;
-            UnZ_Meth.Inflate;
-            Big_endian(dummy, image.stream); -- zlib Check value
-            Big_endian(dummy, image.stream); -- chunk's CRC
-          when others =>
-            -- skip chunk data and CRC
-            for i in 1..ch.length + 4 loop
-              U8'Read(image.stream, b);
-            end loop;
-        end case;
-      end loop;
+    case image.subformat_id is
+      when 0 => -- Greyscale
+        bytes_pp:= 1;
+      when 2 => -- RGB
+        bytes_pp:= 3;
+      when 3 => -- RGB with palette
+        bytes_pp:= 1;
+      when 4 => -- Greyscale & Alpha
+        bytes_pp:= 2;
+      when 6 => -- RGBA
+        bytes_pp:= 4;
+      when others =>
+        null;
+    end case;
+    loop
+      Read(image, ch);
+      case ch.kind is
+        when IEND =>
+          exit; -- must be a palette
+        when IDAT =>
+          U8'Read(image.stream, b); -- zlib compression method/flags code
+          U8'Read(image.stream, b); -- Additional flags/check bits
+          UnZ_IO.Init_Buffers;
+          UnZ_Meth.Inflate;
+          Big_endian(dummy, image.stream); -- zlib Check value
+          Big_endian(dummy, image.stream); -- chunk's CRC
+        when others =>
+          -- skip chunk data and CRC
+          for i in 1..ch.length + 4 loop
+            U8'Read(image.stream, b);
+          end loop;
+      end case;
+    end loop;
   end Load;
 
 end GID.Decoding_PNG;

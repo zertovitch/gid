@@ -196,6 +196,9 @@ procedure To_BMP is
         "  Image detailed format: " & GID.Detailed_format(i)
       );
       Put_Line(Standard_Error,
+        "  Image sub-format ID (if any): " & Integer'Image(GID.Subformat(i))
+      );
+      Put_Line(Standard_Error,
         "  Dimensions in pixels: " &
         Integer'Image(GID.Pixel_Width(i)) & " x" &
         Integer'Image(GID.Pixel_Height(i))
@@ -206,7 +209,13 @@ procedure To_BMP is
         Integer'Image(2**GID.Bits_per_pixel(i)) & " colors"
       );
       Put_Line(Standard_Error,
-        "  RLE encoding: " & Boolean'Image(GID.RLE_encoded(i))
+        "  Greyscale: " & Boolean'Image(GID.Greyscale(i))
+      );
+      Put_Line(Standard_Error,
+        "  RLE encoding (if any): " & Boolean'Image(GID.RLE_encoded(i))
+      );
+      Put_Line(Standard_Error,
+        "  Interlaced: " & Boolean'Image(GID.Interlaced(i))
       );
       --
       if as_background then
