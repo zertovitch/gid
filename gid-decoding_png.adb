@@ -57,6 +57,72 @@ package body GID.Decoding_PNG is
     end;
   end Read;
 
+  package CRC32 is
+
+    use Interfaces;
+
+    procedure Init( CRC: out Unsigned_32 );
+
+    function  Final( CRC: Unsigned_32 ) return Unsigned_32;
+
+    procedure Update( CRC: in out Unsigned_32; InBuf: Byte_array );
+    pragma Inline( Update );
+
+  end CRC32;
+
+  package body CRC32 is
+
+    CRC32_Table : array( Unsigned_32'(0)..255 ) of Unsigned_32;
+
+    procedure Prepare_table is
+      -- CRC-32 algorithm, ISO-3309
+      Seed: constant:= 16#EDB88320#;
+      l: Unsigned_32;
+    begin
+      for i in CRC32_Table'Range loop
+        l:= i;
+        for bit in 0..7 loop
+          if (l and 1) = 0 then
+            l:= Shift_Right(l,1);
+          else
+            l:= Shift_Right(l,1) xor Seed;
+          end if;
+        end loop;
+        CRC32_Table(i):= l;
+      end loop;
+    end Prepare_table;
+
+    procedure Update( CRC: in out Unsigned_32; InBuf: Byte_array ) is
+      local_CRC: Unsigned_32;
+    begin
+      local_CRC:= CRC ;
+      for i in InBuf'Range loop
+        local_CRC :=
+          CRC32_Table( 16#FF# and ( local_CRC xor Unsigned_32( InBuf(i) ) ) )
+          xor
+          Shift_Right( local_CRC , 8 );
+      end loop;
+      CRC:= local_CRC;
+    end Update;
+
+    table_empty: Boolean:= True;
+
+    procedure Init( CRC: out Unsigned_32 ) is
+    begin
+      if table_empty then
+        Prepare_table;
+        table_empty:= False;
+      end if;
+      CRC:= 16#FFFF_FFFF#;
+    end Init;
+
+    function Final( CRC: Unsigned_32 ) return Unsigned_32 is
+    begin
+      return not CRC;
+    end Final;
+
+  end CRC32;
+
   ----------
   -- Load --
   ----------
@@ -93,7 +159,7 @@ package body GID.Decoding_PNG is
       a,b,c,p,pa,pb,pc,pr: Integer;
       j: Integer:= 0;
     begin
-     ada.text_io.put(current_filter'img & ' ');
+--     ada.text_io.put(current_filter'img & ' ');
       case current_filter is
         when None    =>
           -- Recon(x) = Filt(x)
@@ -269,7 +335,7 @@ package body GID.Decoding_PNG is
               Raise_exception(
                 error_in_image_data'Identity,
                 "PNG: wrong filter code, row #" &
-                Integer'Image(y) & " code: " & U8'Image(data(i))
+                Integer'Image(y) & " code:" & U8'Image(data(i))
               );
           end;
           Set_X_Y(0, image.height - y - 1);
@@ -306,6 +372,7 @@ package body GID.Decoding_PNG is
       -- i is between data'Last-(bytes_pp-2) and data'Last+1
       old_bytes:= data'Last + 1 - i;
       if old_bytes > 0 then
+      ada.text_io.put("X" & old_bytes'img);
         byte_mem(1..old_bytes):= data(i .. data'Last);
       end if;
     end Output_uncompressed;
@@ -322,15 +389,16 @@ package body GID.Decoding_PNG is
     -- Specifications of UnZ_* packages --
     --------------------------------------
 
+    use Interfaces;
+
     package UnZ_Glob is
       -- I/O Buffers
       -- > Sliding dictionary for unzipping, and output buffer as well
       slide: Byte_Array( 0..wsize );
       slide_index: Integer:= 0; -- Current Position in slide
       Zip_EOF  : constant Boolean:= False;
+      crc32val : Unsigned_32;  -- crc calculated from data
     end UnZ_Glob;
-
-    use Interfaces;
 
     package UnZ_IO is
 
@@ -382,6 +450,7 @@ package body GID.Decoding_PNG is
       begin
         UnZ_Glob.slide_index := 0;
         Bit_buffer.Init;
+        CRC32.Init( UnZ_Glob.crc32val );
       end Init_Buffers;
 
       procedure Read_raw_byte ( bt : out U8 ) is
@@ -456,6 +525,7 @@ package body GID.Decoding_PNG is
         if full_trace then
           Ada.Text_IO.Put("[Flush...");
         end if;
+        CRC32.Update( UnZ_Glob.crc32val, UnZ_Glob.slide( 0..x-1 ) );
         Output_uncompressed(UnZ_Glob.slide(0..x-1));
         if full_trace then
           Ada.Text_IO.Put_Line("finished]");
@@ -936,13 +1006,14 @@ package body GID.Decoding_PNG is
         if full_trace then
           Ada.Text_IO.Put("# blocks:" & Integer'Image(blocks));
         end if;
+        UnZ_Glob.crc32val := CRC32.Final( UnZ_Glob.crc32val );
       end Inflate;
 
     end UnZ_Meth;
 
     ch: Chunk_head;
     b: U8;
-    dummy: U32;
+    z_crc, dummy: U32;
 
   begin
     case image.subformat_id is
@@ -963,13 +1034,22 @@ package body GID.Decoding_PNG is
       Read(image, ch);
       case ch.kind is
         when IEND =>
-          exit; -- must be a palette
+          exit;
         when IDAT =>
+          ada.text_io.put("Z");
           U8'Read(image.stream, b); -- zlib compression method/flags code
           U8'Read(image.stream, b); -- Additional flags/check bits
           UnZ_IO.Init_Buffers;
           UnZ_Meth.Inflate;
-          Big_endian(dummy, image.stream); -- zlib Check value
+          Big_endian(z_crc, image.stream); -- zlib Check value
+          --  if z_crc /= U32(UnZ_Glob.crc32val) then
+          --    Raise_exception(
+          --      error_in_image_data'Identity,
+          --      "PNG: deflate stream corrupt"
+          --    );
+          --  end if;
+          --  ** Mystery: this check fail even with images which decompress perfectly
+          --  ** Another crc init value zip <-> zlib ?
           Big_endian(dummy, image.stream); -- chunk's CRC
         when others =>
           -- skip chunk data and CRC
