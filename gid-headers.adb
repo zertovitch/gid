@@ -247,6 +247,7 @@ package body GID.Headers is
     U8'Read(image.stream, background);
     U8'Read(image.stream, aspect_ratio_code);
     if global_palette then
+      image.palette:= new Color_Table(0..Integer(2**image.bits_per_pixel)-1);
       Color_tables.Load_palette(image);
     end if;
   end Load_GIF_header;

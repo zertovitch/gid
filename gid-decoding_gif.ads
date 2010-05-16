@@ -1,7 +1,7 @@
 -- !! transp
 -- !! endiann.
 -- !! buffering
--- !! anim.
+-- !! anim. / 89a extensions
 -- !! <256 col (palette, mask etc.)
 
 private package GID.Decoding_GIF is

@@ -34,6 +34,7 @@ package body GID.Decoding_GIF is
 
     -- GIF data is stored in blocks of a certain size
     BlockSize      : Natural;
+    BlockRead      : Natural;
 
     -- The string table
     Prefix       : array ( 0..4096 ) of Natural;
@@ -72,6 +73,19 @@ package body GID.Decoding_GIF is
     -- This is in case of local colour map
     BitsPerPixel  : Natural;
 
+    function Read_Byte return U8 is
+      b: U8;
+    begin
+      if BlockRead >= BlockSize then
+        U8'Read( image.stream, b);
+        BlockSize:= Natural(b);
+        BlockRead:= 0;
+      end if;
+      U8'Read( image.stream, b );
+      BlockRead:= BlockRead + 1;
+      return b;
+    end Read_Byte;
+
     -- Local procedure to read the next code from the file
     procedure ReadCode is
       Bit_Mask: Natural:= 1;
@@ -84,7 +98,7 @@ package body GID.Decoding_GIF is
 
         -- Maybe, a new byte needs to be loaded with a further 8 bits
         if BitsIn = 9 then
-          U8'Read( image.stream, Temp );
+          Temp:= Read_Byte;
           BitsIn := 1;
         end if;
 
@@ -122,14 +136,14 @@ package body GID.Decoding_GIF is
 
     -- Local procedure to draw a pixel
     procedure NextPixel( code: Natural) is
-      c : constant Color_Type:= Color_Type(code) and Pixel_mask;
+      c : constant Color_Type:= Color_type(U32(code) and U32(Pixel_mask));
     begin
       -- Actually draw the pixel on screen buffer
       if X < image.width then
         if Interlaced then
           for i in reverse 0..Span loop
             if Y+i < image.height then
-              Set_X_Y(X, Y+i);
+              Set_X_Y(X, image.height - (Y+i) - 1);
               Pixel_with_palette(c);
             end if;
           end loop;
@@ -158,12 +172,13 @@ package body GID.Decoding_GIF is
             when 4 =>
               Y:= Y + 2;
           end case;
+          Feedback((Interlace_pass*100)/4);
         else
           Y:= Y + 1;
-          Feedback((Y*100)/image.height);
           if Y < image.height then
-            Set_X_Y(X, Y);
+            Set_X_Y(X, image.height - Y - 1);
           end if;
+          Feedback((Y*100)/image.height);
         end if;
       end if;
     end NextPixel;
@@ -216,13 +231,18 @@ package body GID.Decoding_GIF is
         Ada.Text_IO.Put("GIF sep [" & separator & ']');
       end if;
       case Separator is
-        when ',' => exit; -- image descriptor will begin !
-        when '!' =>
+        when ',' => -- 16#2C#
+          exit;
+          -- Image descriptor will begin
+          -- See: 20. Image Descriptor
+        when '!' => -- 16#21#
+          -- See: 23. Graphic Control Extension
           U8'Read( image.stream, temp ); -- skip extension identifier byte
+          -- 16#F9#
           loop
             U8'Read( image.stream, temp ); -- load sub-block length byte
-            exit when temp = 0;   -- null sub-block -> the end!
-            for i in reverse 1..temp loop
+            -- NB: always 4
+            for i in 1..temp loop
               U8'Read( image.stream, temp ); -- load sub-block byte
             end loop;
           end loop;
@@ -266,6 +286,7 @@ package body GID.Decoding_GIF is
     -- GIF data is stored in blocks, it is useful to know the size
     U8'Read( image.stream, temp );
     BlockSize:= Natural(temp);
+    BlockRead:= 0;
     -- !! buffering !!
 
     -- Special codes used in the GIF spec
