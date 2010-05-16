@@ -209,6 +209,9 @@ procedure To_BMP is
         Integer'Image(2**GID.Bits_per_pixel(i)) & " colors"
       );
       Put_Line(Standard_Error,
+        "  Palette: " & Boolean'Image(GID.Has_palette(i))
+      );
+      Put_Line(Standard_Error,
         "  Greyscale: " & Boolean'Image(GID.Greyscale(i))
       );
       Put_Line(Standard_Error,

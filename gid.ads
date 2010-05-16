@@ -91,8 +91,8 @@ package GID is
       pragma Inline(Put_Pixel);
     -- When Put_Pixel is called twice without a Set_X_Y inbetween,
     -- the pixel must be displayed on the next X position after the last one.
-    -- [Rationale: if the image lands into an array, the address calculation
-    --  can be made only at the beginning of each line]
+    -- [Rationale: if the image lands into an array, the full address
+    --  calculation can be made only at the beginning of each line]
     --
     with procedure Feedback (percents: Natural);
   procedure Load_image_contents (
@@ -121,6 +121,7 @@ package GID is
   function RLE_encoded (image: Image_descriptor) return Boolean;
   function Interlaced (image: Image_descriptor) return Boolean;
   function Greyscale (image: Image_descriptor) return Boolean;
+  function Has_palette (image: Image_descriptor) return Boolean;
 
   --------------------------------------------------------------
   -- Information about this package - e.g. for an "about" box --

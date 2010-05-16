@@ -34,6 +34,10 @@ private package GID.Decoding_PNG is
 
   procedure Read( image: image_descriptor; ch: out Chunk_head);
 
+  --------------------
+  -- Image decoding --
+  --------------------
+
   generic
     type Primary_color_range is mod <>;
     with procedure Set_X_Y (x, y: Natural);

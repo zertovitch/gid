@@ -5,16 +5,16 @@
 WINDOWS_TARGET
 
 
-Init_Buffers
-read_intel
-unkno
-Get_RGBA
-tga_ty
-atta
-the_Image
-stream_buf
-GL.UByte
-signature
+feedb
+BlockSize
+image.palette
+raise_
+New_num_of_colours
+Fill_palettized
+byte
+x_loc
+Nice_drawing
+S
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

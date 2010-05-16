@@ -27,6 +27,7 @@
 
 with GID.Headers,
      GID.Decoding_BMP,
+     GID.Decoding_GIF,
      GID.Decoding_PNG,
      GID.Decoding_TGA;
 
@@ -93,26 +94,17 @@ package body GID is
   )
   is
     procedure BMP_Load is
-     new GID.Decoding_BMP.Load(
-       Primary_color_range,
-       Set_X_Y,
-       Put_Pixel,
-       Feedback
-     );
+      new Decoding_BMP.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+
+    procedure GIF_Load is
+      new Decoding_GIF.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+
     procedure PNG_Load is
-     new GID.Decoding_PNG.Load(
-       Primary_color_range,
-       Set_X_Y,
-       Put_Pixel,
-       Feedback
-     );
+      new Decoding_PNG.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+
     procedure TGA_Load is
-     new GID.Decoding_TGA.Load(
-       Primary_color_range,
-       Set_X_Y,
-       Put_Pixel,
-       Feedback
-     );
+      new Decoding_TGA.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+
   begin
     next_frame:= 0.0;
     -- ^ value updated in case of animation and when
@@ -120,6 +112,8 @@ package body GID is
     case image.format is
       when BMP =>
         BMP_Load(image);
+      when GIF =>
+        GIF_Load(image);
       when PNG =>
         PNG_Load(image);
       when TGA =>
@@ -167,6 +161,11 @@ package body GID is
   begin
     return image.greyscale;
   end Greyscale;
+
+   function Has_palette (image: Image_descriptor) return Boolean is
+   begin
+     return image.palette /= null;
+   end Has_palette;
 
   procedure Finalize (Object : in out Image_descriptor) is
     procedure Dispose is

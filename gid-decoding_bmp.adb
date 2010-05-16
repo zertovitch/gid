@@ -6,8 +6,8 @@ package body GID.Decoding_BMP is
     b01, b, br, bg, bb: U8:= 0;
     x, x_max, y: Natural;
     --
-    procedure Fill_palettized is
-      pragma Inline(Fill_palettized);
+    procedure Pixel_with_palette is
+      pragma Inline(Pixel_with_palette);
     begin
       case Primary_color_range'Modulus is
         when 256 =>
@@ -27,7 +27,7 @@ package body GID.Decoding_BMP is
         when others =>
           raise invalid_primary_color_range;
       end case;
-    end Fill_palettized;
+    end Pixel_with_palette;
     --
     stream_buf: Input_buffer;
     pair: Boolean;
@@ -52,7 +52,7 @@ package body GID.Decoding_BMP is
               Get_Byte(stream_buf, b01);
             end if;
             b:= (b01 and 16#80#) / 16#80#;
-            Fill_palettized;
+            Pixel_with_palette;
             b01:= b01 * 2; -- cannot overflow.
             if bit=7 then
               bit:= 0;
@@ -72,14 +72,14 @@ package body GID.Decoding_BMP is
               b:= (b01 and 16#0F#);
             end if;
             pair:= not pair;
-            Fill_palettized;
+            Pixel_with_palette;
             x:= x + 1;
           end loop;
         when 8 => -- 256 colour image
           Set_X_Y(x,y);
           while x <= x_max loop
             Get_Byte(stream_buf, b);
-            Fill_palettized;
+            Pixel_with_palette;
             x:= x + 1;
           end loop;
         when 24 => -- RGB, 256 colour per primary colour
