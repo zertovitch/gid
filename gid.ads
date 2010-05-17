@@ -73,6 +73,8 @@ package GID is
   --    call Load_image_contents until next_frame is 0.0            --
   --------------------------------------------------------------------
 
+  type Display_mode is (fast, nice);
+
   generic
     type Primary_color_range is mod <>;
     -- Coding of primary colors (red, green or blue)
@@ -95,6 +97,8 @@ package GID is
     --  calculation can be made only at the beginning of each line]
     --
     with procedure Feedback (percents: Natural);
+    --
+    mode: Display_mode;
   procedure Load_image_contents (
     image     : in     Image_descriptor;
     next_frame:    out Ada.Calendar.Day_Duration

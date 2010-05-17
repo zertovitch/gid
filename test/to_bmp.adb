@@ -107,7 +107,8 @@ procedure To_BMP is
         Primary_color_range,
         Set_X_Y,
         Put_Pixel_with_white_bkg,
-        Feedback
+        Feedback,
+        GID.fast
       );
     next_frame_dummy: Ada.Calendar.Day_Duration;
   begin
@@ -220,6 +221,8 @@ procedure To_BMP is
       Put_Line(Standard_Error,
         "  Interlaced: " & Boolean'Image(GID.Interlaced(i))
       );
+      Put_Line(Standard_Error, "1........10........20");
+      Put_Line(Standard_Error, "         |         | ");
       --
       if as_background then
         Load_raw_image(i, bkg_buf);

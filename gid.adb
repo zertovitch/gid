@@ -97,7 +97,7 @@ package body GID is
       new Decoding_BMP.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
 
     procedure GIF_Load is
-      new Decoding_GIF.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+      new Decoding_GIF.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback, mode );
 
     procedure PNG_Load is
       new Decoding_PNG.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
@@ -113,7 +113,7 @@ package body GID is
       when BMP =>
         BMP_Load(image);
       when GIF =>
-        GIF_Load(image);
+        GIF_Load(image, next_frame);
       when PNG =>
         PNG_Load(image);
       when TGA =>
@@ -162,10 +162,10 @@ package body GID is
     return image.greyscale;
   end Greyscale;
 
-   function Has_palette (image: Image_descriptor) return Boolean is
-   begin
-     return image.palette /= null;
-   end Has_palette;
+  function Has_palette (image: Image_descriptor) return Boolean is
+  begin
+    return image.palette /= null;
+  end Has_palette;
 
   procedure Finalize (Object : in out Image_descriptor) is
     procedure Dispose is

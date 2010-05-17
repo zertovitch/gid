@@ -5,16 +5,16 @@
 WINDOWS_TARGET
 
 
+interla
+transp
+mode
+raise_
+Local_palette
+interlaced
 set_X_
 BlockRead
 u8'
 feedb
-BlockSize
-image.palette
-raise_
-New_num_of_colours
-Fill_palettized
-byte
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?
@@ -24,9 +24,9 @@ debug unroll_loops false
 debug suppress_all_checks false
 debug debug_info true
 debug integer_overflow_check true
-debug stack_check false
-debug trace_back false
-debug all_validity_checks false
+debug stack_check true
+debug trace_back true
+debug all_validity_checks true
 debug strip_all_symbols false
 debug profiling false
 debug verbose_details true

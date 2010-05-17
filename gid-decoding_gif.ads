@@ -16,7 +16,11 @@ private package GID.Decoding_GIF is
     );
       pragma Inline(Put_Pixel);
     with procedure Feedback (percents: Natural);
-  procedure Load (image: in Image_descriptor);
+    mode: Display_mode;
+  procedure Load (
+    image     : in     Image_descriptor;
+    next_frame: in out Ada.Calendar.Day_Duration
+  );
 
 private
 

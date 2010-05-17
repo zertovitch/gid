@@ -8,8 +8,11 @@ package body GID.Decoding_GIF is
   -- Load --
   ----------
 
-  procedure Load (image: in Image_descriptor) is
-
+  procedure Load (
+    image     : in     Image_descriptor;
+    next_frame: in out Ada.Calendar.Day_Duration
+  )
+  is
     local: Image_descriptor;
     -- With GIF, each frame is a local image with an eventual
     -- palette, different dimensions, etc. ...
@@ -59,6 +62,8 @@ package body GID.Decoding_GIF is
 
     -- Interlaced images
     Interlaced     : Boolean;
+    Local_palette  : Boolean;
+    Transparency   : Boolean;
     Interlace_pass : Natural range 1..4:= 1;
     Span           : Natural:= 7;
 
@@ -114,6 +119,14 @@ package body GID.Decoding_GIF is
     procedure Pixel_with_palette(b: U8) is
       pragma Inline(Pixel_with_palette);
     begin
+      if Integer(b) >= local.palette'Length then
+        --  Put_Pixel(0,0,0, 255);
+        --  return;
+        Raise_exception(
+          error_in_image_data'Identity,
+          "Bad palette index: " & b'img & local.palette'Length'img
+        );
+      end if;
       case Primary_color_range'Modulus is
         when 256 =>
           Put_Pixel(
@@ -140,7 +153,7 @@ package body GID.Decoding_GIF is
     begin
       -- Actually draw the pixel on screen buffer
       if X < image.width then
-        if Interlaced then
+        if Interlaced and mode = nice then
           for i in reverse 0..Span loop
             if Y+i < image.height then
               Set_X_Y(X, image.height - (Y+i) - 1);
@@ -173,6 +186,9 @@ package body GID.Decoding_GIF is
               Y:= Y + 2;
           end case;
           Feedback((Interlace_pass*100)/4);
+          if mode = fast and then Y < image.height then
+            Set_X_Y(X, image.height - Y - 1);
+          end if;
         else
           Y:= Y + 1;
           if Y < image.height then
@@ -219,33 +235,93 @@ package body GID.Decoding_GIF is
       return CurCode;
     end OutString;
 
+    procedure Skip_sub_blocks is
+    begin
+      loop
+        U8'Read( image.stream, temp ); -- load sub-block length byte
+        exit when temp = 0;
+        -- null sub-block = end of sub-block sequence
+        for i in 1..temp loop
+          U8'Read( image.stream, temp ); -- load sub-block byte
+        end loop;
+      end loop;
+    end Skip_sub_blocks;
+
+    label: U8;
+    delay_frame: U16;
+
   begin
     New_num_of_colours:= 2**image.bits_per_pixel;
     Pixel_mask:= Color_Type(New_num_of_colours - 1);
 
-    -- Skip all extensions until finding an image descriptor
-
     loop
       Character'Read( image.stream, Separator );
       if full_trace then
-        Ada.Text_IO.Put("GIF sep [" & separator & ']');
+        Ada.Text_IO.Put(
+          "GIF separator [" & separator &
+          "][" & integer'image(character'pos(separator)) & ']'
+        );
       end if;
       case Separator is
         when ',' => -- 16#2C#
           exit;
           -- Image descriptor will begin
           -- See: 20. Image Descriptor
-        when '!' => -- 16#21#
-          -- See: 23. Graphic Control Extension
-          U8'Read( image.stream, temp ); -- skip extension identifier byte
-          -- 16#F9#
-          loop
-            U8'Read( image.stream, temp ); -- load sub-block length byte
-            -- NB: always 4
-            for i in 1..temp loop
-              U8'Read( image.stream, temp ); -- load sub-block byte
-            end loop;
-          end loop;
+        when '!' => -- 16#21# Extensions
+          if full_trace then
+            Ada.Text_IO.Put(" - Extension");
+          end if;
+          U8'Read( image.stream, label );
+          case label is
+            when 16#F9# => -- See: 23. Graphic Control Extension
+            -- !! return with next_frame=cumul delay !!
+              if full_trace then
+                Ada.Text_IO.Put_Line(" - Graphic Control Extension");
+              end if;
+              U8'Read( image.stream, temp );
+              if temp /= 4 then
+                Raise_exception(
+                  error_in_image_data'Identity,
+                  "GIF: error in Graphic Control Extension"
+                );
+              end if;
+              U8'Read( image.stream, temp );
+              --  Reserved                      3 Bits
+              --  Disposal Method               3 Bits
+              --  User Input Flag               1 Bit
+              --  Transparent Color Flag        1 Bit
+              Transparency:= (temp and 1) = 1;
+              U8'Read( image.stream, temp );
+              U8'Read( image.stream, temp );
+              --!! delay...
+              U8'Read( image.stream, temp );
+              -- zero sub-block:
+              U8'Read( image.stream, temp );
+              -- !! transp index:= temp
+            when 16#FE# => -- See: 24. Comment Extension
+              if full_trace then
+                Ada.Text_IO.Put_Line(" - Comment Extension");
+              end if;
+              Skip_sub_blocks;
+            when 16#01# => -- See: 25. Plain Text Extension
+              if full_trace then
+                Ada.Text_IO.Put_Line(" - Plain Text Extension");
+              end if;
+              Skip_sub_blocks;
+            when 16#FF# => -- See: 26. Application Extension
+              if full_trace then
+                Ada.Text_IO.Put_Line(" - Application Extension");
+              end if;
+              Skip_sub_blocks;
+            when others =>
+              if full_trace then
+                Ada.Text_IO.Put_Line(" - Unused:" & U8'Image(label));
+              end if;
+              Skip_sub_blocks;
+          end case;
+        when ';' => -- 16#3B#
+          next_frame:= 0.0;
+          return; -- End of GIF image
         when others =>
           Raise_exception(
             error_in_image_data'Identity,
@@ -264,10 +340,15 @@ package body GID.Decoding_GIF is
     brX := tlX + Natural(Descriptor.ImageWidth);
     brY := tlY + Natural(Descriptor.ImageHeight);
 
+    --  Local Color Table Flag        1 Bit
+    --  Interlace Flag                1 Bit
+    --  Sort Flag                     1 Bit
+    --  Reserved                      2 Bits
+    --  Size of Local Color Table     3 Bits
+    --
     Interlaced:= (Descriptor.Depth and 64) = 64;
-
-    -- Local colour table
-    if (Descriptor.Depth and 128) = 128 then
+    Local_palette:= (Descriptor.Depth and 128) = 128;
+    if Local_palette then
       -- Get amount of colours in image
       BitsPerPixel := 1 + Natural(Descriptor.Depth and 7);
       New_num_of_colours:= 2 ** BitsPerPixel;
@@ -277,6 +358,13 @@ package body GID.Decoding_GIF is
     else
       -- Just copy main palette
       local.palette:= new Color_table'(image.palette.all);
+    end if;
+
+    if full_trace then
+      Ada.Text_IO.Put_Line(
+        " - Image, interlaced: " & Boolean'Image(Interlaced) &
+        " local palette: " & Boolean'Image(Local_palette)
+      );
     end if;
 
     -- Get initial code size
@@ -307,7 +395,7 @@ package body GID.Decoding_GIF is
     -- Start at top left of image
     X := Natural(Descriptor.ImageLeft);
     Y := Natural(Descriptor.ImageTop);
-    Set_X_Y(X, Y);
+    Set_X_Y(X, image.height - Y - 1);
 
     loop
       -- Read next code
