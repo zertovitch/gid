@@ -48,7 +48,7 @@ procedure To_BMP is
 
   -- Load image into a 24-bit truecolor raw bitmap
   procedure Load_raw_image(
-    image : in     GID.Image_descriptor;
+    image : in out GID.Image_descriptor;
     buffer: in out p_Byte_Array
   )
   is

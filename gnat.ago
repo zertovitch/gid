@@ -5,16 +5,16 @@
 WINDOWS_TARGET
 
 
-interla
+Transp_color
+Transparency
+with
+next_fr
+!!
 transp
+calend
+endia
+interla
 mode
-raise_
-Local_palette
-interlaced
-set_X_
-BlockRead
-u8'
-feedb
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

@@ -89,7 +89,7 @@ package body GID is
   -------------------------
 
   procedure Load_image_contents (
-    image     : in     Image_descriptor;
+    image     : in out Image_descriptor;
     next_frame:    out Ada.Calendar.Day_Duration
   )
   is

@@ -100,7 +100,7 @@ package GID is
     --
     mode: Display_mode;
   procedure Load_image_contents (
-    image     : in     Image_descriptor;
+    image     : in out Image_descriptor;
     next_frame:    out Ada.Calendar.Day_Duration
       -- ^ real time lapse foreseen between the first image
       -- and the image right after this one; 0.0 if no next frame
@@ -168,6 +168,7 @@ private
     stream             : Stream_Access;
     palette            : p_Color_table:= null;
     first_byte         : U8;
+    next_frame         : Ada.Calendar.Day_Duration;
   end record;
 
   procedure Finalize (Object : in out Image_descriptor);

@@ -36,6 +36,7 @@ package body GID.Headers is
       new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
   begin
     Dispose(image.palette);
+    image.next_frame:= 0.0;
     Character'Read(image.stream, c);
     image.first_byte:= Character'Pos(c);
     case c is

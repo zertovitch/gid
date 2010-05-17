@@ -1,8 +1,5 @@
--- !! transp
--- !! endiann.
--- !! buffering
--- !! anim. / 89a extensions
--- !! <256 col (palette, mask etc.)
+-- !! buffering: funny thing: avoid buffering too much.
+--    Perhaps, each sub-block and not fixed-size buffer.
 
 private package GID.Decoding_GIF is
 
@@ -18,8 +15,8 @@ private package GID.Decoding_GIF is
     with procedure Feedback (percents: Natural);
     mode: Display_mode;
   procedure Load (
-    image     : in     Image_descriptor;
-    next_frame: in out Ada.Calendar.Day_Duration
+    image     : in out Image_descriptor;
+    next_frame:    out Ada.Calendar.Day_Duration
   );
 
 private
