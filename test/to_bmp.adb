@@ -49,7 +49,8 @@ procedure To_BMP is
   -- Load image into a 24-bit truecolor raw bitmap
   procedure Load_raw_image(
     image : in out GID.Image_descriptor;
-    buffer: in out p_Byte_Array
+    buffer: in out p_Byte_Array;
+    next_frame: out Ada.Calendar.Day_Duration
   )
   is
     subtype Primary_color_range is Unsigned_8;
@@ -110,7 +111,6 @@ procedure To_BMP is
         Feedback,
         GID.fast
       );
-    next_frame_dummy: Ada.Calendar.Day_Duration;
   begin
     Dispose(buffer);
     buffer:= new Byte_Array(0..padded_line_size * GID.Pixel_height(image) - 1);
@@ -119,9 +119,9 @@ procedure To_BMP is
     --  end loop;
 
     if background_image_name = Null_Unbounded_String then
-      BMP24_Load_with_white_bkg(image, next_frame_dummy);
+      BMP24_Load_with_white_bkg(image, next_frame);
     else
-      BMP24_Load_with_white_bkg(image, next_frame_dummy);
+      BMP24_Load_with_white_bkg(image, next_frame);
       -- with bkg image TBD !!
     end if;
     --  -- Test: white rectangle with a red half-frame.
@@ -134,26 +134,12 @@ procedure To_BMP is
     --  end loop;
   end Load_raw_image;
 
-  procedure Process(name: String; as_background, test_only: Boolean) is
+  procedure Dump_BMP_24 (
+    name: String;
+    i   : GID.Image_descriptor
+  )
+  is
     f: Ada.Streams.Stream_IO.File_Type;
-    i: GID.Image_descriptor;
-    --
-    generic
-      type Number is mod <>;
-    procedure Write_Intel_x86_number(n: in Number);
-
-    procedure Write_Intel_x86_number(n: in Number) is
-      m: Number:= n;
-      bytes: constant Integer:= Number'Size/8;
-    begin
-      for i in 1..bytes loop
-        Unsigned_8'Write(Stream(f), Unsigned_8(m and 255));
-        m:= m / 256;
-      end loop;
-    end Write_Intel_x86_number;
-    procedure Write_Intel is new Write_Intel_x86_number( Unsigned_16 );
-    procedure Write_Intel is new Write_Intel_x86_number( Unsigned_32 );
-    --
     type BITMAPFILEHEADER is record
       bfType     : Unsigned_16;
       bfSize     : Unsigned_32;
@@ -182,66 +168,23 @@ procedure To_BMP is
 
     FileInfo  : BITMAPINFOHEADER;
     FileHeader: BITMAPFILEHEADER;
-  begin
     --
-    -- Load the image in its original format
-    --
-    Open(f, In_File, name);
-    Put_Line(Standard_Error, "Processing " & name & "...");
+    generic
+      type Number is mod <>;
+    procedure Write_Intel_x86_number(n: in Number);
+
+    procedure Write_Intel_x86_number(n: in Number) is
+      m: Number:= n;
+      bytes: constant Integer:= Number'Size/8;
     begin
-      GID.Load_image_header(i, Stream(f).all, try_tga => True);
-      Put_Line(Standard_Error,
-        "  Image format: " & GID.Image_format_type'Image(GID.Format(i))
-      );
-      Put_Line(Standard_Error,
-        "  Image detailed format: " & GID.Detailed_format(i)
-      );
-      Put_Line(Standard_Error,
-        "  Image sub-format ID (if any): " & Integer'Image(GID.Subformat(i))
-      );
-      Put_Line(Standard_Error,
-        "  Dimensions in pixels: " &
-        Integer'Image(GID.Pixel_Width(i)) & " x" &
-        Integer'Image(GID.Pixel_Height(i))
-      );
-      Put_Line(Standard_Error,
-        "  Color depth: " &
-        Integer'Image(GID.Bits_per_pixel(i)) & " bits," &
-        Integer'Image(2**GID.Bits_per_pixel(i)) & " colors"
-      );
-      Put_Line(Standard_Error,
-        "  Palette: " & Boolean'Image(GID.Has_palette(i))
-      );
-      Put_Line(Standard_Error,
-        "  Greyscale: " & Boolean'Image(GID.Greyscale(i))
-      );
-      Put_Line(Standard_Error,
-        "  RLE encoding (if any): " & Boolean'Image(GID.RLE_encoded(i))
-      );
-      Put_Line(Standard_Error,
-        "  Interlaced (GIF: each frame's choice): " & Boolean'Image(GID.Interlaced(i))
-      );
-      Put_Line(Standard_Error, "1........10........20");
-      Put_Line(Standard_Error, "         |         | ");
-      --
-      if as_background then
-        Load_raw_image(i, bkg_buf);
-      else
-        Load_raw_image(i, img_buf);
-      end if;
-      New_Line(Standard_Error);
-      Close(f);
-      if as_background or test_only then
-        return;
-      end if;
-    exception
-      when GID.unknown_image_format =>
-        Put_Line(Standard_Error, "  Image format is unknown!");
-		return;
-    end;
-    --
-    -- Now, save the image as BMP 24-bit (code from GL.IO...)
-    --
+      for i in 1..bytes loop
+        Unsigned_8'Write(Stream(f), Unsigned_8(m and 255));
+        m:= m / 256;
+      end loop;
+    end Write_Intel_x86_number;
+    procedure Write_Intel is new Write_Intel_x86_number( Unsigned_16 );
+    procedure Write_Intel is new Write_Intel_x86_number( Unsigned_32 );
+  begin
     FileHeader.bfType := 16#4D42#; -- 'BM'
     FileHeader.bfOffBits := BITMAPINFOHEADER_Bytes + BITMAPFILEHEADER_Bytes;
     FileHeader.bfReserved1:= 0;
@@ -308,6 +251,77 @@ procedure To_BMP is
       end if;
     end;
     Close(f);
+  end Dump_BMP_24;
+
+  procedure Process(name: String; as_background, test_only: Boolean) is
+    f: Ada.Streams.Stream_IO.File_Type;
+    i: GID.Image_descriptor;
+    --
+    next_frame, current_frame: Ada.Calendar.Day_Duration:= 0.0;
+  begin
+    --
+    -- Load the image in its original format
+    --
+    Open(f, In_File, name);
+    Put_Line(Standard_Error, "Processing " & name & "...");
+    --
+    GID.Load_image_header(i, Stream(f).all, try_tga => True);
+    Put_Line(Standard_Error,
+      "  Image format: " & GID.Image_format_type'Image(GID.Format(i))
+    );
+    Put_Line(Standard_Error,
+      "  Image detailed format: " & GID.Detailed_format(i)
+    );
+    Put_Line(Standard_Error,
+      "  Image sub-format ID (if any): " & Integer'Image(GID.Subformat(i))
+    );
+    Put_Line(Standard_Error,
+      "  Dimensions in pixels: " &
+      Integer'Image(GID.Pixel_Width(i)) & " x" &
+      Integer'Image(GID.Pixel_Height(i))
+    );
+    Put_Line(Standard_Error,
+      "  Color depth: " &
+      Integer'Image(GID.Bits_per_pixel(i)) & " bits," &
+      Integer'Image(2**GID.Bits_per_pixel(i)) & " colors"
+    );
+    Put_Line(Standard_Error,
+      "  Palette: " & Boolean'Image(GID.Has_palette(i))
+    );
+    Put_Line(Standard_Error,
+      "  Greyscale: " & Boolean'Image(GID.Greyscale(i))
+    );
+    Put_Line(Standard_Error,
+      "  RLE encoding (if any): " & Boolean'Image(GID.RLE_encoded(i))
+    );
+    Put_Line(Standard_Error,
+      "  Interlaced (GIF: each frame's choice): " & Boolean'Image(GID.Interlaced(i))
+    );
+    Put_Line(Standard_Error, "1........10........20");
+    Put_Line(Standard_Error, "         |         | ");
+    --
+    if as_background then
+      Load_raw_image(i, bkg_buf, next_frame);
+      New_Line(Standard_Error);
+      Close(f);
+      return;
+    end if;
+    loop
+      Load_raw_image(i, img_buf, next_frame);
+      New_Line(Standard_Error);
+      if not test_only then
+        Dump_BMP_24(name & Duration'Image(current_frame), i);
+      end if;
+      exit when next_frame = 0.0;
+      current_frame:= next_frame;
+    end loop;
+    Close(f);
+  exception
+    when GID.unknown_image_format =>
+      Put_Line(Standard_Error, "  Image format is unknown!");
+      if Is_Open(f) then
+        Close(f);
+      end if;
   end Process;
 
   test_only: Boolean:= False;

@@ -281,6 +281,7 @@ package body GID.Decoding_GIF is
     delay_frame: U16;
 
   begin
+    next_frame:= 0.0;
     -- Scan various GIF blocks, until finding an image
     loop
       Character'Read( image.stream, Separator );
@@ -295,6 +296,12 @@ package body GID.Decoding_GIF is
           exit;
           -- Image descriptor will begin
           -- See: 20. Image Descriptor
+        when ';' => -- 16#3B#
+          if full_trace then
+            Ada.Text_IO.Put(" - End of GIF");
+          end if;          image.next_frame:= 0.0;
+          next_frame:= image.next_frame;
+          return; -- End of GIF image
         when '!' => -- 16#21# Extensions
           if full_trace then
             Ada.Text_IO.Put(" - Extension");
@@ -320,7 +327,7 @@ package body GID.Decoding_GIF is
               Transparency:= (temp and 1) = 1;
               Read_Intel(delay_frame, image.stream);
               image.next_frame:=
-                image.next_frame + Ada.Calendar.Day_Duration(delay_frame);
+                image.next_frame + Ada.Calendar.Day_Duration(delay_frame) / 100.0;
               next_frame:= image.next_frame;
               U8'Read( image.stream, Transp_color );
               -- zero sub-block:
@@ -346,10 +353,6 @@ package body GID.Decoding_GIF is
               end if;
               Skip_sub_blocks;
           end case;
-        when ';' => -- 16#3B#
-          image.next_frame:= 0.0;
-          next_frame:= image.next_frame;
-          return; -- End of GIF image
         when others =>
           Raise_exception(
             error_in_image_data'Identity,
@@ -398,18 +401,19 @@ package body GID.Decoding_GIF is
       local.palette:= new Color_table'(image.palette.all);
     end if;
 
+    -- Get initial code size
+    U8'Read( image.stream, temp );
+    CodeSize := Natural(temp);
+
     if full_trace then
       Ada.Text_IO.Put_Line(
         " - Image, interlaced: " & Boolean'Image(Interlaced) &
         "; local palette: " & Boolean'Image(Local_palette) &
         "; transparency: " & Boolean'Image(Transparency) &
-        "; transparency index:" & U8'Image(Transp_color)
+        "; transparency index:" & U8'Image(Transp_color) &
+        "; code size:" & Natural'Image(codesize)
       );
     end if;
-
-    -- Get initial code size
-    U8'Read( image.stream, temp );
-    CodeSize := Natural(temp);
 
     -- GIF data is stored in blocks, it is useful to know the size
     U8'Read( image.stream, temp );
@@ -462,11 +466,10 @@ package body GID.Decoding_GIF is
 
         -- Other codes
       else
-
         -- If the code is already in the string table, it's string is displayed,
         --   and the old string followed by the new string's first character is
         --   added to the string table.
-        if  Code < FreeCode then
+        if Code < FreeCode then
           Suffix (FreeCode) := OutString (Code);
         else
           -- If it is not already in the string table, the old string followed by
@@ -481,7 +484,7 @@ package body GID.Decoding_GIF is
         FreeCode:= FreeCode + 1;
 
         -- If the code size needs to be adjusted, do so
-        if  (FreeCode >= MaxCode)  and then (CodeSize < 12) then
+        if FreeCode >= MaxCode and then CodeSize < 12 then
           CodeSize:= CodeSize + 1;
           MaxCode := MaxCode  * 2;
         end if;
@@ -489,9 +492,9 @@ package body GID.Decoding_GIF is
         -- The current code is now old
         OldCode := Code;
       end if;
-
-      exit when  Code = EOICode;
+      exit when Code = EOICode;
     end loop;
+    U8'Read( image.stream, temp ); -- zero-size sub-block
   end Load;
 
 end GID.Decoding_GIF;
