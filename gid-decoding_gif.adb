@@ -150,7 +150,7 @@ package body GID.Decoding_GIF is
         --  return;
         Raise_exception(
           error_in_image_data'Identity,
-          "Bad palette index: " & b'img & local.palette'Length'img
+          "Bad palette index: " & b'img & local.palette'Length'img & pixel_mask'img
         );
       end if;
       if Transparency and b = Transp_color then
@@ -281,9 +281,7 @@ package body GID.Decoding_GIF is
     delay_frame: U16;
 
   begin
-    New_num_of_colours:= 2**image.bits_per_pixel;
-    Pixel_mask:= Color_Type(New_num_of_colours - 1);
-
+    -- Scan various GIF blocks, until finding an image
     loop
       Character'Read( image.stream, Separator );
       if full_trace then
@@ -387,7 +385,15 @@ package body GID.Decoding_GIF is
       New_num_of_colours:= 2 ** BitsPerPixel;
       Pixel_mask:= Color_Type(New_num_of_colours - 1);
       Color_tables.Load_palette(local);
+    elsif image.palette = null then
+      Raise_exception(
+        error_in_image_data'Identity,
+        "GIF: neither local, nor global palette"
+      );
     else
+      New_num_of_colours:= 2 ** image.subformat_id;
+      -- usually <= 2** image.bits_per_pixel
+      Pixel_mask:= Color_Type(New_num_of_colours - 1);
       -- Just copy main palette
       local.palette:= new Color_table'(image.palette.all);
     end if;

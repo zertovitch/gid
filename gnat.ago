@@ -5,16 +5,16 @@
 WINDOWS_TARGET
 
 
+interlaced
+image.subformat_id
+new_num
+pixel_mask
 Transp_color
 Transparency
 with
 next_fr
 !!
 transp
-calend
-endia
-interla
-mode
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

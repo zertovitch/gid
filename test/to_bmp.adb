@@ -219,7 +219,7 @@ procedure To_BMP is
         "  RLE encoding (if any): " & Boolean'Image(GID.RLE_encoded(i))
       );
       Put_Line(Standard_Error,
-        "  Interlaced: " & Boolean'Image(GID.Interlaced(i))
+        "  Interlaced (GIF: each frame's choice): " & Boolean'Image(GID.Interlaced(i))
       );
       Put_Line(Standard_Error, "1........10........20");
       Put_Line(Standard_Error, "         |         | ");

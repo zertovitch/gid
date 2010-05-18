@@ -245,10 +245,23 @@ package body GID.Headers is
     --  Size of Global Color Table    3 Bits
     global_palette:= (packed and 16#80#) /= 0;
     image.bits_per_pixel:= Natural((packed and 16#7F#)/16#10#) + 1;
+    -- Indicative:
+    -- iv) [...] This value should be set to indicate the
+    --     richness of the original palette
     U8'Read(image.stream, background);
     U8'Read(image.stream, aspect_ratio_code);
     if global_palette then
-      image.palette:= new Color_Table(0..2**(1+(Natural(packed and 16#07#)))-1);
+      image.subformat_id:= 1+(Natural(packed and 16#07#));
+      -- palette's bits per pixels, usually <= image's
+      --
+      --  if image.subformat_id > image.bits_per_pixel then
+      --    Raise_exception(
+      --      error_in_image_data'Identity,
+      --      "GIF: global palette has more colors than the image" &
+      --       image.subformat_id'img & image.bits_per_pixel'img
+      --    );
+      --  end if;
+      image.palette:= new Color_Table(0..2**(image.subformat_id)-1);
       Color_tables.Load_palette(image);
     end if;
   end Load_GIF_header;
