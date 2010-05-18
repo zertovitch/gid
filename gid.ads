@@ -74,6 +74,8 @@ package GID is
   --------------------------------------------------------------------
 
   type Display_mode is (fast, nice);
+  -- For bitmap pictures, the result is exactly the same, but
+  -- interlaced images' larger pixels are drawn in full during decoding.
 
   generic
     type Primary_color_range is mod <>;

@@ -372,7 +372,7 @@ package body GID.Decoding_PNG is
       -- i is between data'Last-(bytes_pp-2) and data'Last+1
       old_bytes:= data'Last + 1 - i;
       if old_bytes > 0 then
-      ada.text_io.put("X" & old_bytes'img);
+ ada.text_io.put("X" & integer'image(old_bytes)); --!!
         byte_mem(1..old_bytes):= data(i .. data'Last);
       end if;
     end Output_uncompressed;

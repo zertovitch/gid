@@ -145,14 +145,14 @@ package body GID.Decoding_GIF is
     procedure Pixel_with_palette(b: U8) is
       pragma Inline(Pixel_with_palette);
     begin
-      if Integer(b) >= local.palette'Length then
-        --  Put_Pixel(0,0,0, 255);
-        --  return;
-        Raise_exception(
-          error_in_image_data'Identity,
-          "Bad palette index: " & b'img & local.palette'Length'img & pixel_mask'img
-        );
-      end if;
+      --  if Integer(b) >= local.palette'Length then
+      --    --  Put_Pixel(0,0,0, 255);
+      --    --  return;
+      --    Raise_exception(
+      --      error_in_image_data'Identity,
+      --      "Bad palette index: " & b'img & local.palette'Length'img & pixel_mask'img
+      --    );
+      --  end if;
       if Transparency and b = Transp_color then
         Put_Pixel(0,0,0, 0);
         return;
