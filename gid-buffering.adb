@@ -2,17 +2,6 @@ with Ada.IO_Exceptions;
 
 package body GID.Buffering is
 
-  -- Compile-time test to check if a Byte_Array is equivalemnt to a
-  -- Ada.Streams.Stream_Element_Array
-
-  subtype Size_test_a is Byte_Array(1..19);
-  subtype Size_test_b is Ada.Streams.Stream_Element_Array(1..19);
-  --
-  is_mapping_possible: constant Boolean:=
-    Size_test_a'Size = Size_test_b'Size and then
-    Size_test_a'Alignment = Size_test_b'Alignment;
-  --
-
   procedure Fill_Buffer(b: in out Input_buffer);
   -- ^ Spec here to avoid in Get_Byte below (GNAT 2009):
   -- warning: call to subprogram with no separate spec prevents inlining

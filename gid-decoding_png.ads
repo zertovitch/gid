@@ -52,6 +52,14 @@ private package GID.Decoding_PNG is
 
 private
 
-  full_trace: constant Boolean:= False;
+  -- Primitive tracing using Ada.Text_IO
+  --
+  type Trace_type is (none, some, full);
+
+  trace: constant Trace_type:= some; -- <== Choice
+
+  no_trace  : constant Boolean:= trace=none;
+  full_trace: constant Boolean:= trace=full;
+  some_trace: constant Boolean:= trace>=some;
 
 end GID.Decoding_PNG;

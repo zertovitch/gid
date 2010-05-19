@@ -1,6 +1,6 @@
-with GID.Color_tables;
+with GID.Buffering, GID.Color_tables;
 
-with Ada.Text_IO, Ada.Exceptions;
+with Ada.Exceptions, Ada.IO_Exceptions, Ada.Streams, Ada.Text_IO;
 
 package body GID.Decoding_GIF is
 
@@ -61,9 +61,11 @@ package body GID.Decoding_GIF is
     X, tlX, brX : Natural;
     Y, tlY, brY : Natural;
 
-    -- GIF data is stored in blocks of a certain size
-    BlockSize      : Natural;
-    BlockRead      : Natural;
+    -- GIF data is stored in blocks and sub-blocks.
+    -- We initialize BlockRead and BlockSize to force
+    -- reading and buffering the next sub-block
+    BlockSize      : Natural:= 0;
+    BlockRead      : Natural:= 0;
 
     -- The string table
     Prefix       : array ( 0..4096 ) of Natural;
@@ -73,13 +75,13 @@ package body GID.Decoding_GIF is
       FreeCode     : Natural;
 
     -- All the code information
+    subtype Code_size_range is Natural range 2..12;
     InitCodeSize,
-      CodeSize     : Natural;
+      CodeSize     : Code_size_range;
     Code,
       OldCode,
       MaxCode      : Natural;
-
-    -- Special codes
+    -- Special codes (GIF only, not LZW)
     ClearCode,
       EOICode      : Natural;
 
@@ -104,17 +106,52 @@ package body GID.Decoding_GIF is
     -- This is in case of local colour map
     BitsPerPixel  : Natural;
 
+    block_buffer : Byte_array( 1..256 );
+
     function Read_Byte return U8 is
       b: U8;
+      use Ada.Streams;
+      Last_Read: Stream_Element_Offset;
     begin
       if BlockRead >= BlockSize then
         U8'Read( image.stream, b);
         BlockSize:= Natural(b);
         BlockRead:= 0;
+        -- Pre-read the block
+        --
+        -- We could do simply:
+        --
+        -- >>> Byte_Array'Read(image.stream, block_buffer(1..BlockSize));
+        --
+        -- but main Ada implementations (GNAT, ObjectAda; early 2010)
+        -- are very slow on this. So we use Ada.Streams.
+        -- Speedup for overall GIF decompression is 2x !
+        --
+        if GID.Buffering.is_mapping_possible then
+          declare
+            SE_Buffer_mapped: Stream_Element_Array (1..Stream_Element_Offset(BlockSize));
+            -- direct mapping: buffer = SE_Buffer_mapped
+            for SE_Buffer_mapped'Address use block_buffer'Address;
+            pragma Import (Ada, SE_Buffer_mapped);
+          begin
+            Read(image.stream.all, SE_Buffer_mapped, Last_Read);
+          end;
+        else
+          declare
+            SE_Buffer_mapped: Stream_Element_Array (1..Stream_Element_Offset(BlockSize));
+          begin
+            Read(image.stream.all, SE_Buffer_mapped, Last_Read);
+            for i in 1..Integer(Last_Read) loop
+              block_buffer(i):= U8(SE_Buffer_mapped(Stream_Element_Offset(i-block_buffer'First)+SE_buffer_mapped'First));
+            end loop;
+          end;
+        end if;
+        if Integer(Last_Read) < BlockSize then
+          raise Ada.IO_Exceptions.End_Error;
+        end if;
       end if;
-      U8'Read( image.stream, b );
       BlockRead:= BlockRead + 1;
-      return b;
+      return block_buffer(BlockRead);
     end Read_Byte;
 
     -- Local procedure to read the next code from the file
@@ -267,18 +304,20 @@ package body GID.Decoding_GIF is
 
     procedure Skip_sub_blocks is
     begin
-      loop
+       sub_blocks_sequence:
+       loop
         U8'Read( image.stream, temp ); -- load sub-block length byte
-        exit when temp = 0;
+        exit sub_blocks_sequence when temp = 0;
         -- null sub-block = end of sub-block sequence
         for i in 1..temp loop
           U8'Read( image.stream, temp ); -- load sub-block byte
         end loop;
-      end loop;
+      end loop sub_blocks_sequence;
     end Skip_sub_blocks;
 
     label: U8;
     delay_frame: U16;
+    c: Character;
 
   begin
     next_frame:= 0.0;
@@ -335,8 +374,20 @@ package body GID.Decoding_GIF is
             when 16#FE# => -- See: 24. Comment Extension
               if full_trace then
                 Ada.Text_IO.Put_Line(" - Comment Extension");
+                sub_blocks_sequence:
+                loop
+                  U8'Read( image.stream, temp ); -- load sub-block length byte
+                  exit sub_blocks_sequence when temp = 0;
+                  -- null sub-block = end of sub-block sequence
+                  for i in 1..temp loop
+                    Character'Read( image.stream, c );
+                    Ada.Text_IO.Put(c);
+                  end loop;
+                end loop sub_blocks_sequence;
+                Ada.Text_IO.New_Line;
+              else
+                Skip_sub_blocks;
               end if;
-              Skip_sub_blocks;
             when 16#01# => -- See: 25. Plain Text Extension
               if full_trace then
                 Ada.Text_IO.Put_Line(" - Plain Text Extension");
@@ -382,11 +433,14 @@ package body GID.Decoding_GIF is
     --
     Interlaced:= (Descriptor.Depth and 64) = 64;
     Local_palette:= (Descriptor.Depth and 128) = 128;
+    local.format:= GIF;
+    local.stream:= image.stream;
     if Local_palette then
       -- Get amount of colours in image
       BitsPerPixel := 1 + Natural(Descriptor.Depth and 7);
       New_num_of_colours:= 2 ** BitsPerPixel;
-      Pixel_mask:= Color_Type(New_num_of_colours - 1);
+      -- 21. Local Color Table
+      local.palette:= new Color_Table(0..New_num_of_colours-1);
       Color_tables.Load_palette(local);
     elsif image.palette = null then
       Raise_exception(
@@ -394,32 +448,33 @@ package body GID.Decoding_GIF is
         "GIF: neither local, nor global palette"
       );
     else
+      -- Use global palette
       New_num_of_colours:= 2 ** image.subformat_id;
       -- usually <= 2** image.bits_per_pixel
-      Pixel_mask:= Color_Type(New_num_of_colours - 1);
       -- Just copy main palette
       local.palette:= new Color_table'(image.palette.all);
     end if;
-
-    -- Get initial code size
-    U8'Read( image.stream, temp );
-    CodeSize := Natural(temp);
+    Pixel_mask:= Color_Type(New_num_of_colours - 1);
 
     if full_trace then
       Ada.Text_IO.Put_Line(
         " - Image, interlaced: " & Boolean'Image(Interlaced) &
         "; local palette: " & Boolean'Image(Local_palette) &
         "; transparency: " & Boolean'Image(Transparency) &
-        "; transparency index:" & U8'Image(Transp_color) &
-        "; code size:" & Natural'Image(codesize)
+        "; transparency index:" & U8'Image(Transp_color)
       );
     end if;
 
-    -- GIF data is stored in blocks, it is useful to know the size
+    -- Get initial code size
     U8'Read( image.stream, temp );
-    BlockSize:= Natural(temp);
-    BlockRead:= 0;
-    -- !! buffering !!
+    if Natural(temp) not in Code_size_range then
+      Raise_exception(
+        error_in_image_data'Identity,
+        "GIF: wrong LZW code size (must be in 2..12), is" &
+        U8'Image(temp)
+      );
+    end if;
+    CodeSize := Natural(temp);
 
     -- Special codes used in the GIF spec
     ClearCode        := 2 ** CodeSize;     -- Code to reset
@@ -441,29 +496,24 @@ package body GID.Decoding_GIF is
     Y := Natural(Descriptor.ImageTop);
     Set_X_Y(X, image.height - Y - 1);
 
+    LZW_decompression:
     loop
       -- Read next code
       ReadCode;
-
       -- If it's an End-Of-Information code, stop processing
       exit when Code = EOICode;
-
       -- If it's a clear code...
       if  Code = ClearCode then
         -- Clear the string table
         FreeCode := FirstFree;
-
         -- Set the code size to initial values
         CodeSize := InitCodeSize;
         MaxCode  := 2 ** CodeSize;
-
         -- The next code may be read
         ReadCode;
         OldCode := Code;
-
         -- Set pixel
         NextPixel( Code );
-
         -- Other codes
       else
         -- If the code is already in the string table, it's string is displayed,
@@ -478,22 +528,19 @@ package body GID.Decoding_GIF is
           Suffix (FreeCode) := OutString (OldCode);
           NextPixel( Suffix (FreeCode) );
         end if;
-
         -- Finish adding to string table
         Prefix (FreeCode) := OldCode;
         FreeCode:= FreeCode + 1;
-
         -- If the code size needs to be adjusted, do so
         if FreeCode >= MaxCode and then CodeSize < 12 then
           CodeSize:= CodeSize + 1;
           MaxCode := MaxCode  * 2;
         end if;
-
         -- The current code is now old
         OldCode := Code;
       end if;
       exit when Code = EOICode;
-    end loop;
+    end loop LZW_decompression;
     U8'Read( image.stream, temp ); -- zero-size sub-block
   end Load;
 

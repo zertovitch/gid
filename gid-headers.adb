@@ -306,10 +306,11 @@ package body GID.Headers is
       when 3 =>
         palette:= True;
       when 4 =>
+        image.bits_per_pixel:= 2 * image.bits_per_pixel; -- Grey & Alpha
         image.greyscale:= True;
         image.transparency:= True;
       when 6 =>
-        image.bits_per_pixel:= 3 * image.bits_per_pixel; -- RGB
+        image.bits_per_pixel:= 4 * image.bits_per_pixel; -- RGBA
         image.transparency:= True;
       when others =>
         Raise_exception(

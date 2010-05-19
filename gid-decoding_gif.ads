@@ -1,6 +1,3 @@
--- !! buffering: funny thing: avoid buffering too much.
---    Perhaps, each sub-block and not fixed-size buffer.
-
 private package GID.Decoding_GIF is
 
   generic

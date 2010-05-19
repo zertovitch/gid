@@ -41,8 +41,8 @@ package body GID.Decoding_PNG is
     String'Read(image.stream, str4);
     begin
       ch.kind:= PNG_Chunk_tag'Value(str4);
-      if full_trace then
-        Ada.Text_IO.Put('[' & str4 & ']');
+      if some_trace then
+        Ada.Text_IO.Put_Line('[' & str4 & ']');
       end if;
     exception
       when Constraint_Error =>
@@ -152,33 +152,40 @@ package body GID.Decoding_PNG is
 
     current_filter: Filter_method_0;
 
-    procedure Unfilter_bytes(f: in out Byte_array) is
-      pragma Inline(Unfilter_bytes);
+    procedure Unfilter_bytes(
+      f: in  Byte_array;  -- filtered
+      u: out Byte_array   -- unfiltered
+    )
+    is
+    pragma Inline(Unfilter_bytes);
       -- c b
       -- a f
       a,b,c,p,pa,pb,pc,pr: Integer;
       j: Integer:= 0;
     begin
---     ada.text_io.put(current_filter'img & ' ');
       case current_filter is
         when None    =>
           -- Recon(x) = Filt(x)
-          null;
+          u:= f;
         when Sub     =>
           -- Recon(x) = Filt(x) + Recon(a)
           if x > 0 then
             for i in f'Range loop
-              f(i):= f(i) + mem_row_bytes(curr_row)((x-1)*bytes_pp+j);
+              u(u'First+j):= f(i) + mem_row_bytes(curr_row)((x-1)*bytes_pp+j);
               j:= j + 1;
             end loop;
+          else
+            u:= f;
           end if;
         when Up      =>
           -- Recon(x) = Filt(x) + Recon(b)
           if y > 0 then
             for i in f'Range loop
-              f(i):= f(i) + mem_row_bytes(1-curr_row)(x*bytes_pp+j);
+              u(u'First+j):= f(i) + mem_row_bytes(1-curr_row)(x*bytes_pp+j);
               j:= j + 1;
             end loop;
+          else
+            u:= f;
           end if;
         when Average =>
           -- Recon(x) = Filt(x) + floor((Recon(a) + Recon(b)) / 2)
@@ -193,7 +200,7 @@ package body GID.Decoding_PNG is
             else
               b:= 0;
             end if;
-            f(i):= f(i) + U8((a+b)/2);
+            u(u'First+j):= f(i) + U8((a+b)/2);
             j:= j + 1;
           end loop;
         when Paeth   =>
@@ -225,28 +232,32 @@ package body GID.Decoding_PNG is
             else
               pr:= c;
             end if;
-            f(i):= f(i) + U8(pr);
+            u(u'First+j):= f(i) + U8(pr);
             j:= j + 1;
           end loop;
       end case;
       j:= 0;
-      for i in f'Range loop
-        mem_row_bytes(curr_row)(x*bytes_pp+j):= f(i);
+      for i in u'Range loop
+        mem_row_bytes(curr_row)(x*bytes_pp+j):= u(i);
         j:= j + 1;
       end loop;
     end Unfilter_bytes;
 
-    old_bytes: Natural:= 0; -- how many bytes from last Inflate output
-
-    byte_mem: Byte_array(1..3);
+    filter_stat: array(Filter_method_0) of Natural:= (others => 0);
 
     -- Output bytes from decompression
     --
-    procedure Output_uncompressed(data: in out Byte_array) is
+    procedure Output_uncompressed(
+      data  : in     Byte_array;
+      reject:    out Natural
+      -- amount of bytes to be resent next time,
+      -- in order to have a full multi-byte pixel
+    )
+    is
       i, color_idx: Integer;
 
       procedure Out_Pixel(br, bg, bb, ba: U8) is
-        pragma Inline(Out_Pixel);
+      pragma Inline(Out_Pixel);
       begin
         case Primary_color_range'Modulus is
           when 256 =>
@@ -268,7 +279,20 @@ package body GID.Decoding_PNG is
         end case;
       end Out_Pixel;
 
+      procedure Out_Pixel_Palette(ix: U8) is
+      pragma Inline(Out_Pixel_Palette);
+        color_idx: constant Natural:= Integer(ix);
+      begin
+        Out_Pixel(
+          image.palette(color_idx).red,
+          image.palette(color_idx).green,
+          image.palette(color_idx).blue,
+          255
+        );
+      end Out_Pixel_Palette;
+
       procedure Inc_XY is
+      pragma Inline(Inc_XY);
       begin
         if x = Width_range'Last then
           x:= Width_range'First;
@@ -282,45 +306,22 @@ package body GID.Decoding_PNG is
         end if;
       end Inc_XY;
 
+      uf: Byte_array(0..15); -- unfiltered bytes for a pixel
+
     begin
+      if some_trace then
+        Ada.Text_IO.Put("[UO]");
+      end if;
       -- Depending on the row size, bpp, etc., we can have
       -- several rows, or less than one, being displayed
-      -- with uncompressed data.
+      -- with the uncompressed data.
       --
       -- !! all branches (image.subformat_id) inside loop as generic
       --
       i:= data'First;
       if i > data'Last then
+        reject:= 0;
         return; -- data is empty, do nothing
-      end if;
-      --
-      -- Multi-byte pixels may have data in this batch, and other data in
-      -- the next one, or even over more than two batches.
-      -- We address this here.
-      --
-      if old_bytes > 0 then
-        for k in old_bytes + 1 .. bytes_pp loop
-          byte_mem(k):= data(i); -- append new bytes to old ones
-          old_bytes:= k;
-          if i = data'Last and k < bytes_pp then
-            return;
-            -- Data had not even enough bytes to complete the old pixel!
-            -- But we have copied at least one byte to byte_mem
-          end if;
-          i:= i + 1;
-        end loop;
-        case image.subformat_id is
-          when 2 => -- RGB
-            Unfilter_bytes(byte_mem(1..3));
-            Out_Pixel(byte_mem(1), byte_mem(2), byte_mem(3), 255);
-          when 4 => -- Greyscale & Alpha
-            null; -- !!
-          when 6 => -- RGBA
-            null; -- !!
-          when others =>
-            null; -- !!
-        end case;
-        Inc_XY;
       end if;
       --
       -- Main loop over data
@@ -330,6 +331,9 @@ package body GID.Decoding_PNG is
           exit when i > data'Last;
           begin
             current_filter:= Filter_method_0'Val(data(i));
+            if some_trace then
+              filter_stat(current_filter):= filter_stat(current_filter) + 1;
+            end if;
           exception
             when Constraint_Error =>
               Raise_exception(
@@ -346,12 +350,12 @@ package body GID.Decoding_PNG is
             when 0 => -- Greyscale
               null; -- !!
             when 2 => -- RGB
-              Unfilter_bytes(data(i..i+2));
-              Out_Pixel(data(i), data(i+1), data(i+2), 255);
+              Unfilter_bytes(data(i..i+2), uf(0..2));
+              Out_Pixel(uf(0), uf(1), uf(2), 255);
               i:= i + 3;
             when 3 => -- RGB with palette
-              Unfilter_bytes(data(i..i));
-              color_idx:= Integer(data(i));
+              Unfilter_bytes(data(i..i), uf(0..0));
+              color_idx:= Integer(uf(0));
               Out_Pixel(
                 image.palette(color_idx).red,
                 image.palette(color_idx).green,
@@ -370,10 +374,15 @@ package body GID.Decoding_PNG is
         Inc_XY;
       end loop;
       -- i is between data'Last-(bytes_pp-2) and data'Last+1
-      old_bytes:= data'Last + 1 - i;
-      if old_bytes > 0 then
- ada.text_io.put("X" & integer'image(old_bytes)); --!!
-        byte_mem(1..old_bytes):= data(i .. data'Last);
+      reject:= (data'Last + 1) - i;
+      if reject > 0 then
+        if some_trace then
+          Ada.Text_IO.Put(
+            "[Bytes across pixel:" &
+            Integer'Image(reject) &
+            ']'
+          );
+        end if;
       end if;
     end Output_uncompressed;
 
@@ -519,6 +528,10 @@ package body GID.Decoding_PNG is
 
       end Bit_buffer;
 
+      old_bytes: Natural:= 0;
+      -- how many bytes to be resent from last Inflate output
+      byte_mem: Byte_array(1..8);
+
       procedure Flush ( x: Natural ) is
         use Ada.Streams;
       begin
@@ -526,7 +539,24 @@ package body GID.Decoding_PNG is
           Ada.Text_IO.Put("[Flush...");
         end if;
         CRC32.Update( UnZ_Glob.crc32val, UnZ_Glob.slide( 0..x-1 ) );
-        Output_uncompressed(UnZ_Glob.slide(0..x-1));
+        if old_bytes > 0 then
+          declare
+            app: constant Byte_array:=
+              byte_mem(1..old_bytes) & UnZ_Glob.slide(0..x-1);
+          begin
+            Output_uncompressed(app, old_bytes);
+            -- In extreme cases (x very small), we might have some of
+            -- the rejected bytes from byte_mem.
+            if old_bytes > 0 then
+              byte_mem(1..old_bytes):= app(app'Last-(old_bytes-1)..app'Last);
+            end if;
+          end;
+        else
+          Output_uncompressed(UnZ_Glob.slide(0..x-1), old_bytes);
+          if old_bytes > 0 then
+            byte_mem(1..old_bytes):= UnZ_Glob.slide(x-old_bytes..x-1);
+          end if;
+        end if;
         if full_trace then
           Ada.Text_IO.Put_Line("finished]");
         end if;
@@ -573,21 +603,7 @@ package body GID.Decoding_PNG is
       procedure Copy_range(source, index: in out Natural; amount: Positive) is
         pragma Inline(Copy_range);
       begin
-        --if full_trace then
-        --  Ada.Text_IO.Put(
-        --    "(Copy_range: source=" & Integer'Image(source) &
-        --    " index=" & Integer'Image(index) &
-        --    " amount=" & Integer'Image(amount) );
-        --end if;
         if abs (index - source) < amount then
-          --if full_trace and then source < index then
-          --  Ada.Text_IO.Put(
-          --    "; replicates" &
-          --    Integer'Image(amount) & " /" & Integer'Image(index-source) &
-          --    " )"
-          --  );
-          --  -- ...times the range source..index-1
-          --end if;
           -- if source >= index, the effect of copy is
           -- just like the non-overlapping case
           for count in reverse 1..amount loop
@@ -601,9 +617,6 @@ package body GID.Decoding_PNG is
           index := index  + amount;
           source:= source + amount;
         end if;
-        --if full_trace then
-        --  Ada.Text_IO.Put(')');
-        --end if;
       end Copy_range;
 
       -- The copying routines:
@@ -1036,28 +1049,38 @@ package body GID.Decoding_PNG is
         when IEND =>
           exit;
         when IDAT =>
-          ada.text_io.put("Z");
           U8'Read(image.stream, b); -- zlib compression method/flags code
           U8'Read(image.stream, b); -- Additional flags/check bits
           UnZ_IO.Init_Buffers;
           UnZ_Meth.Inflate;
           Big_endian(z_crc, image.stream); -- zlib Check value
           --  if z_crc /= U32(UnZ_Glob.crc32val) then
+          --    ada.text_io.put(z_crc 'img &  UnZ_Glob.crc32val'img);
           --    Raise_exception(
           --      error_in_image_data'Identity,
           --      "PNG: deflate stream corrupt"
           --    );
           --  end if;
           --  ** Mystery: this check fail even with images which decompress perfectly
-          --  ** Another crc init value zip <-> zlib ?
-          Big_endian(dummy, image.stream); -- chunk's CRC
+          --  ** Is CRC init value different between zip and zlib ?
+          Big_endian(dummy, image.stream); -- chunk's CRC (then, on compressed data)
+          --
         when others =>
-          -- skip chunk data and CRC
+          -- Skip chunk data and CRC
           for i in 1..ch.length + 4 loop
             U8'Read(image.stream, b);
           end loop;
       end case;
     end loop;
+    if some_trace then
+      for f in Filter_method_0 loop
+        Ada.Text_IO.Put_Line(
+          "Filter: " &
+          Filter_method_0'Image(f) &
+          Integer'Image(filter_stat(f))
+        );
+      end loop;
+    end if;
   end Load;
 
 end GID.Decoding_PNG;
