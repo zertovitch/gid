@@ -142,7 +142,8 @@ package body GID.Decoding_PNG is
     x: Width_range:= -1;
     y: Height_range:= 0;
 
-    bytes_pp: Integer;
+    -- Amount of bytes to unfilter at a time
+    bytes_to_unfilter: constant Integer:= Integer'Max(1, image.bits_per_pixel / 8);
 
     ------------------
     -- 9: Filtering --
@@ -171,7 +172,7 @@ package body GID.Decoding_PNG is
           -- Recon(x) = Filt(x) + Recon(a)
           if x > 0 then
             for i in f'Range loop
-              u(u'First+j):= f(i) + mem_row_bytes(curr_row)((x-1)*bytes_pp+j);
+              u(u'First+j):= f(i) + mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j);
               j:= j + 1;
             end loop;
           else
@@ -181,7 +182,7 @@ package body GID.Decoding_PNG is
           -- Recon(x) = Filt(x) + Recon(b)
           if y > 0 then
             for i in f'Range loop
-              u(u'First+j):= f(i) + mem_row_bytes(1-curr_row)(x*bytes_pp+j);
+              u(u'First+j):= f(i) + mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j);
               j:= j + 1;
             end loop;
           else
@@ -191,12 +192,12 @@ package body GID.Decoding_PNG is
           -- Recon(x) = Filt(x) + floor((Recon(a) + Recon(b)) / 2)
           for i in f'Range loop
             if x > 0 then
-              a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_pp+j));
+              a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
             else
               a:= 0;
             end if;
             if y > 0 then
-              b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_pp+j));
+              b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
             else
               b:= 0;
             end if;
@@ -207,17 +208,17 @@ package body GID.Decoding_PNG is
           -- Recon(x) = Filt(x) + PaethPredictor(Recon(a), Recon(b), Recon(c))
           for i in f'Range loop
             if x > 0 then
-              a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_pp+j));
+              a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
             else
               a:= 0;
             end if;
             if y > 0 then
-              b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_pp+j));
+              b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
             else
               b:= 0;
             end if;
             if x > 0 and y > 0 then
-              c:= Integer(mem_row_bytes(1-curr_row)((x-1)*bytes_pp+j));
+              c:= Integer(mem_row_bytes(1-curr_row)((x-1)*bytes_to_unfilter+j));
             else
               c:= 0;
             end if;
@@ -238,7 +239,7 @@ package body GID.Decoding_PNG is
       end case;
       j:= 0;
       for i in u'Range loop
-        mem_row_bytes(curr_row)(x*bytes_pp+j):= u(i);
+        mem_row_bytes(curr_row)(x*bytes_to_unfilter+j):= u(i);
         j:= j + 1;
       end loop;
     end Unfilter_bytes;
@@ -344,48 +345,87 @@ package body GID.Decoding_PNG is
           Set_X_Y(0, image.height - y - 1);
           i:= i + 1;
         else
-          exit when i > data'Last - (bytes_pp - 1);
+          exit when i > data'Last - (bytes_to_unfilter - 1);
+          -- NB, for per-channel bpp < 8:
+          -- 7.2 Scanlines - some low-order bits of the
+          -- last byte of a scanline may go unused.
           case image.subformat_id is
             when 0 => -- Greyscale
               case image.bits_per_pixel is
-                when 1 | 2 | 4 =>
-                  null; -- !!
-                when 8 =>
+                when 1 | 2 | 4  =>
                   Unfilter_bytes(data(i..i), uf(0..0));
-                  Out_Pixel(uf(0), uf(0), uf(0), 255);
                   i:= i + 1;
+                  declare
+                    b: U8;
+                    shift: Integer:= 8 - image.bits_per_pixel;
+                    use Interfaces;
+                    max: constant U8:= U8(Shift_Left(Unsigned_32'(1), image.bits_per_pixel)-1);
+                    -- Scaling factor to obtain the correct color value on a 0..255 range.
+                    -- The division is exact in all three cases, since 255 = 3 * 5 * 17,
+                    -- and max = 255, 15=3*5, or 3.
+                    -- This factor ensures: 0 -> 0, max -> 255
+                    factor: constant U8:= 255 / max;
+                  begin
+                    -- loop through the number of pixels in this byte:
+                    for k in reverse 1..8/image.bits_per_pixel loop
+                      b:= (max and U8(Shift_Right(Unsigned_8(uf(0)), shift))) * factor;
+                      shift:= shift - image.bits_per_pixel;
+                      Out_Pixel(b, b, b, 255);
+                      exit when x >= Width_range'Last or k = 1;
+                      x:= x + 1;
+                    end loop;
+                  end;
+                when 8 =>
+                  -- !! with bpp as generic param, this case can be merged
+                  -- into the general 1,2,4[,8] case without loss of performance
+                  -- if the compiler is smart enough. To be tested first... !!
+                  Unfilter_bytes(data(i..i), uf(0..0));
+                  i:= i + 1;
+                  Out_Pixel(uf(0), uf(0), uf(0), 255);
                 when 16 =>
                   null; -- not yet supported; exception raised earlier
                 when others =>
-                  null;
+                  null; -- undefined in PNG standard
               end case;
             when 2 => -- RGB
               case image.bits_per_pixel is
                 when 24 =>
                   Unfilter_bytes(data(i..i+2), uf(0..2));
-                  Out_Pixel(uf(0), uf(1), uf(2), 255);
                   i:= i + 3;
+                  Out_Pixel(uf(0), uf(1), uf(2), 255);
                 when 48 =>
                   null; -- not yet supported; exception raised earlier
                 when others =>
                   null;
               end case;
             when 3 => -- RGB with palette
+              Unfilter_bytes(data(i..i), uf(0..0));
+              i:= i + 1;
               case image.bits_per_pixel is
-                when 4 =>
-                  Unfilter_bytes(data(i..i), uf(0..0));
-                  Out_Pixel_Palette(uf(0)  /  16#10#);
-                  -- 7.2 Scanlines - some low-order bits of the
-                  -- last byte of a scanline may go unused.
-                  if x < Width_range'Last then
-                    Inc_XY;
-                    Out_Pixel_Palette(uf(0) and 16#0F#);
-                  end if;
-                  i:= i + 1;
+                when 1 | 2 | 4 =>
+                  --                  Out_Pixel_Palette(uf(0) / 16#10#);
+                  --                  if x < Width_range'Last then
+                  --                    x:= x + 1;
+                  --                    Out_Pixel_Palette(uf(0) and 16#0F#);
+                  --                  end if;
+                  declare
+                    shift: Integer:= 8 - image.bits_per_pixel;
+                    use Interfaces;
+                    max: constant U8:= U8(Shift_Left(Unsigned_32'(1), image.bits_per_pixel)-1);
+                  begin
+                    -- loop through the number of pixels in this byte:
+                    for k in reverse 1..8/image.bits_per_pixel loop
+                      Out_Pixel_Palette(max and U8(Shift_Right(Unsigned_8(uf(0)), shift)));
+                      shift:= shift - image.bits_per_pixel;
+                      exit when x >= Width_range'Last or k = 1;
+                      x:= x + 1;
+                    end loop;
+                  end;
                 when 8 =>
-                  Unfilter_bytes(data(i..i), uf(0..0));
+                  -- !! with bpp as generic param, this case can be merged
+                  -- into the general 1,2,4[,8] case without loss of performance
+                  -- if the compiler is smart enough. To be tested first... !!
                   Out_Pixel_Palette(uf(0));
-                  i:= i + 1;
                 when others =>
                   null;
               end case;
@@ -399,7 +439,7 @@ package body GID.Decoding_PNG is
         end if;
         Inc_XY;
       end loop;
-      -- i is between data'Last-(bytes_pp-2) and data'Last+1
+      -- i is between data'Last-(bytes_to_unfilter-2) and data'Last+1
       reject:= (data'Last + 1) - i;
       if reject > 0 then
         if some_trace then
@@ -1055,20 +1095,6 @@ package body GID.Decoding_PNG is
     z_crc, dummy: U32;
 
   begin
-    case image.subformat_id is
-      when 0 => -- Greyscale
-        bytes_pp:= 1;
-      when 2 => -- RGB
-        bytes_pp:= 3;
-      when 3 => -- RGB with palette
-        bytes_pp:= 1;
-      when 4 => -- Greyscale & Alpha
-        bytes_pp:= 2;
-      when 6 => -- RGBA
-        bytes_pp:= 4;
-      when others =>
-        null;
-    end case;
     loop
       Read(image, ch);
       case ch.kind is
