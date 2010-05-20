@@ -6,8 +6,11 @@
 --
 --   The Generic Image Decoder is a package for decoding a broad
 --   variety of image formats, from any data stream, to any kind
---   of in-memory bitmap. Unconditionally portable code, independent
---   of operating system, processor, endianess and choice of compiler.
+--   of recipient (in-memory bitmap, GUI object, some other stream,
+--   browser element, device,...). Animations are supported.
+--
+--   The code is unconditionally portable, independent of the
+--   choice of operating system, processor, endianess and compiler.
 --
 -- Image types supported:
 --
@@ -62,9 +65,11 @@ package GID is
   error_in_image_data,
   invalid_primary_color_range: exception;
 
-  -----------------------------------------------------------------
-  -- 2) If needed, use dimensions to reserve an in-memory bitmap --
-  -----------------------------------------------------------------
+  ----------------------------------------------------------------------
+  -- 2) If needed, use dimensions to prepare the retrival of the      --
+  --    image, for instance: reserving an in-memory bitmap, sizing a  --
+  --    GUI object, defining a browser element, setting up a device   --
+  ----------------------------------------------------------------------
 
   function Pixel_width (image: Image_descriptor) return Positive;
   function Pixel_height (image: Image_descriptor) return Positive;
@@ -82,9 +87,9 @@ package GID is
     type Primary_color_range is mod <>;
     -- Coding of primary colors (red, green or blue)
     -- and of opacity (also known as alpha channel).
-    -- Currently, only 8-bit and 16-bit is admitted.
-    -- 8-bit is usual: TrueColor, PC graphics, etc.;
-    -- 16-bit is seen in some high-end apps/devices/formats.
+    -- Currently, only 8-bit and 16-bit are admitted.
+    --    8-bit is usual: TrueColor, PC graphics, etc.;
+    --   16-bit is seen in some high-end apps/devices/formats.
     --
     with procedure Set_X_Y (x, y: Natural);
       pragma Inline(Set_X_Y);
@@ -96,16 +101,18 @@ package GID is
       pragma Inline(Put_Pixel);
     -- When Put_Pixel is called twice without a Set_X_Y inbetween,
     -- the pixel must be displayed on the next X position after the last one.
-    -- [Rationale: if the image lands into an array, the full address
-    --  calculation can be made only at the beginning of each line]
+    -- [ Rationale: if the image lands into an array with contiguous pixels
+    --   on the X axis, this approach allows full address calculation to be
+    --   made only at the beginning of each row, which is much faster ]
     --
     with procedure Feedback (percents: Natural);
     --
     mode: Display_mode;
+    --
   procedure Load_image_contents (
     image     : in out Image_descriptor;
     next_frame:    out Ada.Calendar.Day_Duration
-      -- ^ real time lapse foreseen between the first image
+      -- ^ animation: real time lapse foreseen between the first image
       -- and the image right after this one; 0.0 if no next frame
   );
 
