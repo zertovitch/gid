@@ -296,22 +296,70 @@ package body GID.Headers is
     image.height:= Natural(n);
     U8'Read(image.stream, b);
     image.bits_per_pixel:= Integer(b);
+    if image.bits_per_pixel = 16 then
+      Raise_exception(
+        unsupported_image_subformat'Identity,
+        "PNG: 16-bit per channel depth not yet supported"
+      );
+    end if;
     U8'Read(image.stream, color_type);
     image.subformat_id:= Integer(color_type);
     case color_type is
-      when 0 =>
+      when 0 => -- Greyscale
         image.greyscale:= True;
-      when 2 =>
-        image.bits_per_pixel:= 3 * image.bits_per_pixel; -- RGB
-      when 3 =>
+        case image.bits_per_pixel is
+          when 1 | 2 | 4 | 8 | 16 =>
+            null;
+          when others =>
+            Raise_exception(
+              error_in_image_data'Identity,
+              "PNG: wrong bit-per-channel depth"
+            );
+        end case;
+      when 2 => -- RGB TrueColor
+        case image.bits_per_pixel is
+          when 8 | 16 =>
+            image.bits_per_pixel:= 3 * image.bits_per_pixel;
+          when others =>
+            Raise_exception(
+              error_in_image_data'Identity,
+              "PNG: wrong bit-per-channel depth"
+            );
+        end case;
+      when 3 => -- RGB with palette
         palette:= True;
-      when 4 =>
-        image.bits_per_pixel:= 2 * image.bits_per_pixel; -- Grey & Alpha
+        case image.bits_per_pixel is
+          when 1 | 2 | 4 | 8 =>
+            null;
+          when others =>
+            Raise_exception(
+              error_in_image_data'Identity,
+              "PNG: wrong bit-per-channel depth"
+            );
+        end case;
+      when 4 => -- Grey & Alpha
         image.greyscale:= True;
         image.transparency:= True;
-      when 6 =>
-        image.bits_per_pixel:= 4 * image.bits_per_pixel; -- RGBA
+        case image.bits_per_pixel is
+          when 8 | 16 =>
+            image.bits_per_pixel:= 2 * image.bits_per_pixel;
+          when others =>
+            Raise_exception(
+              error_in_image_data'Identity,
+              "PNG: wrong bit-per-channel depth"
+            );
+        end case;
+      when 6 => -- RGBA
         image.transparency:= True;
+        case image.bits_per_pixel is
+          when 8 | 16 =>
+            image.bits_per_pixel:= 4 * image.bits_per_pixel;
+          when others =>
+            Raise_exception(
+              error_in_image_data'Identity,
+              "PNG: wrong bit-per-channel depth"
+            );
+        end case;
       when others =>
         Raise_exception(
           error_in_image_data'Identity,
@@ -341,10 +389,16 @@ package body GID.Headers is
         Read(image, ch);
         case ch.kind is
           when IEND =>
-            raise error_in_image_data; -- must be a palette
+            Raise_exception(
+              error_in_image_data'Identity,
+              "PNG: there must be a palette, found IEND"
+            );
           when PLTE =>
             if ch.length rem 3 /= 0 then
-              raise error_in_image_data; -- must be a multiple of 3
+              Raise_exception(
+                error_in_image_data'Identity,
+                "PNG: palette chunk byte length must be a multiple of 3"
+              );
             end if;
             image.palette:= new Color_Table(0..Integer(ch.length/3)-1);
             Color_tables.Load_palette(image);
@@ -377,9 +431,11 @@ package body GID.Headers is
     Byte_Array'Read( image.stream, dummy );
     Byte_Array'Read( image.stream, info );
 
-    if TGA_type(1) /= U8'Val(0) then
-      raise unsupported_image_subformat;
-        -- palette;
+    if TGA_type(1) /= 0 then
+      Raise_exception(
+        unsupported_image_subformat'Identity,
+        "TGA palette not yet supported"
+      );
     end if;
 
     -- Image type:
@@ -408,7 +464,7 @@ package body GID.Headers is
     image.height := U8'Pos(info(2)) + U8'Pos(info(3)) * 256;
     image.bits_per_pixel := U8'Pos(info(4));
 
-    -- make sure we are loading a supported TGA_type
+    -- Make sure we are loading a supported TGA_type
     case image.bits_per_pixel is
       when 32 | 24 | 8 =>
         null;

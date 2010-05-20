@@ -254,8 +254,6 @@ package body GID.Decoding_PNG is
       -- in order to have a full multi-byte pixel
     )
     is
-      i, color_idx: Integer;
-
       procedure Out_Pixel(br, bg, bb, ba: U8) is
       pragma Inline(Out_Pixel);
       begin
@@ -307,6 +305,7 @@ package body GID.Decoding_PNG is
       end Inc_XY;
 
       uf: Byte_array(0..15); -- unfiltered bytes for a pixel
+      i: Integer;
 
     begin
       if some_trace then
@@ -348,21 +347,48 @@ package body GID.Decoding_PNG is
           exit when i > data'Last - (bytes_pp - 1);
           case image.subformat_id is
             when 0 => -- Greyscale
-              null; -- !!
+              case image.bits_per_pixel is
+                when 1 | 2 | 4 =>
+                  null; -- !!
+                when 8 =>
+                  Unfilter_bytes(data(i..i), uf(0..0));
+                  Out_Pixel(uf(0), uf(0), uf(0), 255);
+                  i:= i + 1;
+                when 16 =>
+                  null; -- not yet supported; exception raised earlier
+                when others =>
+                  null;
+              end case;
             when 2 => -- RGB
-              Unfilter_bytes(data(i..i+2), uf(0..2));
-              Out_Pixel(uf(0), uf(1), uf(2), 255);
-              i:= i + 3;
+              case image.bits_per_pixel is
+                when 24 =>
+                  Unfilter_bytes(data(i..i+2), uf(0..2));
+                  Out_Pixel(uf(0), uf(1), uf(2), 255);
+                  i:= i + 3;
+                when 48 =>
+                  null; -- not yet supported; exception raised earlier
+                when others =>
+                  null;
+              end case;
             when 3 => -- RGB with palette
-              Unfilter_bytes(data(i..i), uf(0..0));
-              color_idx:= Integer(uf(0));
-              Out_Pixel(
-                image.palette(color_idx).red,
-                image.palette(color_idx).green,
-                image.palette(color_idx).blue,
-                255
-              );
-              i:= i + 1;
+              case image.bits_per_pixel is
+                when 4 =>
+                  Unfilter_bytes(data(i..i), uf(0..0));
+                  Out_Pixel_Palette(uf(0)  /  16#10#);
+                  -- 7.2 Scanlines - some low-order bits of the
+                  -- last byte of a scanline may go unused.
+                  if x < Width_range'Last then
+                    Inc_XY;
+                    Out_Pixel_Palette(uf(0) and 16#0F#);
+                  end if;
+                  i:= i + 1;
+                when 8 =>
+                  Unfilter_bytes(data(i..i), uf(0..0));
+                  Out_Pixel_Palette(uf(0));
+                  i:= i + 1;
+                when others =>
+                  null;
+              end case;
             when 4 => -- Greyscale & Alpha
               null; -- !!
             when 6 => -- RGBA
