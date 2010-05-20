@@ -4,15 +4,16 @@
 --
 -- Purpose:
 --
--- The Generic Image Decoder is a package for decoding a broad
--- variety of image formats, from any data stream, to any kind
--- of in-memory bitmap. Unconditionally portable code, independent
--- of operating system, processor, endianess and choice of compiler.
+--   The Generic Image Decoder is a package for decoding a broad
+--   variety of image formats, from any data stream, to any kind
+--   of in-memory bitmap. Unconditionally portable code, independent
+--   of operating system, processor, endianess and choice of compiler.
 --
 -- Image types supported:
--- bla bla bla
 --
---  Copyright (c) Gautier de Montmollin 2010
+--   BMP, GIF, PNG, TGA
+--
+-- Copyright (c) Gautier de Montmollin 2010
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -133,8 +134,8 @@ package GID is
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
 
-  version   : constant String:= "00.2";
-  reference : constant String:= "09-May-2010";
+  version   : constant String:= "00.3";
+  reference : constant String:= "20-May-2010";
   web: constant String:= "http://sf.net/projects/gen-img-dec/";
   -- hopefully the latest version is at that URL...
 

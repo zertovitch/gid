@@ -390,15 +390,19 @@ package body GID.Headers is
     --     10 = RLE version of Type 2
     --     11 = RLE version of Type 3
 
-    image_type:= U8'Pos(TGA_type(2));
-    image.RLE_encoded:= image_Type >= 9;
-    if image.RLE_encoded then
-      image_type:= image_type - 8;
-    end if;
-    if image_type /= 2 and image_type /= 3 then
-      raise unsupported_image_subformat;
-        -- "TGA type =" & Integer'Image(image_type);
-    end if;
+    image_type:= U8'Pos(TGA_type(2) and 7);
+    image.RLE_encoded:= TGA_type(2) >= 8;
+    case image_type is
+      when 2 =>
+        null;
+      when 3 =>
+        image.greyscale:= True;
+      when others =>
+        Raise_exception(
+          unsupported_image_subformat'Identity,
+          "TGA type =" & Integer'Image(image_type)
+        );
+    end case;
 
     image.width  := U8'Pos(info(0)) + U8'Pos(info(1)) * 256;
     image.height := U8'Pos(info(2)) + U8'Pos(info(3)) * 256;
@@ -409,8 +413,10 @@ package body GID.Headers is
       when 32 | 24 | 8 =>
         null;
       when others =>
-        raise unsupported_image_subformat;
-        -- bpp
+        Raise_exception(
+          unsupported_image_subformat'Identity,
+          "Bits per pixels =" & Integer'Image(image.bits_per_pixel)
+        );
     end case;
   end Load_TGA_header;
 
