@@ -61,6 +61,7 @@ procedure To_BMP is
     -- (in bytes)
     idx: Natural;
     procedure Set_X_Y (x, y: Natural) is
+    pragma Inline(Set_X_Y);
     begin
       idx:= 3 * x + padded_line_size * y;
     end Set_X_Y;
@@ -282,9 +283,14 @@ procedure To_BMP is
     );
     Put_Line(Standard_Error,
       "  Color depth: " &
-      Integer'Image(GID.Bits_per_pixel(i)) & " bits," &
-      Integer'Image(2**GID.Bits_per_pixel(i)) & " colors"
+      Integer'Image(GID.Bits_per_pixel(i)) & " bits"
     );
+    if GID.Bits_per_pixel(i) <= 24 then
+      Put_Line(Standard_Error,
+        ',' &
+        Integer'Image(2**GID.Bits_per_pixel(i)) & " colors"
+      );
+    end if;
     Put_Line(Standard_Error,
       "  Palette: " & Boolean'Image(GID.Has_palette(i))
     );

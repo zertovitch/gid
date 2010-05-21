@@ -296,12 +296,6 @@ package body GID.Headers is
     image.height:= Natural(n);
     U8'Read(image.stream, b);
     image.bits_per_pixel:= Integer(b);
-    if image.bits_per_pixel = 16 then
-      Raise_exception(
-        unsupported_image_subformat'Identity,
-        "PNG: 16-bit per channel depth not yet supported"
-      );
-    end if;
     U8'Read(image.stream, color_type);
     image.subformat_id:= Integer(color_type);
     case color_type is

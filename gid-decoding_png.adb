@@ -129,8 +129,13 @@ package body GID.Decoding_PNG is
 
   procedure Load (image: in Image_descriptor) is
 
-    subtype Mem_row_bytes_array is Byte_array(0..image.width*4);
+    -- !! these constants can be made generic parameters !!
+    bits_per_pixel: constant Positive:= image.bits_per_pixel;
+    subformat_id  : constant Natural := image.subformat_id;
+    -- !!
 
+    subtype Mem_row_bytes_array is Byte_array(0..image.width*8);
+    --
     mem_row_bytes: array(0..1) of Mem_row_bytes_array;
     -- We need to memorize two image rows, for un-filtering
     curr_row: Natural:= 1;
@@ -143,11 +148,11 @@ package body GID.Decoding_PNG is
     y: Height_range:= 0;
 
     -- Amount of bytes to unfilter at a time
-    bytes_to_unfilter: constant Integer:= Integer'Max(1, image.bits_per_pixel / 8);
+    bytes_to_unfilter: constant Integer:= Integer'Max(1, bits_per_pixel / 8);
 
-    ------------------
-    -- 9: Filtering --
-    ------------------
+    --------------------------
+    -- ** 9: Unfiltering ** --
+    --------------------------
 
     type Filter_method_0 is (None, Sub, Up, Average, Paeth);
 
@@ -251,12 +256,13 @@ package body GID.Decoding_PNG is
     procedure Output_uncompressed(
       data  : in     Byte_array;
       reject:    out Natural
-      -- amount of bytes to be resent next time,
+      -- amount of bytes to be resent here next time,
       -- in order to have a full multi-byte pixel
     )
     is
-      procedure Out_Pixel(br, bg, bb, ba: U8) is
-      pragma Inline(Out_Pixel);
+      -- Display of pixels coded on 8 bits per channel in the PNG stream
+      procedure Out_Pixel_8(br, bg, bb, ba: U8) is
+      pragma Inline(Out_Pixel_8);
       begin
         case Primary_color_range'Modulus is
           when 256 =>
@@ -268,27 +274,52 @@ package body GID.Decoding_PNG is
             );
           when 65_536 =>
             Put_Pixel(
-              256 * Primary_color_range(br),
-              256 * Primary_color_range(bg),
-              256 * Primary_color_range(bb),
-              256 * Primary_color_range(ba)
+              16#101# * Primary_color_range(br),
+              16#101# * Primary_color_range(bg),
+              16#101# * Primary_color_range(bb),
+              16#101# * Primary_color_range(ba)
+              -- 16#101# because max intensity FF goes to FFFF
             );
           when others =>
             raise invalid_primary_color_range;
         end case;
-      end Out_Pixel;
+      end Out_Pixel_8;
 
       procedure Out_Pixel_Palette(ix: U8) is
       pragma Inline(Out_Pixel_Palette);
         color_idx: constant Natural:= Integer(ix);
       begin
-        Out_Pixel(
+        Out_Pixel_8(
           image.palette(color_idx).red,
           image.palette(color_idx).green,
           image.palette(color_idx).blue,
           255
         );
       end Out_Pixel_Palette;
+
+      -- Display of pixels coded on 16 bits per channel in the PNG stream
+      procedure Out_Pixel_16(br, bg, bb, ba: U16) is
+      pragma Inline(Out_Pixel_16);
+      begin
+        case Primary_color_range'Modulus is
+          when 256 =>
+            Put_Pixel(
+              Primary_color_range(br / 256),
+              Primary_color_range(bg / 256),
+              Primary_color_range(bb / 256),
+              Primary_color_range(ba / 256)
+            );
+          when 65_536 =>
+            Put_Pixel(
+              Primary_color_range(br),
+              Primary_color_range(bg),
+              Primary_color_range(bb),
+              Primary_color_range(ba)
+            );
+          when others =>
+            raise invalid_primary_color_range;
+        end case;
+      end Out_Pixel_16;
 
       procedure Inc_XY is
       pragma Inline(Inc_XY);
@@ -306,6 +337,7 @@ package body GID.Decoding_PNG is
       end Inc_XY;
 
       uf: Byte_array(0..15); -- unfiltered bytes for a pixel
+      w: U16;
       i: Integer;
 
     begin
@@ -314,9 +346,7 @@ package body GID.Decoding_PNG is
       end if;
       -- Depending on the row size, bpp, etc., we can have
       -- several rows, or less than one, being displayed
-      -- with the uncompressed data.
-      --
-      -- !! all branches (image.subformat_id) inside loop as generic
+      -- with the present uncompressed data batch.
       --
       i:= data'First;
       if i > data'Last then
@@ -345,21 +375,23 @@ package body GID.Decoding_PNG is
           Set_X_Y(0, image.height - y - 1);
           i:= i + 1;
         else
+          -- We quit the loop if all data has been used (except for an
+          -- eventual incomplete pixel)
           exit when i > data'Last - (bytes_to_unfilter - 1);
           -- NB, for per-channel bpp < 8:
           -- 7.2 Scanlines - some low-order bits of the
           -- last byte of a scanline may go unused.
-          case image.subformat_id is
-            when 0 => -- Greyscale
-              case image.bits_per_pixel is
+          case subformat_id is
+            when 0 => -- Type 0: Greyscale
+              case bits_per_pixel is
                 when 1 | 2 | 4  =>
                   Unfilter_bytes(data(i..i), uf(0..0));
                   i:= i + 1;
                   declare
                     b: U8;
-                    shift: Integer:= 8 - image.bits_per_pixel;
+                    shift: Integer:= 8 - bits_per_pixel;
                     use Interfaces;
-                    max: constant U8:= U8(Shift_Left(Unsigned_32'(1), image.bits_per_pixel)-1);
+                    max: constant U8:= U8(Shift_Left(Unsigned_32'(1), bits_per_pixel)-1);
                     -- Scaling factor to obtain the correct color value on a 0..255 range.
                     -- The division is exact in all three cases, since 255 = 3 * 5 * 17,
                     -- and max = 255, 15=3*5, or 3.
@@ -367,10 +399,10 @@ package body GID.Decoding_PNG is
                     factor: constant U8:= 255 / max;
                   begin
                     -- loop through the number of pixels in this byte:
-                    for k in reverse 1..8/image.bits_per_pixel loop
+                    for k in reverse 1..8/bits_per_pixel loop
                       b:= (max and U8(Shift_Right(Unsigned_8(uf(0)), shift))) * factor;
-                      shift:= shift - image.bits_per_pixel;
-                      Out_Pixel(b, b, b, 255);
+                      shift:= shift - bits_per_pixel;
+                      Out_Pixel_8(b, b, b, 255);
                       exit when x >= Width_range'Last or k = 1;
                       x:= x + 1;
                     end loop;
@@ -381,42 +413,47 @@ package body GID.Decoding_PNG is
                   -- if the compiler is smart enough. To be tested first... !!
                   Unfilter_bytes(data(i..i), uf(0..0));
                   i:= i + 1;
-                  Out_Pixel(uf(0), uf(0), uf(0), 255);
+                  Out_Pixel_8(uf(0), uf(0), uf(0), 255);
                 when 16 =>
-                  null; -- not yet supported; exception raised earlier
+                  Unfilter_bytes(data(i..i+1), uf(0..1));
+                  i:= i + 2;
+                  w:= U16(uf(0)) * 256 + U16(uf(1));
+                  Out_Pixel_16(w, w, w, 65535);
                 when others =>
                   null; -- undefined in PNG standard
               end case;
-            when 2 => -- RGB
-              case image.bits_per_pixel is
+            when 2 => -- Type 2: RGB
+              case bits_per_pixel is
                 when 24 =>
                   Unfilter_bytes(data(i..i+2), uf(0..2));
                   i:= i + 3;
-                  Out_Pixel(uf(0), uf(1), uf(2), 255);
+                  Out_Pixel_8(uf(0), uf(1), uf(2), 255);
                 when 48 =>
-                  null; -- not yet supported; exception raised earlier
+                  Unfilter_bytes(data(i..i+5), uf(0..5));
+                  i:= i + 6;
+                  Out_Pixel_16(
+                    U16(uf(0)) * 256 + U16(uf(1)),
+                    U16(uf(2)) * 256 + U16(uf(3)),
+                    U16(uf(4)) * 256 + U16(uf(5)),
+                    65_535
+                  );
                 when others =>
                   null;
               end case;
-            when 3 => -- RGB with palette
+            when 3 => -- Type 3: RGB with palette
               Unfilter_bytes(data(i..i), uf(0..0));
               i:= i + 1;
-              case image.bits_per_pixel is
+              case bits_per_pixel is
                 when 1 | 2 | 4 =>
-                  --                  Out_Pixel_Palette(uf(0) / 16#10#);
-                  --                  if x < Width_range'Last then
-                  --                    x:= x + 1;
-                  --                    Out_Pixel_Palette(uf(0) and 16#0F#);
-                  --                  end if;
                   declare
-                    shift: Integer:= 8 - image.bits_per_pixel;
+                    shift: Integer:= 8 - bits_per_pixel;
                     use Interfaces;
-                    max: constant U8:= U8(Shift_Left(Unsigned_32'(1), image.bits_per_pixel)-1);
+                    max: constant U8:= U8(Shift_Left(Unsigned_32'(1), bits_per_pixel)-1);
                   begin
                     -- loop through the number of pixels in this byte:
-                    for k in reverse 1..8/image.bits_per_pixel loop
+                    for k in reverse 1..8/bits_per_pixel loop
                       Out_Pixel_Palette(max and U8(Shift_Right(Unsigned_8(uf(0)), shift)));
-                      shift:= shift - image.bits_per_pixel;
+                      shift:= shift - bits_per_pixel;
                       exit when x >= Width_range'Last or k = 1;
                       x:= x + 1;
                     end loop;
@@ -443,17 +480,13 @@ package body GID.Decoding_PNG is
       reject:= (data'Last + 1) - i;
       if reject > 0 then
         if some_trace then
-          Ada.Text_IO.Put(
-            "[Bytes across pixel:" &
-            Integer'Image(reject) &
-            ']'
-          );
+          Ada.Text_IO.Put("[rj" & Integer'Image(reject) & ']');
         end if;
       end if;
     end Output_uncompressed;
 
     ---------------------------------------------------------------------
-    -- 10: Compression                                                 --
+    -- ** 10: Decompression **                                         --
     -- Excerpt and simplification from UnZip.Decompress (Inflate only) --
     ---------------------------------------------------------------------
 
@@ -1082,13 +1115,17 @@ package body GID.Decoding_PNG is
         end loop;
         UnZ_IO.Flush( UnZ_Glob.slide_index );
         UnZ_Glob.slide_index:= 0;
-        if full_trace then
+        if some_trace then
           Ada.Text_IO.Put("# blocks:" & Integer'Image(blocks));
         end if;
         UnZ_Glob.crc32val := CRC32.Final( UnZ_Glob.crc32val );
       end Inflate;
 
     end UnZ_Meth;
+
+    --------------------------------------------------------------------
+    -- End of the Decompression part, and of UnZip.Decompress excerpt --
+    --------------------------------------------------------------------
 
     ch: Chunk_head;
     b: U8;

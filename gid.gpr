@@ -6,58 +6,58 @@ project GID is
 
    for Main use ("to_bmp.adb");
    for Source_Dirs use (".", "test");
-   for Exec_Dir use ".";
+   for Exec_Dir use "test";
    type Build_Mode_Type is
       ("Debug", "Fast", "Profiling");
    Build_Mode : Build_Mode_Type := external ("Build_Mode", "Debug");
 
    case Build_Mode is
-
       when "Debug" =>
          for Object_Dir use "obj_debug";
-
       when "Fast" =>
          for Object_Dir use "obj_fast";
-         
       when "Profiling" =>
          for Object_Dir use "obj_profiling";
-
    end case;
 
    package Compiler is
-
       case Build_Mode is
-
          when "Debug" =>
-            for Default_Switches ("ada") use ("-gnatwal", "-gnatVa", "-gnato", "-g", "-fstack-check");
-
+            for Default_Switches ("ada") use ("-gnatwal", "-gnatVa", "-gnato", "-g", "-fstack-check", "-gnatec../debug.pra");
          when "Fast" =>
-            for Default_Switches ("ada") use ("-gnatpn", "-O2", "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers");
-
+            for Default_Switches ("ada") use ("-O3", "-gnatpn", "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers");
          when "Profiling" =>
-            for Default_Switches ("ada") use ("-O2", "-gnatpn",  "-funroll-loops", "-fpeel-loops", "-funswitch-loops", "-ftracer", "-fweb", "-frename-registers", "-g", "-pg");
-
+            for Default_Switches ("ada") use ("-O3", "-gnatpn", "-funroll-loops", "-fpeel-loops", "-funswitch-loops", "-ftracer", "-fweb", "-frename-registers", "-g", "-pg");
       end case;
    end Compiler;
 
    package Linker is
-
       case Build_Mode is
-
          when "Debug" =>
-
+            for Default_Switches ("ada") use ("-g");
          when "Fast" =>
             for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections");
-
          when "Profiling" =>
             for Default_Switches ("ada") use ("-pg");
-            
       end case;
    end Linker;
+
+   package Binder is
+      case Build_Mode is
+         when "Debug" =>
+            for Default_Switches ("ada") use ("-E");
+         when "Fast" =>
+         when "Profiling" =>
+      end case;
+   end Binder;
    
    package Builder is
       for Default_Switches ("ada") use ("-j2", "-C");
    end Builder;
 
+   package Ide is
+      for Default_Switches ("adacontrol") use ("-f", "verif.aru");
+   end Ide;
+   
 end GID;
 

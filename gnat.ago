@@ -5,6 +5,7 @@
 WINDOWS_TARGET
 
 
+te_e
 bytes_to_unfilter
 bytes_pp
 bitsin
@@ -14,7 +15,6 @@ transp
 ..12
 initial
 clearcode
-InitCodeSize
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

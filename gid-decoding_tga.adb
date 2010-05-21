@@ -84,10 +84,11 @@ package body GID.Decoding_TGA is
           );
         when 65_536 =>
           Put_Pixel(
-            256 * Primary_color_range(pix.br),
-            256 * Primary_color_range(pix.bg),
-            256 * Primary_color_range(pix.bb),
-            256 * Primary_color_range(pix.ba)
+            16#101#  * Primary_color_range(pix.br),
+            16#101#  * Primary_color_range(pix.bg),
+            16#101#  * Primary_color_range(pix.bb),
+            16#101#  * Primary_color_range(pix.ba)
+            -- 16#101# because max intensity FF goes to FFFF
           );
         when others =>
           raise invalid_primary_color_range;

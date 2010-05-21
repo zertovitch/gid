@@ -66,7 +66,7 @@ package GID is
   invalid_primary_color_range: exception;
 
   ----------------------------------------------------------------------
-  -- 2) If needed, use dimensions to prepare the retrival of the      --
+  -- 2) If needed, use dimensions to prepare the retrieval of the     --
   --    image, for instance: reserving an in-memory bitmap, sizing a  --
   --    GUI object, defining a browser element, setting up a device   --
   ----------------------------------------------------------------------
@@ -86,10 +86,10 @@ package GID is
   generic
     type Primary_color_range is mod <>;
     -- Coding of primary colors (red, green or blue)
-    -- and of opacity (also known as alpha channel).
+    --   and of opacity (also known as alpha channel), on the target "device".
     -- Currently, only 8-bit and 16-bit are admitted.
-    --    8-bit is usual: TrueColor, PC graphics, etc.;
-    --   16-bit is seen in some high-end apps/devices/formats.
+    --    8-bit coding is usual: TrueColor, PC graphics, etc.;
+    --   16-bit coding is seen in some high-end apps/devices/formats.
     --
     with procedure Set_X_Y (x, y: Natural);
       pragma Inline(Set_X_Y);

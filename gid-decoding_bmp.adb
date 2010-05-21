@@ -12,17 +12,18 @@ package body GID.Decoding_BMP is
       case Primary_color_range'Modulus is
         when 256 =>
           Put_Pixel(
-            Primary_color_range(image.palette(Integer(b)).Red),
-            Primary_color_range(image.palette(Integer(b)).Green),
-            Primary_color_range(image.palette(Integer(b)).Blue),
+            Primary_color_range(image.palette(Integer(b)).red),
+            Primary_color_range(image.palette(Integer(b)).green),
+            Primary_color_range(image.palette(Integer(b)).blue),
             255
           );
         when 65_536 =>
           Put_Pixel(
-            256 * Primary_color_range(image.palette(Integer(b)).Red),
-            256 * Primary_color_range(image.palette(Integer(b)).Green),
-            256 * Primary_color_range(image.palette(Integer(b)).Blue),
+            16#101# * Primary_color_range(image.palette(Integer(b)).red),
+            16#101# * Primary_color_range(image.palette(Integer(b)).green),
+            16#101# * Primary_color_range(image.palette(Integer(b)).blue),
             65_535
+            -- 16#101# because max intensity FF goes to FFFF
           );
         when others =>
           raise invalid_primary_color_range;
