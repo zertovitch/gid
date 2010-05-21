@@ -281,7 +281,7 @@ procedure To_BMP is
       Integer'Image(GID.Pixel_Width(i)) & " x" &
       Integer'Image(GID.Pixel_Height(i))
     );
-    Put_Line(Standard_Error,
+    Put(Standard_Error,
       "  Color depth: " &
       Integer'Image(GID.Bits_per_pixel(i)) & " bits"
     );
@@ -290,6 +290,8 @@ procedure To_BMP is
         ',' &
         Integer'Image(2**GID.Bits_per_pixel(i)) & " colors"
       );
+    else
+      New_Line(Standard_Error);
     end if;
     Put_Line(Standard_Error,
       "  Palette: " & Boolean'Image(GID.Has_palette(i))

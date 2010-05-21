@@ -130,7 +130,7 @@ package body GID.Decoding_GIF is
     procedure ReadCode is
       bit_mask: Natural:= 1;
     begin
-      Code := 0;
+      Code:= 0;
       -- Read the code, bit by bit
       for Counter  in reverse  0..CodeSize - 1  loop
         -- Next bit
@@ -290,10 +290,8 @@ package body GID.Decoding_GIF is
             -- Add the last character
             OutCode (OutCount) := CurCode;
             -- Output all the string, in the correct order
-            loop
-              NextPixel( OutCode(OutCount) );
-              exit when OutCount = 0;
-              OutCount:= OutCount - 1;
+            for i in reverse 0 .. OutCount loop
+              NextPixel( OutCode(i) );
             end loop;
             -- Return 1st character
             return CurCode;
@@ -310,7 +308,7 @@ package body GID.Decoding_GIF is
 
       InitCodeSize : constant Code_size_range:= CodeSize + 1;
       MaxCode      : Natural:= 2 ** InitCodeSize;
-      OldCode      : Natural;
+      OldCode      : Natural:= 0;
 
     begin -- GIF_Decode
       CodeSize:= InitCodeSize;
@@ -329,11 +327,10 @@ package body GID.Decoding_GIF is
           MaxCode  := 2 ** CodeSize;
           -- The next code may be read
           ReadCode;
-          OldCode := Code;
+          exit when Code = EOICode;
           -- Set pixel
           NextPixel( Code );
-          -- Other codes
-        else
+        else -- Other codes
           -- If the code is already in the string table, it's string is displayed,
           --   and the old string followed by the new string's first character is
           --   added to the string table.
@@ -354,10 +351,9 @@ package body GID.Decoding_GIF is
             CodeSize:= CodeSize + 1;
             MaxCode := MaxCode  * 2;
           end if;
-          -- The current code is now old
-          OldCode := Code;
         end if;
-        exit when Code = EOICode;
+        -- The current code is now old
+        OldCode := Code;
       end loop LZW_decompression;
     end GIF_Decode;
 
