@@ -62,8 +62,7 @@ package body GID.Decoding_GIF is
 
     -- Code information
     subtype Code_size_range is Natural range 2..12;
-    CodeSize : Code_size_range;
-    Code : Natural;
+    CurrSize : Code_size_range;
 
     subtype Color_type is U8;
     Transp_color   : Color_type:= 0;
@@ -127,12 +126,12 @@ package body GID.Decoding_GIF is
     bits_buf: U8;
 
     -- Local procedure to read the next code from the file
-    procedure ReadCode is
+    function Read_Code return Natural is
       bit_mask: Natural:= 1;
+      code: Natural:= 0;
     begin
-      Code:= 0;
       -- Read the code, bit by bit
-      for Counter  in reverse  0..CodeSize - 1  loop
+      for Counter  in reverse  0..CurrSize - 1  loop
         -- Next bit
         bits_in:= bits_in + 1;
         -- Maybe, a new byte needs to be loaded with a further 8 bits
@@ -142,12 +141,13 @@ package body GID.Decoding_GIF is
         end if;
         -- Add the current bit to the code
         if (bits_buf  and  1) > 0 then
-          Code:= Code + bit_mask;
+          code:= code + bit_mask;
         end if;
         bit_mask := bit_mask * 2;
         bits_buf := bits_buf / 2;
       end loop;
-    end ReadCode;
+      return code;
+    end Read_Code;
 
     generic
       -- Parameter(s) that are constant through
@@ -155,7 +155,6 @@ package body GID.Decoding_GIF is
       -- some optimization will trim corresponding "if's"
       interlaced     : Boolean;
       transparency   : Boolean;
-      num_of_colours : Natural;
       pixel_mask     : U32;
       --
     procedure GIF_Decode;
@@ -194,9 +193,9 @@ package body GID.Decoding_GIF is
       Span           : Natural:= 7;
 
       -- Local procedure to draw a pixel
-      procedure NextPixel(code: Natural) is
-      pragma Inline(NextPixel);
-        c : constant Color_Type:= Color_type(U32(code) and Pixel_mask);
+      procedure Next_Pixel(code: Natural) is
+      pragma Inline(Next_Pixel);
+        c : constant Color_Type:= Color_type(U32(code) and pixel_mask);
       begin
         -- Actually draw the pixel on screen buffer
         if X < image.width then
@@ -260,114 +259,139 @@ package body GID.Decoding_GIF is
             end if;
           end if;
         end if;
-      end NextPixel;
+      end Next_Pixel;
 
       -- The string table
-      Prefix       : array ( 0..4096 ) of Natural;
-      Suffix       : array ( 0..4096 ) of Natural;
-      OutCode      : array ( 0..1024 ) of Natural;
-
-      -- Local function to output a string. Returns the first character.
-      function OutString (CurCode_1: Natural) return Natural is
-      pragma Inline(OutString);
-      begin
-        -- If it's a single character, output that
-        if CurCode_1 < num_of_colours then
-          NextPixel( CurCode_1 );
-          return CurCode_1;
-        else
-          declare
-            CurCode  : Natural:= CurCode_1;
-            OutCount : Natural:= 0;
-          begin
-            -- Store the string, which ends up in reverse order
-            loop
-              OutCode (OutCount) := Suffix (CurCode);
-              OutCount:= OutCount + 1;
-              CurCode := Prefix (CurCode);
-              exit when CurCode < num_of_colours;
-            end loop;
-            -- Add the last character
-            OutCode (OutCount) := CurCode;
-            -- Output all the string, in the correct order
-            for i in reverse 0 .. OutCount loop
-              NextPixel( OutCode(i) );
-            end loop;
-            -- Return 1st character
-            return CurCode;
-          end;
-        end if;
-      end OutString;
+      Prefix : array ( 0..4096 ) of Natural:= (others => 0);
+      Suffix : array ( 0..4096 ) of Natural:= (others => 0);
+      Stack  : array ( 0..1024 ) of Natural;
 
       -- Special codes (GIF only, not LZW)
-      ClearCode: constant Natural:= 2 ** CodeSize; -- Reset code
-      EOICode  : constant Natural:= ClearCode + 1; -- End of file
-      -- String table
-      FirstFree: constant Natural:= ClearCode + 2;    -- Strings start here
-      FreeCode : Natural:= FirstFree; -- Strings can be added here
+      ClearCode : constant Natural:= 2 ** CurrSize; -- Reset code
+      EndingCode: constant Natural:= ClearCode + 1; -- End of file
+      FirstFree : constant Natural:= ClearCode + 2; -- Strings start here
 
-      InitCodeSize : constant Code_size_range:= CodeSize + 1;
-      MaxCode      : Natural:= 2 ** InitCodeSize;
-      OldCode      : Natural:= 0;
+      Slot         : Natural:= FirstFree;  --  Last read code
+      InitCodeSize : constant Code_size_range:= CurrSize + 1;
+      TopSlot      : Natural:= 2 ** InitCodeSize; --  Highest code for current size
+      Code         : Natural;
+      StackPtr     : Integer:= 0;
+      Fc           : Integer:= 0;
+      Oc           : Integer:= 0;
+      C            : Integer;
+      BadCodeCount : Natural:= 0;  --  the number of bad codes found
 
     begin -- GIF_Decode
-      CodeSize:= InitCodeSize;
-      LZW_decompression:
-      loop
-        -- Read next code
-        ReadCode;
-        -- If it's an End-Of-Information code, stop processing
-        exit when Code = EOICode;
-        -- If it's a clear code...
-        if Code = ClearCode then
-          -- Clear the string table
-          FreeCode := FirstFree;
-          -- Set the code size to initial values
-          CodeSize := InitCodeSize;
-          MaxCode  := 2 ** CodeSize;
-          -- The next code may be read
-          ReadCode;
-          exit when Code = EOICode;
-          -- Set pixel
-          NextPixel( Code );
-        else -- Other codes
-          -- If the code is already in the string table, it's string is displayed,
-          --   and the old string followed by the new string's first character is
-          --   added to the string table.
-          if Code < FreeCode then
-            Suffix (FreeCode) := OutString (Code);
-          else
-            -- If it is not already in the string table, the old string followed by
-            --  the old string's first character is added to the string table and
-            --  displayed.
-            Suffix (FreeCode) := OutString (OldCode);
-            NextPixel( Suffix (FreeCode) );
-          end if;
-          -- Finish adding to string table
-          Prefix (FreeCode) := OldCode;
-          FreeCode:= FreeCode + 1;
-          -- If the code size needs to be adjusted, do so
-          if FreeCode >= MaxCode and then CodeSize < 12 then
-            CodeSize:= CodeSize + 1;
-            MaxCode := MaxCode  * 2;
-          end if;
-        end if;
-        -- The current code is now old
-        OldCode := Code;
-      end loop LZW_decompression;
+      CurrSize:= InitCodeSize;
+      --  This is the main loop.  For each code we get we pass through the
+      --  linked list of prefix codes, pushing the corresponding "character"
+      --  for each code onto the stack.  When the list reaches a single
+      --  "character" we push that on the stack too, and then start unstacking
+      --  each character for output in the correct order.  Special handling is
+      --  included for the clear code, and the whole thing ends when we get
+      --  an ending code.
+      C := Read_Code;
+      while C /= EndingCode loop
+         --  If the code is a clear code, reinitialize all necessary items.
+         if C = ClearCode then
+            CurrSize := InitCodeSize;
+            Slot     := FirstFree;
+            TopSlot  := 2 ** CurrSize;
+            --  Continue reading codes until we get a non-clear code
+            --  (Another unlikely, but possible case...)
+            C := Read_Code;
+            while C = ClearCode loop
+               C := Read_Code;
+            end loop;
+            --  If we get an ending code immediately after a clear code
+            --  (Yet another unlikely case), then break out of the loop.
+            exit when C = EndingCode;
+            --  Finally, if the code is beyond the range of already set codes,
+            --  (This one had better NOT happen...  I have no idea what will
+            --  result from this, but I doubt it will look good...) then set
+            --  it to color zero.
+            if C >= Slot then
+               C := 0;
+            end if;
+            Oc := C;
+            Fc := C;
+            --  And let us not forget to output the char...
+            Next_Pixel(C);
+         else  --  C <> ClearCode
+            --  In this case, it's not a clear code or an ending code, so
+            --  it must be a code code...  So we can now decode the code into
+            --  a stack of character codes. (Clear as mud, right?)
+            Code := C;
+            --  Here we go again with one of those off chances...  If, on the
+            --  off chance, the code we got is beyond the range of those
+            --  already set up (Another thing which had better NOT happen...)
+            --  we trick the decoder into thinking it actually got the last
+            --  code read. (Hmmn... I'm not sure why this works...
+            --  But it does...)
+            if Code >= Slot then
+               if Code > Slot then
+                  BadCodeCount := BadCodeCount + 1;
+               end if;
+               Code := Oc;
+               Stack (StackPtr) := Fc rem 256;
+               StackPtr := StackPtr + 1;
+            end if;
+            --  Here we scan back along the linked list of prefixes, pushing
+            --  helpless characters (ie. suffixes) onto the stack as we do so.
+            while Code >= FirstFree loop
+               Stack (StackPtr) := Suffix (Code);
+               StackPtr := StackPtr + 1;
+               Code := Prefix (Code);
+            end loop;
+            --  Push the last character on the stack, and set up the new
+            --  prefix and suffix, and if the required slot number is greater
+            --  than that allowed by the current bit size, increase the bit
+            --  size.  (NOTE - If we are all full, we *don't* save the new
+            --  suffix and prefix...  I'm not certain if this is correct...
+            --  it might be more proper to overwrite the last code...
+            Stack (StackPtr) := Code rem 256;
+            if Slot < TopSlot then
+               Suffix (Slot) := Code rem 256;
+               Fc := Code;
+               Prefix (Slot) := Oc;
+               Slot := Slot + 1;
+               Oc := C;
+            end if;
+            if Slot >= TopSlot then
+               if CurrSize < 12 then
+                  TopSlot := TopSlot * 2;
+                  CurrSize := CurrSize + 1;
+               end if;
+            end if;
+            --  Now that we've pushed the decoded string (in reverse order)
+            --  onto the stack, lets pop it off and output it...
+            loop
+               Next_Pixel(Stack (StackPtr));
+               exit when StackPtr = 0;
+               StackPtr := StackPtr - 1;
+            end loop;
+         end if;
+         C := Read_Code;
+      end loop;
+      if full_trace and then BadCodeCount > 0 then
+        Ada.Text_IO.Put_Line(
+         "Found" & Integer'Image(BadCodeCount) &
+         " bad codes"
+        );
+      end if;
     end GIF_Decode;
 
     -- Here we have several specialized instances of GIF_Decode,
     -- with compile-time known parameters...
     --
     procedure GIF_Decode_interlaced_transparent_8 is
-      new GIF_Decode(True, True, 256, 255);
+      new GIF_Decode(True, True, 255);
     procedure GIF_Decode_straight_transparent_8 is
-      new GIF_Decode(False, True, 256, 255);
+      new GIF_Decode(False, True, 255);
     procedure GIF_Decode_interlaced_opaque_8 is
-      new GIF_Decode(True, False, 256, 255);
+      new GIF_Decode(True, False, 255);
     procedure GIF_Decode_straight_opaque_8 is
-      new GIF_Decode(False, False, 256, 255);
+      new GIF_Decode(False, False, 255);
     --
     procedure Skip_sub_blocks is
       temp: U8;
@@ -446,7 +470,8 @@ package body GID.Decoding_GIF is
               image.next_frame:=
                 image.next_frame + Ada.Calendar.Day_Duration(delay_frame) / 100.0;
               next_frame:= image.next_frame;
-              U8'Read( image.stream, Transp_color );
+              U8'Read( image.stream, temp );
+              Transp_color:= Color_Type(temp);
               -- zero sub-block:
               U8'Read( image.stream, temp );
             when 16#FE# => -- See: 24. Comment Extension
@@ -539,7 +564,7 @@ package body GID.Decoding_GIF is
         " - Image, interlaced: " & Boolean'Image(frame_interlaced) &
         "; local palette: " & Boolean'Image(local_palette) &
         "; transparency: " & Boolean'Image(frame_transparency) &
-        "; transparency index:" & U8'Image(Transp_color)
+        "; transparency index:" & Color_type'Image(Transp_color)
       );
     end if;
 
@@ -552,7 +577,7 @@ package body GID.Decoding_GIF is
         U8'Image(temp)
       );
     end if;
-    CodeSize := Natural(temp);
+    CurrSize := Natural(temp);
 
     -- Start at top left of image
     X := Natural(Descriptor.ImageLeft);
@@ -564,13 +589,13 @@ package body GID.Decoding_GIF is
       declare
         -- We create an instance with dynamic parameters
         procedure GIF_Decode_general is
-          new GIF_Decode(frame_interlaced, frame_transparency, new_num_of_colours, pixel_mask);
+          new GIF_Decode(frame_interlaced, frame_transparency, pixel_mask);
       begin
         GIF_Decode_general;
       end;
     else
       -- 8 bit, usual format: we try to make things
-      -- faster with specialized instances...
+      -- faster with specialized instanciations...
       if frame_interlaced then
         if frame_transparency then
           GIF_Decode_interlaced_transparent_8;

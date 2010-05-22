@@ -5,16 +5,16 @@
 WINDOWS_TARGET
 
 
+num_of_colours
+slot
+newcodes
+newcode
+size
+get_next_code
 te_e
 bytes_to_unfilter
 bytes_pp
 bitsin
-firstfree
-transp
- sub_blocks_sequence
-..12
-initial
-clearcode
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?
