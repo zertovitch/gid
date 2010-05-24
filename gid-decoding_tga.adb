@@ -13,7 +13,8 @@ package body GID.Decoding_TGA is
     is_run_packet: Boolean;
 
     type Pixel is record
-      br, bg, bb, ba: U8;
+      color: RGB_Color;
+      alpha: U8;
     end record;
 
     pix, pix_mem: Pixel;
@@ -27,18 +28,18 @@ package body GID.Decoding_TGA is
     begin
       case bpp is
         when 32 => -- BGRA
-          Get_Byte(stream_buf, pix.bb);
-          Get_Byte(stream_buf, pix.bg);
-          Get_Byte(stream_buf, pix.br);
-          Get_Byte(stream_buf, pix.ba);
+          Get_Byte(stream_buf, pix.color.blue);
+          Get_Byte(stream_buf, pix.color.green);
+          Get_Byte(stream_buf, pix.color.red);
+          Get_Byte(stream_buf, pix.alpha);
         when 24 => -- BGR
-          Get_Byte(stream_buf, pix.bb);
-          Get_Byte(stream_buf, pix.bg);
-          Get_Byte(stream_buf, pix.br);
+          Get_Byte(stream_buf, pix.color.blue);
+          Get_Byte(stream_buf, pix.color.green);
+          Get_Byte(stream_buf, pix.color.red);
         when 8  => -- Gray
-          Get_Byte(stream_buf, pix.bg);
-          pix.br:= pix.bg;
-          pix.bb:= pix.bg;
+          Get_Byte(stream_buf, pix.color.green);
+          pix.color.red:= pix.color.green;
+          pix.color.blue:= pix.color.green;
         when others =>
           null;
       end case;
@@ -77,17 +78,17 @@ package body GID.Decoding_TGA is
       case Primary_color_range'Modulus is
         when 256 =>
           Put_Pixel(
-            Primary_color_range(pix.br),
-            Primary_color_range(pix.bg),
-            Primary_color_range(pix.bb),
-            Primary_color_range(pix.ba)
+            Primary_color_range(pix.color.red),
+            Primary_color_range(pix.color.green),
+            Primary_color_range(pix.color.blue),
+            Primary_color_range(pix.alpha)
           );
         when 65_536 =>
           Put_Pixel(
-            16#101#  * Primary_color_range(pix.br),
-            16#101#  * Primary_color_range(pix.bg),
-            16#101#  * Primary_color_range(pix.bb),
-            16#101#  * Primary_color_range(pix.ba)
+            16#101#  * Primary_color_range(pix.color.red),
+            16#101#  * Primary_color_range(pix.color.green),
+            16#101#  * Primary_color_range(pix.color.blue),
+            16#101#  * Primary_color_range(pix.alpha)
             -- 16#101# because max intensity FF goes to FFFF
           );
         when others =>
@@ -138,10 +139,17 @@ package body GID.Decoding_TGA is
     procedure RLE_pixel_24 is new RLE_pixel(24);
     procedure RLE_pixel_8  is new RLE_pixel(8);
 
+    idx: Natural;
+    p1, p2: U8;
+
   begin
-    pix.ba:= 255; -- opaque is default
+    pix.alpha:= 255; -- opaque is default
     Attach_Stream(stream_buf, image.stream);
+    --
     if image.RLE_encoded then
+      if image.palette /= null then
+        raise to_be_done;
+      end if;
       RLE_pixels_remaining:= 0;
       for y in 0..image.height-1 loop
         Set_X_Y(0, y);
@@ -163,6 +171,24 @@ package body GID.Decoding_TGA is
             end loop;
           when others => null;
         end case;
+        Feedback(((y+1)*100)/image.height);
+      end loop;
+    elsif image.palette /= null then -- palette, no RLE
+      for y in 0..image.height-1 loop
+        Set_X_Y(0, y);
+        for x in 0..image.width-1 loop
+          if image.palette'Length <= 256 then
+            Get_Byte(stream_buf, p1);
+            idx:= Natural(p1);
+          else
+            Get_Byte(stream_buf, p1);
+            Get_Byte(stream_buf, p2);
+            idx:= Natural(p1) + Natural(p2) * 256;
+          end if;
+          idx:= idx + image.palette'First;
+          pix.color:= image.palette(idx);
+          Output_Pixel;
+        end loop;
         Feedback(((y+1)*100)/image.height);
       end loop;
     else

@@ -1,7 +1,7 @@
 package body GID.Color_tables is
 
   procedure Load_palette (image: in out Image_descriptor) is
-    c: U8;
+    c, d: U8;
   begin
     if image.palette = null then
       return;
@@ -13,22 +13,36 @@ package body GID.Color_tables is
         case image.format is
           when BMP =>
             -- order is BGRx
-            U8'Read(image.stream, c);
-            Palette(i).Blue:= c;
-            U8'Read(image.stream, c);
-            Palette(i).Green:= c;
-            U8'Read(image.stream, c);
-            Palette(i).Red:= c;
+            U8'Read(image.stream, Palette(i).Blue);
+            U8'Read(image.stream, Palette(i).Green);
+            U8'Read(image.stream, Palette(i).Red);
             U8'Read(image.stream, c);
             -- x discarded
           when GIF | PNG =>
             -- order is RGB
-            U8'Read(image.stream, c);
-            Palette(i).Red:= c;
-            U8'Read(image.stream, c);
-            Palette(i).Green:= c;
-            U8'Read(image.stream, c);
-            Palette(i).Blue:= c;
+            U8'Read(image.stream, Palette(i).Red);
+            U8'Read(image.stream, Palette(i).Green);
+            U8'Read(image.stream, Palette(i).Blue);
+          when TGA =>
+            case image.subformat_id is -- = palette's bit depth
+              when 8 => -- Grey
+                U8'Read(image.stream, c);
+                Palette(i).Red  := c;
+                Palette(i).Green:= c;
+                Palette(i).Blue := c;
+              when 15 | 16 => -- RGB, 5 bit per channel
+                U8'Read(image.stream, c);
+                U8'Read(image.stream, d);
+                Palette(i).Red  := d / 4;
+                Palette(i).Green:= (d and 3) + c / 32;
+                Palette(i).Blue := c and 31;
+              when 24 | 32 => -- RGB | RGBA, 8 bit per channel
+                U8'Read(image.stream, Palette(i).Blue);
+                U8'Read(image.stream, Palette(i).Green);
+                U8'Read(image.stream, Palette(i).Red);
+              when others =>
+                null;
+            end case;
           when others =>
             null; -- !!
         end case;

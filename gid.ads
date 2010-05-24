@@ -16,6 +16,12 @@
 --
 --   BMP, GIF, PNG, TGA
 --
+-- Credits:
+--
+--   André van Splunter (GIF's LZW decoder)
+--
+--   More credits in gid_work.xls, sheet "credits".
+--
 -- Copyright (c) Gautier de Montmollin 2010
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -184,5 +190,10 @@ private
   procedure Finalize (Object : in out Image_descriptor);
 
   type Byte_Array is array(Integer range <>) of U8;
+
+  to_be_done: exception;
+  -- this exception should not happen, even with malformed files
+  -- its role is to pop up when a feature is set as implemented
+  -- but one aspect (e.g. palette) was forgotten.
 
 end GID;

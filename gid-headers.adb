@@ -287,7 +287,7 @@ package body GID.Headers is
     if ch.kind /= IHDR then
       Raise_exception(
         error_in_image_data'Identity,
-        "Expected 'IHDR' chunk in PNG stream"
+        "Expected 'IHDR' chunk as first chunk in PNG stream"
       );
     end if;
     Big_endian(image.stream, n);
@@ -428,7 +428,7 @@ package body GID.Headers is
     image_width: U16;
     image_height: U16;
     pixel_depth: U8;
-    image_descriptor: U8;
+    tga_image_descriptor: U8;
     --
     dummy: U8;
     base_image_type: Integer;
@@ -447,15 +447,9 @@ package body GID.Headers is
     Read_Intel(image.stream, image_width);
     Read_Intel(image.stream, image_height);
     U8'Read(image.stream, pixel_depth);
-    U8'Read(image.stream, image_descriptor);
+    U8'Read(image.stream, tga_image_descriptor);
     -- Done.
-    if color_map_type /= 0 then
-      Raise_exception(
-        unsupported_image_subformat'Identity,
-        "TGA color map (palette) not yet supported"
-      );
-    end if;
-
+    --
     -- Image type:
     --      1 = 8-bit palette style
     --      2 = Direct [A]RGB image
@@ -466,8 +460,42 @@ package body GID.Headers is
     --
     base_image_type:= U8'Pos(image_type and 7);
     image.RLE_encoded:= (image_type and 8) /= 0;
+    --
+    if color_map_type /= 0 then
+      image.palette:= new Color_Table(
+        Integer(first_entry_index)..
+        Integer(first_entry_index)+Integer(color_map_length)-1
+      );
+      image.subformat_id:= Integer(color_map_entry_size);
+      case image.subformat_id is -- = palette's bit depth
+        when 8 => -- Grey
+          null;
+        when 15 | 16 =>
+          Raise_exception(
+            unsupported_image_subformat'Identity,
+            "TGA color map (palette) bit depth 15 or 16 not supported"
+          );
+        when 24 | 32 => -- RGB | RGBA
+          null;
+        when others =>
+          Raise_exception(
+            error_in_image_data'Identity,
+            "TGA color map (palette): wrong bit depth:" &
+            Integer'Image(image.subformat_id)
+          );
+      end case;
+      if image.RLE_encoded then
+        Raise_exception(
+          unsupported_image_subformat'Identity,
+          "TGA color map (palette) with RLE compression is not yet supported"
+        );
+      end if;
+    end if;
+    --
     image.greyscale:= False; -- ev. overridden later
     case base_image_type is
+      when 1 =>
+        image.greyscale:= color_map_entry_size = 8;
       when 2 =>
         null;
       when 3 =>
@@ -499,7 +527,7 @@ package body GID.Headers is
       U8'Read( image.stream, dummy );
     end loop;
     --  * Color map data (palette)
-    --  To be read when palette will be supporded; exception raise before.
+    Color_tables.Load_palette(image);
     --  * Image data: Read by Load_image_contents.
   end Load_TGA_header;
 

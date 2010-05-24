@@ -5,16 +5,16 @@
 WINDOWS_TARGET
 
 
+.bg
+.br
+.bb
+tga_image_descriptor
+image_descriptor
+error
+subf
+color_map_entry_size
 read_in
 image_type
-TGA_type(0)
-num_of_colours
-slot
-newcodes
-newcode
-size
-get_next_code
-te_e
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

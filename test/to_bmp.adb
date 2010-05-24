@@ -44,7 +44,7 @@ procedure To_BMP is
   type p_Byte_Array is access Byte_Array;
   procedure Dispose is new Ada.Unchecked_Deallocation(Byte_Array, p_Byte_Array);
 
-  forgive_errors: constant Boolean:= True;
+  forgive_errors: constant Boolean:= False;
   error: Boolean;
 
   img_buf, bkg_buf: p_Byte_Array:= null;
