@@ -101,22 +101,22 @@ package body GID.Headers is
   generic
     type Number is mod <>;
   procedure Read_Intel_x86_number(
-    n    :    out Number;
-    from : in     Stream_Access
+    from : in     Stream_Access;
+    n    :    out Number
   );
     pragma Inline(Read_Intel_x86_number);
 
   generic
     type Number is mod <>;
   procedure Big_endian_number(
-    n    :    out Number;
-    from : in     Stream_Access
+    from : in     Stream_Access;
+    n    :    out Number
   );
     pragma Inline(Big_endian_number);
 
   procedure Read_Intel_x86_number(
-    n    :    out Number;
-    from : in     Stream_Access
+    from : in     Stream_Access;
+    n    :    out Number
   )
   is
     b: U8;
@@ -131,8 +131,8 @@ package body GID.Headers is
   end Read_Intel_x86_number;
 
   procedure Big_endian_number(
-    n    :    out Number;
-    from : in     Stream_Access
+    from : in     Stream_Access;
+    n    :    out Number
   )
   is
     b: U8;
@@ -162,26 +162,26 @@ package body GID.Headers is
     w, dummy16: U16;
   begin
     --   Pos= 3, read the file size
-    Read_Intel(file_size, image.stream);
+    Read_Intel(image.stream, file_size);
     --   Pos= 7, read four bytes, unknown
-    Read_Intel(dummy, image.stream);
+    Read_Intel(image.stream, dummy);
     --   Pos= 11, read four bytes offset, file top to bitmap data.
     --            For 256 colors, this is usually 36 04 00 00
-    Read_Intel(offset, image.stream);
+    Read_Intel(image.stream, offset);
     --   Pos= 15. The beginning of Bitmap information header.
     --   Data expected:  28H, denoting 40 byte header
-    Read_Intel(info_header, image.stream);
+    Read_Intel(image.stream, info_header);
     --   Pos= 19. Bitmap width, in pixels.  Four bytes
-    Read_Intel(n, image.stream);
+    Read_Intel(image.stream, n);
     image.width:=  Natural(n);
     --   Pos= 23. Bitmap height, in pixels.  Four bytes
-    Read_Intel(n, image.stream);
+    Read_Intel(image.stream, n);
     image.height:= Natural(n);
     --   Pos= 27, skip two bytes.  Data is number of Bitmap planes.
-    Read_Intel(dummy16, image.stream); -- perform the skip
+    Read_Intel(image.stream, dummy16); -- perform the skip
     --   Pos= 29, Number of bits per pixel
     --   Value 8, denoting 256 color, is expected
-    Read_Intel(w, image.stream);
+    Read_Intel(image.stream, w);
     case w is
       when 1 | 4 | 8 | 24 =>
         null;
@@ -193,7 +193,7 @@ package body GID.Headers is
     end case;
     image.bits_per_pixel:= Integer(w);
     --   Pos= 31, read four bytes
-    Read_Intel(n, image.stream);          -- Type of compression used
+    Read_Intel(image.stream, n);          -- Type of compression used
     -- BI_RLE8 = 1
     -- BI_RLE4 = 2
     if n /= 0 then
@@ -203,10 +203,10 @@ package body GID.Headers is
       );
     end if;
     --
-    Read_Intel(dummy, image.stream); -- Pos= 35, image size
-    Read_Intel(dummy, image.stream); -- Pos= 39, horizontal resolution
-    Read_Intel(dummy, image.stream); -- Pos= 43, vertical resolution
-    Read_Intel(n, image.stream); -- Pos= 47, number of palette colors
+    Read_Intel(image.stream, dummy); -- Pos= 35, image size
+    Read_Intel(image.stream, dummy); -- Pos= 39, horizontal resolution
+    Read_Intel(image.stream, dummy); -- Pos= 43, vertical resolution
+    Read_Intel(image.stream, n); -- Pos= 47, number of palette colors
     if image.bits_per_pixel <= 8 then
       if n = 0 then
         image.palette:= new Color_Table(0..2**image.bits_per_pixel-1);
@@ -214,7 +214,7 @@ package body GID.Headers is
         image.palette:= new Color_Table(0..Natural(n)-1);
       end if;
     end if;
-    Read_Intel(dummy, image.stream); -- Pos= 51, number of important colors
+    Read_Intel(image.stream, dummy); -- Pos= 51, number of important colors
     --   Pos= 55 (36H), - start of palette
     Color_tables.Load_palette(image);
   end Load_BMP_header;
@@ -234,8 +234,8 @@ package body GID.Headers is
     packed, background, aspect_ratio_code : U8;
     global_palette: Boolean;
   begin
-    Read_Intel(screen_width, image.stream);
-    Read_Intel(screen_height, image.stream);
+    Read_Intel(image.stream, screen_width);
+    Read_Intel(image.stream, screen_height);
     image.width:= Natural(screen_width);
     image.height:= Natural(screen_height);
     U8'Read(image.stream, packed);
@@ -290,9 +290,9 @@ package body GID.Headers is
         "Expected 'IHDR' chunk in PNG stream"
       );
     end if;
-    Big_endian(n, image.stream);
+    Big_endian(image.stream, n);
     image.width:=  Natural(n);
-    Big_endian(n, image.stream);
+    Big_endian(image.stream, n);
     image.height:= Natural(n);
     U8'Read(image.stream, b);
     image.bits_per_pixel:= Integer(b);
@@ -377,7 +377,7 @@ package body GID.Headers is
     end if;
     U8'Read(image.stream, b);
     image.interlaced:= b = 1; -- Adam7
-    Big_endian(dummy, image.stream); -- Chunk's CRC
+    Big_endian(image.stream, dummy); -- Chunk's CRC
     if palette then
       loop
         Read(image, ch);
@@ -396,7 +396,7 @@ package body GID.Headers is
             end if;
             image.palette:= new Color_Table(0..Integer(ch.length/3)-1);
             Color_tables.Load_palette(image);
-            Big_endian(dummy, image.stream); -- Chunk's CRC
+            Big_endian(image.stream, dummy); -- Chunk's CRC
             exit;
           when others =>
             -- skip chunk data and CRC
@@ -413,23 +413,46 @@ package body GID.Headers is
   ------------------------
 
   procedure Load_TGA_header (image: in out Image_descriptor) is
-    image_ID_length: U8;
-    TGA_type: Byte_Array(1..3);
-    info    : Byte_Array(0..5);
-    dummy   : Byte_Array(1..8);
-    image_type: Integer;
+    -- TGA FILE HEADER, p.6
+    --
+    image_ID_length: U8; -- Field 1
+    color_map_type : U8; -- Field 2
+    image_type     : U8; -- Field 3
+    -- Color Map Specification - Field 4
+    first_entry_index   : U16; -- Field 4.1
+    color_map_length    : U16; -- Field 4.2
+    color_map_entry_size: U8;  -- Field 4.3
+    -- Image Specification - Field 5
+    x_origin: U16;
+    y_origin: U16;
+    image_width: U16;
+    image_height: U16;
+    pixel_depth: U8;
+    image_descriptor: U8;
+    --
+    dummy: U8;
+    base_image_type: Integer;
   begin
-    -- read in colormap info and image type
+    -- Read the header
     image_ID_length:= image.first_byte;
-    Byte_Array'Read( image.stream, TGA_type(1..3) );
-    -- seek past the header and useless info
-    Byte_Array'Read( image.stream, dummy );
-    Byte_Array'Read( image.stream, info );
-
-    if TGA_type(1) /= 0 then
+    U8'Read(image.stream, color_map_type);
+    U8'Read(image.stream, image_type);
+    --   Color Map Specification - Field 4
+    Read_Intel(image.stream, first_entry_index);
+    Read_Intel(image.stream, color_map_length);
+    U8'Read(image.stream, color_map_entry_size);
+    --   Image Specification - Field 5
+    Read_Intel(image.stream, x_origin);
+    Read_Intel(image.stream, y_origin);
+    Read_Intel(image.stream, image_width);
+    Read_Intel(image.stream, image_height);
+    U8'Read(image.stream, pixel_depth);
+    U8'Read(image.stream, image_descriptor);
+    -- Done.
+    if color_map_type /= 0 then
       Raise_exception(
         unsupported_image_subformat'Identity,
-        "TGA palette not yet supported"
+        "TGA color map (palette) not yet supported"
       );
     end if;
 
@@ -440,10 +463,11 @@ package body GID.Headers is
     --      9 = RLE version of Type 1
     --     10 = RLE version of Type 2
     --     11 = RLE version of Type 3
-
-    image_type:= U8'Pos(TGA_type(2) and 7);
-    image.RLE_encoded:= TGA_type(2) >= 8;
-    case image_type is
+    --
+    base_image_type:= U8'Pos(image_type and 7);
+    image.RLE_encoded:= (image_type and 8) /= 0;
+    image.greyscale:= False; -- ev. overridden later
+    case base_image_type is
       when 2 =>
         null;
       when 3 =>
@@ -451,13 +475,13 @@ package body GID.Headers is
       when others =>
         Raise_exception(
           unsupported_image_subformat'Identity,
-          "TGA type =" & Integer'Image(image_type)
+          "TGA type =" & Integer'Image(base_image_type)
         );
     end case;
 
-    image.width  := U8'Pos(info(0)) + U8'Pos(info(1)) * 256;
-    image.height := U8'Pos(info(2)) + U8'Pos(info(3)) * 256;
-    image.bits_per_pixel := U8'Pos(info(4));
+    image.width  := U16'Pos(image_width);
+    image.height := U16'Pos(image_height);
+    image.bits_per_pixel := U8'Pos(pixel_depth);
 
     -- Make sure we are loading a supported TGA_type
     case image.bits_per_pixel is
@@ -472,10 +496,10 @@ package body GID.Headers is
     --  *** Image and color map data
     --  * Image ID
     for i in 1..image_ID_length loop
-      U8'Read( image.stream, dummy(1) );
+      U8'Read( image.stream, dummy );
     end loop;
     --  * Color map data (palette)
-    --  !! tbd
+    --  To be read when palette will be supporded; exception raise before.
     --  * Image data: Read by Load_image_contents.
   end Load_TGA_header;
 
