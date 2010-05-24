@@ -44,6 +44,9 @@ procedure To_BMP is
   type p_Byte_Array is access Byte_Array;
   procedure Dispose is new Ada.Unchecked_Deallocation(Byte_Array, p_Byte_Array);
 
+  forgive_errors: constant Boolean:= True;
+  error: Boolean;
+
   img_buf, bkg_buf: p_Byte_Array:= null;
 
   -- Load image into a 24-bit truecolor raw bitmap
@@ -113,6 +116,7 @@ procedure To_BMP is
         GID.fast
       );
   begin
+    error:= False;
     Dispose(buffer);
     buffer:= new Byte_Array(0..padded_line_size * GID.Pixel_height(image) - 1);
     --  for y in y_cache'Range loop
@@ -133,6 +137,13 @@ procedure To_BMP is
     --  for y in 0..GID.Pixel_height(image)-1 loop
     --    Put_Pixel_with_white_bkg(0,y,255,0,0,255);
     --  end loop;
+  exception
+    when others =>
+      if forgive_errors then
+        error:= True;
+      else
+        raise;
+      end if;
   end Load_raw_image;
 
   procedure Dump_BMP_24 (
@@ -316,9 +327,12 @@ procedure To_BMP is
     end if;
     loop
       Load_raw_image(i, img_buf, next_frame);
-      New_Line(Standard_Error);
       if not test_only then
         Dump_BMP_24(name & Duration'Image(current_frame), i);
+      end if;
+      New_Line(Standard_Error);
+      if error then
+        Put_Line(Standard_Error, "Error!");
       end if;
       exit when next_frame = 0.0;
       current_frame:= next_frame;

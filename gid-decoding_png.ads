@@ -56,7 +56,7 @@ private
   --
   type Trace_type is (none, some, full);
 
-  trace: constant Trace_type:= some; -- <== Choice
+  trace: constant Trace_type:= full; -- <== Choice
 
   no_trace  : constant Boolean:= trace=none;
   full_trace: constant Boolean:= trace=full;

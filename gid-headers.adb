@@ -413,13 +413,14 @@ package body GID.Headers is
   ------------------------
 
   procedure Load_TGA_header (image: in out Image_descriptor) is
-    TGA_type: Byte_Array(0..3);
+    image_ID_length: U8;
+    TGA_type: Byte_Array(1..3);
     info    : Byte_Array(0..5);
     dummy   : Byte_Array(1..8);
     image_type: Integer;
   begin
     -- read in colormap info and image type
-    TGA_type(0):= image.first_byte;
+    image_ID_length:= image.first_byte;
     Byte_Array'Read( image.stream, TGA_type(1..3) );
     -- seek past the header and useless info
     Byte_Array'Read( image.stream, dummy );
@@ -468,6 +469,14 @@ package body GID.Headers is
           "Bits per pixels =" & Integer'Image(image.bits_per_pixel)
         );
     end case;
+    --  *** Image and color map data
+    --  * Image ID
+    for i in 1..image_ID_length loop
+      U8'Read( image.stream, dummy(1) );
+    end loop;
+    --  * Color map data (palette)
+    --  !! tbd
+    --  * Image data: Read by Load_image_contents.
   end Load_TGA_header;
 
   procedure Load_TIFF_header (image: in out Image_descriptor) is

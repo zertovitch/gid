@@ -5,6 +5,7 @@
 WINDOWS_TARGET
 
 
+TGA_type(0)
 num_of_colours
 slot
 newcodes
@@ -14,7 +15,6 @@ get_next_code
 te_e
 bytes_to_unfilter
 bytes_pp
-bitsin
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

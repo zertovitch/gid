@@ -635,7 +635,7 @@ package body GID.Decoding_PNG is
         use Ada.Streams;
       begin
         if full_trace then
-          Ada.Text_IO.Put("[Flush...");
+          Ada.Text_IO.Put("[Flush..." & Integer'Image(x));
         end if;
         CRC32.Update( UnZ_Glob.crc32val, UnZ_Glob.slide( 0..x-1 ) );
         if old_bytes > 0 then
