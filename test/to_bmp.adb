@@ -27,7 +27,10 @@ procedure To_BMP is
     Put_Line(Standard_Error, "Syntax:");
     Put_Line(Standard_Error, "to_bmp [-] [-<background_image_name>] <image_1> [<image_2>...]");
     New_Line(Standard_Error);
-    Put_Line(Standard_Error, "Option: '-': don't output image (testing only)");
+    Put_Line(Standard_Error, "Options:");
+    Put_Line(Standard_Error, "  '-': don't output image (testing only)");
+    Put_Line(Standard_Error, "  '-<background_image_name>':");
+    Put_Line(Standard_Error, "      use specifed background to mix with transparent images");
     New_Line(Standard_Error);
     Put_Line(Standard_Error, "Output: "".dib"" is added the full input name(s)");
     Put_Line(Standard_Error, "  Reason of "".dib"": unknown synonym of "".bmp"";");
@@ -57,6 +60,7 @@ procedure To_BMP is
   )
   is
     subtype Primary_color_range is Unsigned_8;
+    subtype U16 is Unsigned_16;
     image_width: constant Positive:= GID.Pixel_Width(image);
     -- y_cache: array(0..GID.Pixel_Height(image)-1) of Integer;
     padded_line_size: constant Positive:=
@@ -79,14 +83,13 @@ procedure To_BMP is
     pragma Inline(Put_Pixel_with_white_bkg);
     begin
       if alpha = 255 then
-        buffer(idx)  := Unsigned_8(blue);
-        buffer(idx+1):= Unsigned_8(green);
-        buffer(idx+2):= Unsigned_8(red);
+        buffer(idx)  := blue;
+        buffer(idx+1):= green;
+        buffer(idx+2):= red;
       else
-        -- !! blending TBD
-        buffer(idx)  := Unsigned_8(blue);
-        buffer(idx+1):= Unsigned_8(green);
-        buffer(idx+2):= Unsigned_8(red);
+        buffer(idx)  := Primary_color_range((U16(alpha) * U16(blue)  + U16(255-alpha) * 255)/255);
+        buffer(idx+1):= Primary_color_range((U16(alpha) * U16(green) + U16(255-alpha) * 255)/255);
+        buffer(idx+2):= Primary_color_range((U16(alpha) * U16(red)   + U16(255-alpha) * 255)/255);
       end if;
       idx:= idx + 3;
       -- ^ GID requires us to look to next pixel of the right for next time.
