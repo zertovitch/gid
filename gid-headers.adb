@@ -468,14 +468,11 @@ package body GID.Headers is
       );
       image.subformat_id:= Integer(color_map_entry_size);
       case image.subformat_id is -- = palette's bit depth
-        when 8 => -- Grey
+        when 8 =>       -- Grey
           null;
-        when 15 | 16 =>
-          Raise_exception(
-            unsupported_image_subformat'Identity,
-            "TGA color map (palette) bit depth 15 or 16 not supported"
-          );
-        when 24 | 32 => -- RGB | RGBA
+        when 15 | 16 => -- RGB 3*5 bit | RGBA 3*3+1 bit
+          null;
+        when 24 | 32 => -- RGB 3*8 bit | RGBA 4*8 bit
           null;
         when others =>
           Raise_exception(
@@ -484,12 +481,6 @@ package body GID.Headers is
             Integer'Image(image.subformat_id)
           );
       end case;
-      if image.RLE_encoded then
-        Raise_exception(
-          unsupported_image_subformat'Identity,
-          "TGA color map (palette) with RLE compression is not yet supported"
-        );
-      end if;
     end if;
     --
     image.greyscale:= False; -- ev. overridden later
@@ -513,7 +504,7 @@ package body GID.Headers is
 
     -- Make sure we are loading a supported TGA_type
     case image.bits_per_pixel is
-      when 32 | 24 | 8 =>
+      when 32 | 24 | 16 | 15 | 8 =>
         null;
       when others =>
         Raise_exception(
@@ -521,6 +512,7 @@ package body GID.Headers is
           "Bits per pixels =" & Integer'Image(image.bits_per_pixel)
         );
     end case;
+    image.flag_1:= (tga_image_descriptor and 32) /= 0; -- top first
     --  *** Image and color map data
     --  * Image ID
     for i in 1..image_ID_length loop

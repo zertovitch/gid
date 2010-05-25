@@ -181,6 +181,7 @@ private
     transparency       : Boolean:= False;
     greyscale          : Boolean:= False;
     interlaced         : Boolean:= False;
+    flag_1             : Boolean; -- format-specific information
     stream             : Stream_Access;
     palette            : p_Color_table:= null;
     first_byte         : U8;
