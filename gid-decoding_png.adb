@@ -337,7 +337,7 @@ package body GID.Decoding_PNG is
       end Inc_XY;
 
       uf: Byte_array(0..15); -- unfiltered bytes for a pixel
-      w: U16;
+      w1, w2: U16;
       i: Integer;
 
     begin
@@ -382,7 +382,10 @@ package body GID.Decoding_PNG is
           -- 7.2 Scanlines - some low-order bits of the
           -- last byte of a scanline may go unused.
           case subformat_id is
-            when 0 => -- Type 0: Greyscale
+            when 0 =>
+              -----------------------
+              -- Type 0: Greyscale --
+              -----------------------
               case bits_per_pixel is
                 when 1 | 2 | 4  =>
                   Unfilter_bytes(data(i..i), uf(0..0));
@@ -417,12 +420,15 @@ package body GID.Decoding_PNG is
                 when 16 =>
                   Unfilter_bytes(data(i..i+1), uf(0..1));
                   i:= i + 2;
-                  w:= U16(uf(0)) * 256 + U16(uf(1));
-                  Out_Pixel_16(w, w, w, 65535);
+                  w1:= U16(uf(0)) * 256 + U16(uf(1));
+                  Out_Pixel_16(w1, w1, w1, 65535);
                 when others =>
                   null; -- undefined in PNG standard
               end case;
-            when 2 => -- Type 2: RGB
+            when 2 =>
+              -----------------
+              -- Type 2: RGB --
+              -----------------
               case bits_per_pixel is
                 when 24 =>
                   Unfilter_bytes(data(i..i+2), uf(0..2));
@@ -440,7 +446,10 @@ package body GID.Decoding_PNG is
                 when others =>
                   null;
               end case;
-            when 3 => -- Type 3: RGB with palette
+            when 3 =>
+              ------------------------------
+              -- Type 3: RGB with palette --
+              ------------------------------
               Unfilter_bytes(data(i..i), uf(0..0));
               i:= i + 1;
               case bits_per_pixel is
@@ -466,12 +475,47 @@ package body GID.Decoding_PNG is
                 when others =>
                   null;
               end case;
-            when 4 => -- Greyscale & Alpha
-              null; -- !!
-            when 6 => -- RGBA
-              null; -- !!
+            when 4 =>
+              -------------------------------
+              -- Type 4: Greyscale & Alpha --
+              -------------------------------
+              case bits_per_pixel is
+                when 16 =>
+                  Unfilter_bytes(data(i..i+1), uf(0..1));
+                  i:= i + 2;
+                  Out_Pixel_8(uf(0), uf(0), uf(0), uf(1));
+                when 32 =>
+                  Unfilter_bytes(data(i..i+3), uf(0..3));
+                  i:= i + 4;
+                  w1:= U16(uf(0)) * 256 + U16(uf(1));
+                  w2:= U16(uf(2)) * 256 + U16(uf(3));
+                  Out_Pixel_16(w1, w1, w1, w2);
+                when others =>
+                  null; -- undefined in PNG standard
+              end case;
+            when 6 =>
+              ------------------
+              -- Type 5: RGBA --
+              ------------------
+              case bits_per_pixel is
+                when 32 =>
+                  Unfilter_bytes(data(i..i+3), uf(0..3));
+                  i:= i + 4;
+                  Out_Pixel_8(uf(0), uf(1), uf(2), uf(3));
+                when 64 =>
+                  Unfilter_bytes(data(i..i+7), uf(0..7));
+                  i:= i + 6;
+                  Out_Pixel_16(
+                    U16(uf(0)) * 256 + U16(uf(1)),
+                    U16(uf(2)) * 256 + U16(uf(3)),
+                    U16(uf(4)) * 256 + U16(uf(5)),
+                    U16(uf(6)) * 256 + U16(uf(7))
+                  );
+                when others =>
+                  null;
+              end case;
             when others =>
-              null; -- !!
+              null; -- Unknown - exception already raised at header level
           end case;
         end if;
         Inc_XY;
