@@ -167,10 +167,17 @@ package body GID is
     return image.palette /= null;
   end Has_palette;
 
+  procedure Adjust (Object : in out Image_descriptor) is
+  begin
+    -- Clone the palette
+    Object.palette:= new Color_table'(Object.palette.all);
+  end Adjust;
+
   procedure Finalize (Object : in out Image_descriptor) is
     procedure Dispose is
       new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
   begin
+    -- Deterministic garbage collection
     Dispose(Object.palette);
   end Finalize;
 

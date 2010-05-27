@@ -426,9 +426,12 @@ begin
           if opt = "" then
             test_only:= True;
           else
-            background_image_name:= To_Unbounded_String(opt);
             Put_Line(Standard_Error, "Background image is " & opt);
             Process(opt, True, False);
+            -- define this only after processing, otherwise
+            -- a transparent background will try to use
+            -- an undefined background
+            background_image_name:= To_Unbounded_String(opt);
           end if;
         end;
       else
