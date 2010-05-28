@@ -1,3 +1,10 @@
+-- Steps for decoding a PNG image (step numbers from ISO spec.)
+--
+-- 10: Inflate deflated data; at each output buffer (slide),
+--     process with step 9
+--  9: Read filter code (row begin) or unfilter bytes
+--  ?: Display pixels these bytes represent
+--
 with GID.Decoding_PNG.Huffman;
 
 with Ada.Text_IO, Ada.Exceptions, Interfaces;
