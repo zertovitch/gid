@@ -249,7 +249,7 @@ package body GID.Decoding_GIF is
             if mode = fast and then Y < image.height then
               Set_X_Y(X, image.height - Y - 1);
             end if;
-          else
+          else -- not interlaced
             Y:= Y + 1;
             if Y < image.height then
               Set_X_Y(X, image.height - Y - 1);
@@ -266,7 +266,7 @@ package body GID.Decoding_GIF is
       Suffix : array ( 0..4096 ) of Natural:= (others => 0);
       Stack  : array ( 0..1024 ) of Natural;
 
-      -- Special codes (GIF only, not LZW)
+      -- Special codes (specific to GIF's flavour of LZW)
       ClearCode : constant Natural:= 2 ** CurrSize; -- Reset code
       EndingCode: constant Natural:= ClearCode + 1; -- End of file
       FirstFree : constant Natural:= ClearCode + 2; -- Strings start here
@@ -317,7 +317,7 @@ package body GID.Decoding_GIF is
             Fc := C;
             --  And let us not forget to output the char...
             Next_Pixel(C);
-         else  --  C <> ClearCode
+         else  --  C /= ClearCode
             --  In this case, it's not a clear code or an ending code, so
             --  it must be a code code...  So we can now decode the code into
             --  a stack of character codes. (Clear as mud, right?)
@@ -382,7 +382,8 @@ package body GID.Decoding_GIF is
     end GIF_Decode;
 
     -- Here we have several specialized instances of GIF_Decode,
-    -- with compile-time known parameters...
+    -- with parameters known at compile-time -> optimizing compilers
+    -- will skip expensive tests about interlacing, transparency.
     --
     procedure GIF_Decode_interlaced_transparent_8 is
       new GIF_Decode(True, True, 255);
@@ -602,7 +603,7 @@ package body GID.Decoding_GIF is
         else
           GIF_Decode_interlaced_opaque_8;
         end if;
-      else -- straight, non-interlaced
+      else -- straight (non-interlaced)
         if frame_transparency then
           GIF_Decode_straight_transparent_8;
         else

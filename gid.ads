@@ -18,7 +18,7 @@
 --
 -- Credits:
 --
---   André van Splunter (GIF's LZW decoder)
+--   - André van Splunter (GIF's LZW decoder)
 --
 --   More credits in gid_work.xls, sheet "credits".
 --
