@@ -1,8 +1,11 @@
--- Steps for decoding a PNG image (step numbers from ISO spec.)
+-- A PNG stream is made of several "chunks" (see type PNG_Chunk_tag).
+-- The image itself is contained in the IDAT chunk(s).
+--
+-- Steps for decoding an image (step numbers are from the ISO standard):
 --
 -- 10: Inflate deflated data; at each output buffer (slide),
---     process with step 9
---  9: Read filter code (row begin) or unfilter bytes
+--     process with step 9.
+--  9: Read filter code (row begin), or unfilter bytes
 --  ?: Display pixels these bytes represent
 --
 with GID.Decoding_PNG.Huffman;
@@ -14,14 +17,14 @@ package body GID.Decoding_PNG is
   generic
     type Number is mod <>;
   procedure Big_endian_number(
-    n    :    out Number;
-    from : in     Stream_Access
+    from : in     Stream_Access;
+    n    :    out Number
   );
     pragma Inline(Big_endian_number);
 
   procedure Big_endian_number(
-    n    :    out Number;
-    from : in     Stream_Access
+    from : in     Stream_Access;
+    n    :    out Number
   )
   is
     b: U8;
@@ -44,7 +47,7 @@ package body GID.Decoding_PNG is
   procedure Read (image: image_descriptor; ch: out Chunk_head) is
     str4: String(1..4);
   begin
-    Big_endian(ch.length, image.stream);
+    Big_endian(image.stream, ch.length);
     String'Read(image.stream, str4);
     begin
       ch.kind:= PNG_Chunk_tag'Value(str4);
@@ -614,7 +617,7 @@ package body GID.Decoding_PNG is
 
       procedure Read_raw_byte ( bt : out U8 ) is
       begin
-        U8'Read(image.stream, bt);
+        U8'Read(image.stream, bt); -- !! use buffering (perf) !!
       end Read_raw_byte;
 
       package body Bit_buffer is
@@ -1189,11 +1192,13 @@ package body GID.Decoding_PNG is
         when IEND =>
           exit;
         when IDAT =>
+          -- !! here initiatize GID buffering
+          -- Attach_Stream(stream_buf, image.stream);
           U8'Read(image.stream, b); -- zlib compression method/flags code
           U8'Read(image.stream, b); -- Additional flags/check bits
           UnZ_IO.Init_Buffers;
           UnZ_Meth.Inflate;
-          Big_endian(z_crc, image.stream); -- zlib Check value
+          Big_endian(image.stream, z_crc); -- zlib Check value
           --  if z_crc /= U32(UnZ_Glob.crc32val) then
           --    ada.text_io.put(z_crc 'img &  UnZ_Glob.crc32val'img);
           --    Raise_exception(
@@ -1203,7 +1208,7 @@ package body GID.Decoding_PNG is
           --  end if;
           --  ** Mystery: this check fail even with images which decompress perfectly
           --  ** Is CRC init value different between zip and zlib ?
-          Big_endian(dummy, image.stream); -- chunk's CRC (then, on compressed data)
+          Big_endian(image.stream, dummy); -- chunk's CRC (then, on compressed data)
           --
         when others =>
           -- Skip chunk data and CRC

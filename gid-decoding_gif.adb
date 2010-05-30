@@ -1,3 +1,6 @@
+-- A GIF stream is made of several "blocks".
+-- The image itself is contained in an Image Descriptor block.
+--
 with GID.Buffering, GID.Color_tables;
 
 with Ada.Exceptions, Ada.IO_Exceptions, Ada.Streams, Ada.Text_IO;
@@ -7,14 +10,14 @@ package body GID.Decoding_GIF is
   generic
     type Number is mod <>;
   procedure Read_Intel_x86_number(
-    n    :    out Number;
-    from : in     Stream_Access
+    from : in     Stream_Access;
+    n    :    out Number
   );
     pragma Inline(Read_Intel_x86_number);
 
   procedure Read_Intel_x86_number(
-    n    :    out Number;
-    from : in     Stream_Access
+    from : in     Stream_Access;
+    n    :    out Number
   )
   is
     b: U8;
@@ -467,7 +470,7 @@ package body GID.Decoding_GIF is
               --  User Input Flag               1 Bit
               --  Transparent Color Flag        1 Bit
               frame_transparency:= (temp and 1) = 1;
-              Read_Intel(delay_frame, image.stream);
+              Read_Intel(image.stream, delay_frame);
               image.next_frame:=
                 image.next_frame + Ada.Calendar.Day_Duration(delay_frame) / 100.0;
               next_frame:= image.next_frame;
@@ -517,10 +520,10 @@ package body GID.Decoding_GIF is
     end loop;
 
     -- Load the image descriptor
-    Read_Intel(Descriptor.ImageLeft,   image.stream);
-    Read_Intel(Descriptor.ImageTop,    image.stream);
-    Read_Intel(Descriptor.ImageWidth,  image.stream);
-    Read_Intel(Descriptor.ImageHeight, image.stream);
+    Read_Intel(image.stream, Descriptor.ImageLeft);
+    Read_Intel(image.stream, Descriptor.ImageTop);
+    Read_Intel(image.stream, Descriptor.ImageWidth);
+    Read_Intel(image.stream, Descriptor.ImageHeight);
     U8'Read(image.stream, Descriptor.Depth);
 
     -- Get image corner coordinates

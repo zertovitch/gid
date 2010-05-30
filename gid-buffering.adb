@@ -56,8 +56,13 @@ package body GID.Buffering is
   is
   begin
     b.stm_a:= stm;
-    Fill_Buffer(b);
+    -- Fill_Buffer(b) will be performed on first call of Get_Byte
   end Attach_Stream;
+
+  function Is_stream_attached(b: Input_buffer) return Boolean is
+  begin
+    return b.stm_a /= null;
+  end Is_stream_attached;
 
   procedure Get_Byte(b: in out Input_buffer; byte: out U8) is
   begin

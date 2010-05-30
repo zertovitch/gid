@@ -30,7 +30,7 @@ package body GID.Decoding_BMP is
       end case;
     end Pixel_with_palette;
     --
-    stream_buf: Input_buffer;
+    stream_buf: GID.Buffering.Input_buffer;
     pair: Boolean;
     bit: Natural range 0..7;
     --
