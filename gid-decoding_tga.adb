@@ -7,7 +7,7 @@ package body GID.Decoding_TGA is
   -- Load --
   ----------
 
-  procedure Load (image: in Image_descriptor) is
+  procedure Load (image: in out Image_descriptor) is
 
     procedure Row_start(y: Natural) is
     begin
@@ -18,7 +18,6 @@ package body GID.Decoding_TGA is
       end if;
     end Row_Start;
 
-    stream_buf: Input_buffer;
     -- Run Length Encoding --
     RLE_pixels_remaining: Natural:= 0;
     is_run_packet: Boolean;
@@ -42,11 +41,11 @@ package body GID.Decoding_TGA is
     begin
       if pal then
         if image.palette'Length <= 256 then
-          Get_Byte(stream_buf, p1);
+          Get_Byte(image.buffer, p1);
           idx:= Natural(p1);
         else
-          Get_Byte(stream_buf, p1);
-          Get_Byte(stream_buf, p2);
+          Get_Byte(image.buffer, p1);
+          Get_Byte(image.buffer, p2);
           idx:= Natural(p1) + Natural(p2) * 256;
         end if;
         idx:= idx + image.palette'First;
@@ -54,23 +53,23 @@ package body GID.Decoding_TGA is
       else
         case bpp is
           when 32 => -- BGRA
-            Get_Byte(stream_buf, pix.color.blue);
-            Get_Byte(stream_buf, pix.color.green);
-            Get_Byte(stream_buf, pix.color.red);
-            Get_Byte(stream_buf, pix.alpha);
+            Get_Byte(image.buffer, pix.color.blue);
+            Get_Byte(image.buffer, pix.color.green);
+            Get_Byte(image.buffer, pix.color.red);
+            Get_Byte(image.buffer, pix.alpha);
           when 24 => -- BGR
-            Get_Byte(stream_buf, pix.color.blue);
-            Get_Byte(stream_buf, pix.color.green);
-            Get_Byte(stream_buf, pix.color.red);
+            Get_Byte(image.buffer, pix.color.blue);
+            Get_Byte(image.buffer, pix.color.green);
+            Get_Byte(image.buffer, pix.color.red);
           when 16 | 15 => -- 5 bit per channel
-            Get_Byte(stream_buf,  c);
-            Get_Byte(stream_buf,  d);
+            Get_Byte(image.buffer,  c);
+            Get_Byte(image.buffer,  d);
             Color_tables.Convert(c, d, pix.color);
             if bpp=16 then
               pix.alpha:= U8((U16(c and 128) * 255)/128);
             end if;
           when 8  => -- Gray
-            Get_Byte(stream_buf, pix.color.green);
+            Get_Byte(image.buffer, pix.color.green);
             pix.color.red:= pix.color.green;
             pix.color.blue:= pix.color.green;
           when others =>
@@ -90,7 +89,7 @@ package body GID.Decoding_TGA is
       procedure Get_pixel_for_RLE is new Get_pixel(bpp, pal);
     begin
       if RLE_pixels_remaining = 0 then -- load RLE code
-        Get_Byte(stream_buf, tmp );
+        Get_Byte(image.buffer, tmp );
         Get_pixel_for_RLE;
         RLE_pixels_remaining:= U8'Pos(tmp and 16#7F#);
         is_run_packet:= (tmp and 16#80#) /= 0;
@@ -218,7 +217,7 @@ package body GID.Decoding_TGA is
 
   begin
     pix.alpha:= 255; -- opaque is default
-    Attach_Stream(stream_buf, image.stream);
+    Attach_Stream(image.buffer, image.stream);
     --
     if image.RLE_encoded then
       -- One format check per row

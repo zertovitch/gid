@@ -2,7 +2,7 @@ with GID.Buffering;                     use GID.Buffering;
 
 package body GID.Decoding_BMP is
 
-  procedure Load (image: in Image_descriptor) is
+  procedure Load (image: in out Image_descriptor) is
     b01, b, br, bg, bb: U8:= 0;
     x, x_max, y: Natural;
     --
@@ -30,7 +30,6 @@ package body GID.Decoding_BMP is
       end case;
     end Pixel_with_palette;
     --
-    stream_buf: GID.Buffering.Input_buffer;
     pair: Boolean;
     bit: Natural range 0..7;
     --
@@ -39,7 +38,7 @@ package body GID.Decoding_BMP is
     unpadded_line_size: constant Positive:= Integer(Float'Ceiling(line_bits / 8.0));
     -- (in bytes)
   begin
-    Attach_Stream(stream_buf, image.stream);
+    Attach_Stream(image.buffer, image.stream);
     y:= 0;
     while y <= image.height-1 loop
       x:= 0;
@@ -50,7 +49,7 @@ package body GID.Decoding_BMP is
           Set_X_Y(x,y);
           while x <= x_max loop
             if bit=0 then
-              Get_Byte(stream_buf, b01);
+              Get_Byte(image.buffer, b01);
             end if;
             b:= (b01 and 16#80#) / 16#80#;
             Pixel_with_palette;
@@ -67,7 +66,7 @@ package body GID.Decoding_BMP is
           Set_X_Y(x,y);
           while x <= x_max loop
             if pair then
-              Get_Byte(stream_buf, b01);
+              Get_Byte(image.buffer, b01);
               b:= (b01 and 16#F0#) / 16#10#;
             else
               b:= (b01 and 16#0F#);
@@ -79,16 +78,16 @@ package body GID.Decoding_BMP is
         when 8 => -- 256 colour image
           Set_X_Y(x,y);
           while x <= x_max loop
-            Get_Byte(stream_buf, b);
+            Get_Byte(image.buffer, b);
             Pixel_with_palette;
             x:= x + 1;
           end loop;
         when 24 => -- RGB, 256 colour per primary colour
           Set_X_Y(x,y);
           while x <= x_max loop
-            Get_Byte(stream_buf, bb);
-            Get_Byte(stream_buf, bg);
-            Get_Byte(stream_buf, br);
+            Get_Byte(image.buffer, bb);
+            Get_Byte(image.buffer, bg);
+            Get_Byte(image.buffer, br);
             case Primary_color_range'Modulus is
               when 256 =>
                 Put_Pixel(
@@ -113,7 +112,7 @@ package body GID.Decoding_BMP is
           null;
       end case;
       for i in unpadded_line_size + 1 .. padded_line_size loop
-        Get_Byte(stream_buf, b);
+        Get_Byte(image.buffer, b);
       end loop;
       y:= y + 1;
       Feedback((y*100)/image.height);

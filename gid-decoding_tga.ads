@@ -10,6 +10,7 @@ private package GID.Decoding_TGA is
     );
       pragma Inline(Put_Pixel);
     with procedure Feedback (percents: Natural);
-  procedure Load (image: in Image_descriptor);
+  --
+  procedure Load (image: in out Image_descriptor);
 
 end GID.Decoding_TGA;

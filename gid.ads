@@ -163,13 +163,24 @@ private
 
   type Stream_Access is access all Ada.Streams.Root_Stream_Type'Class;
 
-  type RGB_Color is record
+  type RGB_color is record
     red, green, blue : U8;
   end record;
 
-  type Color_table is array (Integer range <>) of RGB_Color;
+  type Color_table is array (Integer range <>) of RGB_color;
 
   type p_Color_table is access Color_table;
+
+  type Byte_array is array(Integer range <>) of U8;
+
+  type Input_buffer is record
+    data       : Byte_array(1..1024);
+    stream     : Stream_Access:= null;
+    InBufIdx   : Positive:= 1; --  Points to next char in buffer to be read
+    MaxInBufIdx: Natural := 0; --  Count of valid chars in input buffer
+    InputEoF   : Boolean;      --  End of file indicator
+  end record;
+  -- Initial values ensure call to Fill_Buffer on first Get_Byte
 
   type Image_descriptor is new Ada.Finalization.Controlled with record
     format             : Image_format_type;
@@ -183,6 +194,7 @@ private
     interlaced         : Boolean:= False;
     flag_1             : Boolean; -- format-specific information
     stream             : Stream_Access;
+    buffer             : Input_buffer;
     palette            : p_Color_table:= null;
     first_byte         : U8;
     next_frame         : Ada.Calendar.Day_Duration;
@@ -190,8 +202,6 @@ private
 
   procedure Adjust (Object : in out Image_descriptor);
   procedure Finalize (Object : in out Image_descriptor);
-
-  type Byte_Array is array(Integer range <>) of U8;
 
   to_be_done: exception;
   -- this exception should not happen, even with malformed files
