@@ -1,5 +1,9 @@
 private package GID.Decoding_BMP is
 
+  --------------------
+  -- Image decoding --
+  --------------------
+
   generic
     type Primary_color_range is mod <>;
     with procedure Set_X_Y (x, y: Natural);

@@ -8,7 +8,7 @@
 --  9: Read filter code (row begin), or unfilter bytes
 --  ?: Display pixels these bytes represent
 --
-with GID.Decoding_PNG.Huffman;
+with GID.Buffering, GID.Decoding_PNG.Huffman;
 
 with Ada.Text_IO, Ada.Exceptions, Interfaces;
 
@@ -17,13 +17,13 @@ package body GID.Decoding_PNG is
   generic
     type Number is mod <>;
   procedure Big_endian_number(
-    from : in     Stream_Access;
+    from : in out Input_buffer;
     n    :    out Number
   );
     pragma Inline(Big_endian_number);
 
   procedure Big_endian_number(
-    from : in     Stream_Access;
+    from : in out Input_buffer;
     n    :    out Number
   )
   is
@@ -31,7 +31,7 @@ package body GID.Decoding_PNG is
   begin
     n:= 0;
     for i in 1..Number'Size/8 loop
-      U8'Read(from, b);
+      Buffering.Get_Byte(from, b);
       n:= n * 256 + Number(b);
     end loop;
   end Big_endian_number;
@@ -44,11 +44,15 @@ package body GID.Decoding_PNG is
   -- Read --
   ----------
 
-  procedure Read (image: image_descriptor; ch: out Chunk_head) is
+  procedure Read (image: in out image_descriptor; ch: out Chunk_head) is
     str4: String(1..4);
+    b: U8;
   begin
-    Big_endian(image.stream, ch.length);
-    String'Read(image.stream, str4);
+    Big_endian(image.buffer, ch.length);
+    for i in str4'Range loop
+      Buffering.Get_Byte(image.buffer, b);
+      str4(i):= Character'Val(b);
+    end loop;
     begin
       ch.kind:= PNG_Chunk_tag'Value(str4);
       if some_trace then
@@ -137,12 +141,14 @@ package body GID.Decoding_PNG is
   -- Load --
   ----------
 
-  procedure Load (image: in Image_descriptor) is
+  procedure Load (image: in out Image_descriptor) is
 
     -- !! these constants can be made generic parameters !!
     bits_per_pixel: constant Positive:= image.bits_per_pixel;
     subformat_id  : constant Natural := image.subformat_id;
     -- !!
+
+    use GID.Buffering;
 
     subtype Mem_row_bytes_array is Byte_array(0..image.width*8);
     --
@@ -617,7 +623,7 @@ package body GID.Decoding_PNG is
 
       procedure Read_raw_byte ( bt : out U8 ) is
       begin
-        U8'Read(image.stream, bt); -- !! use buffering (perf) !!
+        Buffering.Get_Byte(image.buffer, bt);
       end Read_raw_byte;
 
       package body Bit_buffer is
@@ -1192,13 +1198,11 @@ package body GID.Decoding_PNG is
         when IEND =>
           exit;
         when IDAT =>
-          -- !! here initiatize GID buffering
-          -- Attach_Stream(stream_buf, image.stream);
-          U8'Read(image.stream, b); -- zlib compression method/flags code
-          U8'Read(image.stream, b); -- Additional flags/check bits
+          Get_Byte(image.buffer, b); -- zlib compression method/flags code
+          Get_Byte(image.buffer, b); -- Additional flags/check bits
           UnZ_IO.Init_Buffers;
           UnZ_Meth.Inflate;
-          Big_endian(image.stream, z_crc); -- zlib Check value
+          Big_endian(image.buffer, z_crc); -- zlib Check value
           --  if z_crc /= U32(UnZ_Glob.crc32val) then
           --    ada.text_io.put(z_crc 'img &  UnZ_Glob.crc32val'img);
           --    Raise_exception(
@@ -1208,12 +1212,12 @@ package body GID.Decoding_PNG is
           --  end if;
           --  ** Mystery: this check fail even with images which decompress perfectly
           --  ** Is CRC init value different between zip and zlib ?
-          Big_endian(image.stream, dummy); -- chunk's CRC (then, on compressed data)
+          Big_endian(image.buffer, dummy); -- chunk's CRC (then, on compressed data)
           --
         when others =>
           -- Skip chunk data and CRC
           for i in 1..ch.length + 4 loop
-            U8'Read(image.stream, b);
+            Get_Byte(image.buffer, b);
           end loop;
       end case;
     end loop;

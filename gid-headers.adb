@@ -110,7 +110,7 @@ package body GID.Headers is
   generic
     type Number is mod <>;
   procedure Big_endian_number(
-    from : in     Stream_Access;
+    from : in out Input_buffer;
     n    :    out Number
   );
     pragma Inline(Big_endian_number);
@@ -132,7 +132,7 @@ package body GID.Headers is
   end Read_Intel_x86_number;
 
   procedure Big_endian_number(
-    from : in     Stream_Access;
+    from : in out Input_buffer;
     n    :    out Number
   )
   is
@@ -140,7 +140,7 @@ package body GID.Headers is
   begin
     n:= 0;
     for i in 1..Number'Size/8 loop
-      U8'Read(from, b);
+      Buffering.Get_Byte(from, b);
       n:= n * 256 + Number(b);
     end loop;
   end Big_endian_number;
@@ -278,13 +278,14 @@ package body GID.Headers is
   ----------------
 
   procedure Load_PNG_header (image: in out Image_descriptor) is
-    use Decoding_PNG;
+    use Decoding_PNG, Buffering;
     ch: Chunk_head;
     n, dummy: U32;
     pragma Warnings(off, dummy);
     b, color_type: U8;
     palette: Boolean:= False;
   begin
+    Buffering.Attach_stream(image.buffer, image.stream);
     Read(image, ch);
     if ch.kind /= IHDR then
       Raise_exception(
@@ -292,13 +293,13 @@ package body GID.Headers is
         "Expected 'IHDR' chunk as first chunk in PNG stream"
       );
     end if;
-    Big_endian(image.stream, n);
+    Big_endian(image.buffer, n);
     image.width:=  Natural(n);
-    Big_endian(image.stream, n);
+    Big_endian(image.buffer, n);
     image.height:= Natural(n);
-    U8'Read(image.stream, b);
+    Get_Byte(image.buffer, b);
     image.bits_per_pixel:= Integer(b);
-    U8'Read(image.stream, color_type);
+    Get_Byte(image.buffer, color_type);
     image.subformat_id:= Integer(color_type);
     case color_type is
       when 0 => -- Greyscale
@@ -362,7 +363,7 @@ package body GID.Headers is
           "Unknown PNG color type"
         );
     end case;
-    U8'Read(image.stream, b);
+    Get_Byte(image.buffer, b);
     if b /= 0 then
       Raise_exception(
         error_in_image_data'Identity,
@@ -370,16 +371,16 @@ package body GID.Headers is
         " knows only 'method 0' (deflate)"
       );
     end if;
-    U8'Read(image.stream, b);
+    Get_Byte(image.buffer, b);
     if b /= 0 then
       Raise_exception(
         error_in_image_data'Identity,
         "Unknown PNG filtering; ISO/IEC 15948:2003 knows only 'method 0'"
       );
     end if;
-    U8'Read(image.stream, b);
+    Get_Byte(image.buffer, b);
     image.interlaced:= b = 1; -- Adam7
-    Big_endian(image.stream, dummy); -- Chunk's CRC
+    Big_endian(image.buffer, dummy); -- Chunk's CRC
     if palette then
       loop
         Read(image, ch);
@@ -398,12 +399,12 @@ package body GID.Headers is
             end if;
             image.palette:= new Color_Table(0..Integer(ch.length/3)-1);
             Color_tables.Load_palette(image);
-            Big_endian(image.stream, dummy); -- Chunk's CRC
+            Big_endian(image.buffer, dummy); -- Chunk's CRC
             exit;
           when others =>
             -- skip chunk data and CRC
             for i in 1..ch.length + 4 loop
-              U8'Read(image.stream, b);
+              Get_Byte(image.buffer, b);
             end loop;
         end case;
       end loop;

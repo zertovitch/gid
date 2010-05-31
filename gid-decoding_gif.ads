@@ -1,5 +1,9 @@
 private package GID.Decoding_GIF is
 
+  --------------------
+  -- Image decoding --
+  --------------------
+
   generic
     type Primary_color_range is mod <>;
     with procedure Set_X_Y (x, y: Natural);
@@ -11,6 +15,7 @@ private package GID.Decoding_GIF is
       pragma Inline(Put_Pixel);
     with procedure Feedback (percents: Natural);
     mode: Display_mode;
+  --
   procedure Load (
     image     : in out Image_descriptor;
     next_frame:    out Ada.Calendar.Day_Duration
