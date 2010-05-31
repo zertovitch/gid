@@ -1195,9 +1195,9 @@ package body GID.Decoding_PNG is
     loop
       Read(image, ch);
       case ch.kind is
-        when IEND =>
+        when IEND => -- 11.2.5 IEND Image trailer
           exit;
-        when IDAT =>
+        when IDAT => -- 11.2.4 IDAT Image data
           Get_Byte(image.buffer, b); -- zlib compression method/flags code
           Get_Byte(image.buffer, b); -- Additional flags/check bits
           UnZ_IO.Init_Buffers;
@@ -1214,6 +1214,18 @@ package body GID.Decoding_PNG is
           --  ** Is CRC init value different between zip and zlib ?
           Big_endian(image.buffer, dummy); -- chunk's CRC (then, on compressed data)
           --
+        when tEXt => -- 11.3.4.3 tEXt Textual data
+          for i in 1..ch.length loop
+            Get_Byte(image.buffer, b);
+            if some_trace then
+              if b=0 then -- separates keyword from message
+                Ada.Text_IO.New_Line;
+              else
+                Ada.Text_IO.Put(Character'Val(b));
+              end if;
+            end if;
+          end loop;
+          Big_endian(image.buffer, dummy); -- chunk's CRC
         when others =>
           -- Skip chunk data and CRC
           for i in 1..ch.length + 4 loop

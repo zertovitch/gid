@@ -184,7 +184,6 @@ procedure To_BMP is
       BMP24_Load_with_unicolor_bkg(image, next_frame);
     else
       bkg_width:= GID.Pixel_width(bkg);
-      put("bkg_width=" & bkg_width'img);
       bkg_height:= GID.Pixel_height(bkg);
       bkg_padded_line_size:=
         4 * Integer(Float'Ceiling(Float(bkg_width) * 3.0 / 4.0));

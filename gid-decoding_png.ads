@@ -24,7 +24,11 @@ private package GID.Decoding_PNG is
     tEXt, --    can store text that can be represented in ISO/IEC 8859-1.
     tIME, --    stores the time that the image was last changed.
     tRNS, --    contains transparency information.
-    zTXt  --    contains compressed text with the same limits as tEXt.
+    zTXt, --    contains compressed text with the same limits as tEXt.
+    --
+    -- Private chunks (not defined in the ISO standard)
+    --
+    vpAg  --    used in ImageMagick to store "virtual page" size
   );
 
   type Chunk_head is record

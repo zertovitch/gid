@@ -5,6 +5,7 @@
 WINDOWS_TARGET
 
 
+bkg_
 tga_image_descriptor
 x_o
 ada.text_io
@@ -14,7 +15,6 @@ uns
 .bb
 image_descriptor
 error
-subf
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?
