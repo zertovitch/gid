@@ -32,16 +32,11 @@ package body GID.Color_tables is
             U8'Read(image.stream, Palette(i).red);
             U8'Read(image.stream, c);
             -- x discarded
-          when GIF =>
+          when GIF | PNG =>
             -- buffered; order is RGB
             Get_Byte(image.buffer, Palette(i).red);
             Get_Byte(image.buffer, Palette(i).green);
             Get_Byte(image.buffer, Palette(i).blue);
-          when PNG =>
-            -- order is RGB
-            U8'Read(image.stream, Palette(i).red);
-            U8'Read(image.stream, Palette(i).green);
-            U8'Read(image.stream, Palette(i).blue);
           when TGA =>
             case image.subformat_id is -- = palette's bit depth
               when 8 => -- Grey
