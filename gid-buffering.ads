@@ -13,17 +13,13 @@ private package GID.Buffering is
   procedure Get_Byte(b: in out Input_buffer; byte: out U8);
   pragma Inline(Get_Byte);
 
-  -- is_mapping_possible: Compile-time test to check if
-  -- a Byte_Array is equivalemnt to a Ada.Streams.Stream_Element_Array.
-  --
-  -- Used internally by GID.Buffering; but can be used for similar buffers
-  -- like GIF's variable-size buffers.
-  is_mapping_possible: constant Boolean;
-
 private
 
   subtype Size_test_a is Byte_Array(1..19);
   subtype Size_test_b is Ada.Streams.Stream_Element_Array(1..19);
+
+  -- is_mapping_possible: Compile-time test for checking if
+  -- a Byte_Array is equivalemnt to a Ada.Streams.Stream_Element_Array.
   --
   is_mapping_possible: constant Boolean:=
     Size_test_a'Size = Size_test_b'Size and

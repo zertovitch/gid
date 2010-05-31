@@ -6,7 +6,8 @@
 -- image formats and reading header informations.
 --
 
-with GID.Color_tables,
+with GID.Buffering,
+     GID.Color_tables,
      GID.Decoding_PNG;
 
 with Ada.Exceptions, Ada.Unchecked_Deallocation;
@@ -250,6 +251,7 @@ package body GID.Headers is
     --     richness of the original palette
     U8'Read(image.stream, background);
     U8'Read(image.stream, aspect_ratio_code);
+    Buffering.Attach_stream(image.buffer, image.stream);
     if global_palette then
       image.subformat_id:= 1+(Natural(packed and 16#07#));
       -- palette's bits per pixels, usually <= image's

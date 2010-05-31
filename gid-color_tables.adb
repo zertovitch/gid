@@ -1,3 +1,5 @@
+with GID.Buffering;
+
 package body GID.Color_tables is
 
   procedure Convert(c, d: in U8; rgb: out RGB_Color) is
@@ -13,6 +15,7 @@ package body GID.Color_tables is
 
   procedure Load_palette (image: in out Image_descriptor) is
     c, d: U8;
+    use GID.Buffering;
   begin
     if image.palette = null then
       return;
@@ -29,7 +32,12 @@ package body GID.Color_tables is
             U8'Read(image.stream, Palette(i).red);
             U8'Read(image.stream, c);
             -- x discarded
-          when GIF | PNG =>
+          when GIF =>
+            -- buffered; order is RGB
+            Get_Byte(image.buffer, Palette(i).red);
+            Get_Byte(image.buffer, Palette(i).green);
+            Get_Byte(image.buffer, Palette(i).blue);
+          when PNG =>
             -- order is RGB
             U8'Read(image.stream, Palette(i).red);
             U8'Read(image.stream, Palette(i).green);

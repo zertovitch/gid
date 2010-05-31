@@ -3,20 +3,20 @@
 --
 with GID.Buffering, GID.Color_tables;
 
-with Ada.Exceptions, Ada.IO_Exceptions, Ada.Streams, Ada.Text_IO;
+with Ada.Exceptions, Ada.Text_IO;
 
 package body GID.Decoding_GIF is
 
   generic
     type Number is mod <>;
   procedure Read_Intel_x86_number(
-    from : in     Stream_Access;
+    from : in out Input_buffer;
     n    :    out Number
   );
     pragma Inline(Read_Intel_x86_number);
 
   procedure Read_Intel_x86_number(
-    from : in     Stream_Access;
+    from : in out Input_buffer;
     n    :    out Number
   )
   is
@@ -25,7 +25,7 @@ package body GID.Decoding_GIF is
   begin
     n:= 0;
     for i in 1..Number'Size/8 loop
-      U8'Read(from, b);
+      GID.Buffering.Get_Byte(from, b);
       n:= n + m * Number(b);
       m:= m * 256;
     end loop;
@@ -46,7 +46,7 @@ package body GID.Decoding_GIF is
     -- With GIF, each frame is a local image with an eventual
     -- palette, different dimensions, etc. ...
 
-    use Ada.Exceptions;
+    use GID.Buffering, Ada.Exceptions;
 
     type GIFDescriptor is record
       ImageLeft,
@@ -75,53 +75,20 @@ package body GID.Decoding_GIF is
     -- reading and buffering the next sub-block
     block_size   : Natural:= 0;
     block_read   : Natural:= 0;
-    block_buffer : Byte_array( 1..256 );
 
     function Read_Byte return U8 is
     pragma Inline(Read_Byte);
       b: U8;
       use Ada.Streams;
-      Last_Read: Stream_Element_Offset;
     begin
       if block_read >= block_size then
-        U8'Read( image.stream, b);
+        Get_Byte(image.buffer, b);
         block_size:= Natural(b);
         block_read:= 0;
-        -- Pre-read the block
-        --
-        -- We could do simply:
-        --
-        -- >>> Byte_Array'Read(image.stream, block_buffer(1..block_size));
-        --
-        -- but main Ada implementations (GNAT, ObjectAda; early 2010)
-        -- are very slow on this. So we use Ada.Streams.
-        -- Speedup for overall GIF decompression is 2x !
-        --
-        if GID.Buffering.is_mapping_possible then
-          declare
-            SE_Buffer_mapped: Stream_Element_Array (1..Stream_Element_Offset(block_size));
-            -- direct mapping: buffer = SE_Buffer_mapped
-            for SE_Buffer_mapped'Address use block_buffer'Address;
-            pragma Import (Ada, SE_Buffer_mapped);
-          begin
-            Read(image.stream.all, SE_Buffer_mapped, Last_Read);
-          end;
-        else
-          declare
-            SE_Buffer_mapped: Stream_Element_Array (1..Stream_Element_Offset(block_size));
-          begin
-            Read(image.stream.all, SE_Buffer_mapped, Last_Read);
-            for i in 1..Integer(Last_Read) loop
-              block_buffer(i):= U8(SE_Buffer_mapped(Stream_Element_Offset(i-block_buffer'First)+SE_Buffer_mapped'First));
-            end loop;
-          end;
-        end if;
-        if Integer(Last_Read) < block_size then
-          raise Ada.IO_Exceptions.End_Error;
-        end if;
       end if;
+      Get_Byte(image.buffer, b);
       block_read:= block_read + 1;
-      return block_buffer(block_read);
+      return b;
     end Read_Byte;
 
     -- Used while reading the codes
@@ -402,16 +369,16 @@ package body GID.Decoding_GIF is
     begin
        sub_blocks_sequence:
        loop
-        U8'Read( image.stream, temp ); -- load sub-block length byte
+        Get_Byte(image.buffer, temp ); -- load sub-block length byte
         exit sub_blocks_sequence when temp = 0;
         -- null sub-block = end of sub-block sequence
         for i in 1..temp loop
-          U8'Read( image.stream, temp ); -- load sub-block byte
+          Get_Byte(image.buffer, temp ); -- load sub-block byte
         end loop;
       end loop sub_blocks_sequence;
     end Skip_sub_blocks;
 
-    temp, label: U8;
+    temp, temp2, label: U8;
     delay_frame: U16;
     c: Character;
     frame_interlaced: Boolean;
@@ -428,11 +395,12 @@ package body GID.Decoding_GIF is
     next_frame:= 0.0;
     -- Scan various GIF blocks, until finding an image
     loop
-      Character'Read( image.stream, separator );
+      Get_Byte(image.buffer, temp);
+      separator:= Character'Val(temp);
       if full_trace then
         Ada.Text_IO.Put(
           "GIF separator [" & separator &
-          "][" & Integer'Image(Character'pos(separator)) & ']'
+          "][" & U8'Image(temp) & ']'
         );
       end if;
       case separator is
@@ -451,43 +419,44 @@ package body GID.Decoding_GIF is
           if full_trace then
             Ada.Text_IO.Put(" - Extension");
           end if;
-          U8'Read( image.stream, label );
+          Get_Byte(image.buffer, label );
           case label is
             when 16#F9# => -- See: 23. Graphic Control Extension
               if full_trace then
                 Ada.Text_IO.Put_Line(" - Graphic Control Extension");
               end if;
-              U8'Read( image.stream, temp );
+              Get_Byte(image.buffer, temp );
               if temp /= 4 then
                 Raise_Exception(
                   error_in_image_data'Identity,
                   "GIF: error in Graphic Control Extension"
                 );
               end if;
-              U8'Read( image.stream, temp );
+              Get_Byte(image.buffer, temp );
               --  Reserved                      3 Bits
               --  Disposal Method               3 Bits
               --  User Input Flag               1 Bit
               --  Transparent Color Flag        1 Bit
               frame_transparency:= (temp and 1) = 1;
-              Read_Intel(image.stream, delay_frame);
+              Read_Intel(image.buffer, delay_frame);
               image.next_frame:=
                 image.next_frame + Ada.Calendar.Day_Duration(delay_frame) / 100.0;
               next_frame:= image.next_frame;
-              U8'Read( image.stream, temp );
+              Get_Byte(image.buffer, temp );
               Transp_color:= Color_Type(temp);
               -- zero sub-block:
-              U8'Read( image.stream, temp );
+              Get_Byte(image.buffer, temp );
             when 16#FE# => -- See: 24. Comment Extension
               if full_trace then
                 Ada.Text_IO.Put_Line(" - Comment Extension");
                 sub_blocks_sequence:
                 loop
-                  U8'Read( image.stream, temp ); -- load sub-block length byte
+                  Get_Byte(image.buffer, temp ); -- load sub-block length byte
                   exit sub_blocks_sequence when temp = 0;
                   -- null sub-block = end of sub-block sequence
                   for i in 1..temp loop
-                    Character'Read( image.stream, c );
+                    Get_Byte(image.buffer, temp2);
+                    c:= Character'Val(temp2);
                     Ada.Text_IO.Put(c);
                   end loop;
                 end loop sub_blocks_sequence;
@@ -520,11 +489,11 @@ package body GID.Decoding_GIF is
     end loop;
 
     -- Load the image descriptor
-    Read_Intel(image.stream, Descriptor.ImageLeft);
-    Read_Intel(image.stream, Descriptor.ImageTop);
-    Read_Intel(image.stream, Descriptor.ImageWidth);
-    Read_Intel(image.stream, Descriptor.ImageHeight);
-    U8'Read(image.stream, Descriptor.Depth);
+    Read_Intel(image.buffer, Descriptor.ImageLeft);
+    Read_Intel(image.buffer, Descriptor.ImageTop);
+    Read_Intel(image.buffer, Descriptor.ImageWidth);
+    Read_Intel(image.buffer, Descriptor.ImageHeight);
+    Get_Byte(image.buffer, Descriptor.Depth);
 
     -- Get image corner coordinates
     tlX := Natural(Descriptor.ImageLeft);
@@ -573,7 +542,7 @@ package body GID.Decoding_GIF is
     end if;
 
     -- Get initial code size
-    U8'Read( image.stream, temp );
+    Get_Byte(image.buffer, temp );
     if Natural(temp) not in Code_size_range then
       Raise_Exception(
         error_in_image_data'Identity,
@@ -616,7 +585,7 @@ package body GID.Decoding_GIF is
     end if;
     Feedback(100);
     --
-    U8'Read( image.stream, temp ); -- zero-size sub-block
+    Get_Byte(image.buffer, temp ); -- zero-size sub-block
   end Load;
 
 end GID.Decoding_GIF;
