@@ -1230,6 +1230,7 @@ package body GID.Decoding_PNG is
         );
       end loop;
     end if;
+    Feedback(100);
   end Load;
 
 end GID.Decoding_PNG;

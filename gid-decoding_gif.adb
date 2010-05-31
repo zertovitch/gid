@@ -511,6 +511,7 @@ package body GID.Decoding_GIF is
     local_palette:= (Descriptor.Depth and 128) = 128;
     local.format:= GIF;
     local.stream:= image.stream;
+    local.buffer:= image.buffer;
     if local_palette then
       -- Get amount of colours in image
       BitsPerPixel := 1 + Natural(Descriptor.Depth and 7);
@@ -518,6 +519,7 @@ package body GID.Decoding_GIF is
       -- 21. Local Color Table
       local.palette:= new Color_table(0..New_num_of_colours-1);
       Color_tables.Load_palette(local);
+      image.buffer:= local.buffer;
     elsif image.palette = null then
       Raise_Exception(
         error_in_image_data'Identity,
