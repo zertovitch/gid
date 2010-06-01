@@ -88,10 +88,10 @@ procedure To_BMP is
       alpha            : Primary_color_range
     )
     is
+    pragma Inline(Put_Pixel_with_unicolor_bkg);
       u_red  : constant:= 200;
       u_green: constant:= 133;
       u_blue : constant:= 32;
-    pragma Inline(Put_Pixel_with_unicolor_bkg);
     begin
       if alpha = 255 then
         buffer(idx)  := blue;
@@ -114,11 +114,11 @@ procedure To_BMP is
       alpha            : Primary_color_range
     )
     is
+    pragma Inline(Put_Pixel_with_image_bkg);
       b_red,
       b_green,
       b_blue : Primary_color_range;
       bkg_idx: Natural;
-    pragma Inline(Put_Pixel_with_image_bkg);
     begin
       if alpha = 255 then
         buffer(idx)  := blue;

@@ -5,6 +5,7 @@
 WINDOWS_TARGET
 
 
+Width_range
 bkg_
 tga_image_descriptor
 x_o
@@ -14,7 +15,6 @@ uns
 .br
 .bb
 image_descriptor
-error
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

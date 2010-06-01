@@ -148,9 +148,10 @@ package body GID.Decoding_GIF is
             );
           when 65_536 =>
             Put_Pixel(
-              256 * Primary_color_range(local.palette(Integer(b)).red),
-              256 * Primary_color_range(local.palette(Integer(b)).green),
-              256 * Primary_color_range(local.palette(Integer(b)).blue),
+              16#101# * Primary_color_range(local.palette(Integer(b)).red),
+              16#101# * Primary_color_range(local.palette(Integer(b)).green),
+              16#101# * Primary_color_range(local.palette(Integer(b)).blue),
+              -- 16#101# because max intensity FF goes to FFFF
               65_535
             );
           when others =>

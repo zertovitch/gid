@@ -4,9 +4,10 @@
 -- Steps for decoding an image (step numbers are from the ISO standard):
 --
 -- 10: Inflate deflated data; at each output buffer (slide),
---     process with step 9.
---  9: Read filter code (row begin), or unfilter bytes
---  ?: Display pixels these bytes represent
+--       process with step 9.
+--  9: Read filter code (row begin), or unfilter bytes, go with step 8
+--  8: Display pixels these bytes represent;
+--       eventually, locate the interlaced image current point
 --
 with GID.Buffering, GID.Decoding_PNG.Huffman;
 
@@ -146,6 +147,7 @@ package body GID.Decoding_PNG is
     -- !! these constants can be made generic parameters !!
     bits_per_pixel: constant Positive:= image.bits_per_pixel;
     subformat_id  : constant Natural := image.subformat_id;
+    interlaced    : constant Boolean := image.interlaced;
     -- !!
 
     use GID.Buffering;
@@ -157,11 +159,12 @@ package body GID.Decoding_PNG is
     curr_row: Natural:= 1;
     -- either current is 1 and old is 0, or the reverse
 
-    subtype Width_range is Integer range -1..image.width-1;
-    subtype Height_range is Integer range 0..image.height-1;
+    subtype X_range is Integer range -1..image.width-1;
+    subtype Y_range is Integer range  0..image.height-1;
+    -- X position -1 is for the row's filter methode code
 
-    x: Width_range:= -1;
-    y: Height_range:= 0;
+    x: X_range:= -1;
+    y: Y_range:= 0;
 
     -- Amount of bytes to unfilter at a time
     bytes_to_unfilter: constant Integer:= Integer'Max(1, bits_per_pixel / 8);
@@ -340,15 +343,26 @@ package body GID.Decoding_PNG is
       procedure Inc_XY is
       pragma Inline(Inc_XY);
       begin
-        if x = Width_range'Last then
-          x:= Width_range'First;
-          if y < Height_range'Last then
+        if x < X_range'Last then
+          x:= x + 1;
+          if interlaced then
+            null; -- !!
+            --   1 6 4 6 2 6 4 6
+            --   7 7 7 7 7 7 7 7
+            --   5 6 5 6 5 6 5 6
+            --   7 7 7 7 7 7 7 7
+            --   3 6 4 6 3 6 4 6
+            --   7 7 7 7 7 7 7 7
+            --   5 6 5 6 5 6 5 6
+            --   7 7 7 7 7 7 7 7
+          end if;
+        else
+          x:= X_range'First;
+          if y < Y_range'Last then
             y:= y + 1;
             curr_row:= 1-curr_row;
             Feedback((y*100)/image.height);
           end if;
-        else
-          x:= x + 1;
         end if;
       end Inc_XY;
 
@@ -373,7 +387,7 @@ package body GID.Decoding_PNG is
       -- Main loop over data
       --
       loop
-        if x = Width_range'First then
+        if x = X_range'First then -- pseudo-column for filter method
           exit when i > data'Last;
           begin
             current_filter:= Filter_method_0'Val(data(i));
@@ -390,7 +404,8 @@ package body GID.Decoding_PNG is
           end;
           Set_X_Y(0, image.height - y - 1);
           i:= i + 1;
-        else
+        else -- normal pixel
+          --
           -- We quit the loop if all data has been used (except for an
           -- eventual incomplete pixel)
           exit when i > data'Last - (bytes_to_unfilter - 1);
@@ -412,8 +427,8 @@ package body GID.Decoding_PNG is
                     use Interfaces;
                     max: constant U8:= U8(Shift_Left(Unsigned_32'(1), bits_per_pixel)-1);
                     -- Scaling factor to obtain the correct color value on a 0..255 range.
-                    -- The division is exact in all three cases, since 255 = 3 * 5 * 17,
-                    -- and max = 255, 15=3*5, or 3.
+                    -- The division is exact in all cases (bpp=8,4,2,1),
+                    -- since 255 = 3 * 5 * 17 and max = 255, 15, 3 or 1.
                     -- This factor ensures: 0 -> 0, max -> 255
                     factor: constant U8:= 255 / max;
                   begin
@@ -422,7 +437,7 @@ package body GID.Decoding_PNG is
                       b:= (max and U8(Shift_Right(Unsigned_8(uf(0)), shift))) * factor;
                       shift:= shift - bits_per_pixel;
                       Out_Pixel_8(b, b, b, 255);
-                      exit when x >= Width_range'Last or k = 1;
+                      exit when x >= X_range'Last or k = 1;
                       x:= x + 1;
                     end loop;
                   end;
@@ -479,7 +494,7 @@ package body GID.Decoding_PNG is
                     for k in reverse 1..8/bits_per_pixel loop
                       Out_Pixel_Palette(max and U8(Shift_Right(Unsigned_8(uf(0)), shift)));
                       shift:= shift - bits_per_pixel;
-                      exit when x >= Width_range'Last or k = 1;
+                      exit when x >= X_range'Last or k = 1;
                       x:= x + 1;
                     end loop;
                   end;

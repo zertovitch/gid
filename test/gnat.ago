@@ -16,7 +16,7 @@ endia
 
 
 -- Begin compiler switches
-RELEASE <- active (current) build mode
+DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?
 debug o2 false
 debug inlining false
