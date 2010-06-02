@@ -17,6 +17,8 @@ with Interfaces;
 
 procedure To_BMP is
 
+  default_bkg_name: constant String:= "gid.gif";
+
   procedure Blurb is
   begin
     Put_Line(Standard_Error, "To_BMP * Converts any image file to a BMP file");
@@ -31,6 +33,7 @@ procedure To_BMP is
     Put_Line(Standard_Error, "  '-': don't output image (testing only)");
     Put_Line(Standard_Error, "  '-<background_image_name>':");
     Put_Line(Standard_Error, "      use specifed background to mix with transparent images");
+    Put_Line(Standard_Error, "      (otherwise, trying with '"& default_bkg_name &"' or single color)");
     New_Line(Standard_Error);
     Put_Line(Standard_Error, "Output: "".dib"" is added the full input name(s)");
     Put_Line(Standard_Error, "  Reason of "".dib"": unknown synonym of "".bmp"";");
@@ -414,6 +417,14 @@ begin
     Blurb;
     return;
   end if;
+  begin
+    Process(default_bkg_name, True, False);
+    -- if success:
+    background_image_name:= To_Unbounded_String(default_bkg_name);
+  exception
+    when Ada.Text_IO.Name_Error =>
+      null; -- nothing bad, just couldn't find default background
+  end;
   for i in 1..Argument_Count loop
     declare
       arg: constant String:= Argument(i);

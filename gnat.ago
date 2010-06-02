@@ -5,6 +5,8 @@
 WINDOWS_TARGET
 
 
+set_x
+splun
 Width_range
 bkg_
 tga_image_descriptor
@@ -13,8 +15,6 @@ ada.text_io
 uns
 .bg
 .br
-.bb
-image_descriptor
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

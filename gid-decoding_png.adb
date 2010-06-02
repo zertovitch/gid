@@ -144,11 +144,10 @@ package body GID.Decoding_PNG is
 
   procedure Load (image: in out Image_descriptor) is
 
-    -- !! these constants can be made generic parameters !!
+    -- !! these constants can be made generic parameters
     bits_per_pixel: constant Positive:= image.bits_per_pixel;
     subformat_id  : constant Natural := image.subformat_id;
     interlaced    : constant Boolean := image.interlaced;
-    -- !!
 
     use GID.Buffering;
 
@@ -163,8 +162,13 @@ package body GID.Decoding_PNG is
     subtype Y_range is Integer range  0..image.height-1;
     -- X position -1 is for the row's filter methode code
 
-    x: X_range:= -1;
-    y: Y_range:= 0;
+    x: X_range:= X_range'First;
+    y: Y_range:= Y_range'First;
+
+    x_max: X_range; -- for non-interlaced images: = X_range'Last
+    y_max: Y_range; -- for non-interlaced images: = Y_range'Last
+
+    pass: Positive range 1..7;
 
     -- Amount of bytes to unfilter at a time
     bytes_to_unfilter: constant Integer:= Integer'Max(1, bits_per_pixel / 8);
@@ -343,10 +347,11 @@ package body GID.Decoding_PNG is
       procedure Inc_XY is
       pragma Inline(Inc_XY);
       begin
-        if x < X_range'Last then
+        if x < x_max then
           x:= x + 1;
           if interlaced then
-            null; -- !!
+            -- Position of pixels depending on pass:
+            --
             --   1 6 4 6 2 6 4 6
             --   7 7 7 7 7 7 7 7
             --   5 6 5 6 5 6 5 6
@@ -355,13 +360,58 @@ package body GID.Decoding_PNG is
             --   7 7 7 7 7 7 7 7
             --   5 6 5 6 5 6 5 6
             --   7 7 7 7 7 7 7 7
+            case pass is
+              when 1 =>
+               Set_X_Y(    x*8, Y_range'Last     - y*8);
+              when 2 =>
+               Set_X_Y(4 + x*8, Y_range'Last     - y*8);
+              when 3 =>
+               Set_X_Y(    x*4, Y_range'Last - 4 - y*8);
+              when 4 =>
+               Set_X_Y(2 + x*4, Y_range'Last     - y*4);
+              when 5 =>
+               Set_X_Y(    x*2, Y_range'Last - 2 - y*4);
+              when 6 =>
+               Set_X_Y(1 + x*2, Y_range'Last     - y*2);
+              when 7 =>
+                null; -- nothing to to, pixel are contiguous
+            end case;
           end if;
         else
-          x:= X_range'First;
-          if y < Y_range'Last then
+          x:= X_range'First; -- New row
+          if y < y_max then
             y:= y + 1;
-            curr_row:= 1-curr_row;
-            Feedback((y*100)/image.height);
+            curr_row:= 1-curr_row; -- swap row index for filtering
+            if not interlaced then
+              Feedback((y*100)/image.height);
+            end if;
+          elsif interlaced then -- last row has beed displayed
+            if pass < 7 then
+              pass:= pass + 1;
+              y:= 0;
+              case pass is
+                when 1 =>
+                  null;
+                when 2 =>
+                  x_max:= (image.width+3)/8 - 1;
+                  y_max:= (image.height+7)/8 - 1;
+                when 3 =>
+                  x_max:= (image.width+3)/4 - 1;
+                  y_max:= (image.height+3)/8 - 1;
+                when 4 =>
+                  x_max:= (image.width+1)/4 - 1;
+                  y_max:= (image.height+3)/4 - 1;
+                when 5 =>
+                  x_max:= (image.width+1)/2 - 1;
+                  y_max:= (image.height+1)/4 - 1;
+                when 6 =>
+                  x_max:= (image.width  )/2 - 1;
+                  y_max:= (image.height+1)/2 - 1;
+                when 7 =>
+                  x_max:= image.width - 1;
+                  y_max:= image.height/2 - 1;
+              end case;
+            end if;
           end if;
         end if;
       end Inc_XY;
@@ -402,7 +452,16 @@ package body GID.Decoding_PNG is
                 Integer'Image(y) & " code:" & U8'Image(data(i))
               );
           end;
-          Set_X_Y(0, image.height - y - 1);
+          if interlaced then
+            case pass is
+              when 1..6 =>
+                null; -- Set_X_Y for each pixel
+              when 7 =>
+                Set_X_Y(0, Y_range'Last - 1 - y*2);
+            end case;
+          else
+            Set_X_Y(0, Y_range'Last - y);
+          end if;
           i:= i + 1;
         else -- normal pixel
           --
@@ -437,14 +496,14 @@ package body GID.Decoding_PNG is
                       b:= (max and U8(Shift_Right(Unsigned_8(uf(0)), shift))) * factor;
                       shift:= shift - bits_per_pixel;
                       Out_Pixel_8(b, b, b, 255);
-                      exit when x >= X_range'Last or k = 1;
+                      exit when x >= x_max or k = 1;
                       x:= x + 1;
                     end loop;
                   end;
                 when 8 =>
                   -- !! with bpp as generic param, this case can be merged
                   -- into the general 1,2,4[,8] case without loss of performance
-                  -- if the compiler is smart enough. To be tested first... !!
+                  -- if the compiler is smart enough. To be tested first...
                   Unfilter_bytes(data(i..i), uf(0..0));
                   i:= i + 1;
                   Out_Pixel_8(uf(0), uf(0), uf(0), 255);
@@ -494,14 +553,14 @@ package body GID.Decoding_PNG is
                     for k in reverse 1..8/bits_per_pixel loop
                       Out_Pixel_Palette(max and U8(Shift_Right(Unsigned_8(uf(0)), shift)));
                       shift:= shift - bits_per_pixel;
-                      exit when x >= X_range'Last or k = 1;
+                      exit when x >= x_max or k = 1;
                       x:= x + 1;
                     end loop;
                   end;
                 when 8 =>
                   -- !! with bpp as generic param, this case can be merged
                   -- into the general 1,2,4[,8] case without loss of performance
-                  -- if the compiler is smart enough. To be tested first... !!
+                  -- if the compiler is smart enough. To be tested first...
                   Out_Pixel_Palette(uf(0));
                 when others =>
                   null;
@@ -1206,7 +1265,15 @@ package body GID.Decoding_PNG is
     b: U8;
     z_crc, dummy: U32;
 
-  begin
+  begin -- Load
+    if interlaced then
+      x_max:= (image.width+7)/8 - 1;
+      y_max:= (image.height+7)/8 - 1;
+      pass:= 1;
+    else
+      x_max:= X_range'Last;
+      y_max:= Y_range'Last;
+    end if;
     loop
       Read(image, ch);
       case ch.kind is

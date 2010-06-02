@@ -253,6 +253,9 @@ package body GID.Decoding_GIF is
       BadCodeCount : Natural:= 0;  --  the number of bad codes found
 
     begin -- GIF_Decode
+      -- The decoder source and the cool comments are kindly donated by
+      -- André van Splunter.
+      --
       CurrSize:= InitCodeSize;
       --  This is the main loop.  For each code we get we pass through the
       --  linked list of prefix codes, pushing the corresponding "character"
