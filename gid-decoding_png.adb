@@ -168,7 +168,7 @@ package body GID.Decoding_PNG is
     x_max: X_range; -- for non-interlaced images: = X_range'Last
     y_max: Y_range; -- for non-interlaced images: = Y_range'Last
 
-    pass: Positive range 1..7;
+    pass: Positive range 1..7:= 1;
 
     -- Amount of bytes to unfilter at a time
     bytes_to_unfilter: constant Integer:= Integer'Max(1, bits_per_pixel / 8);
@@ -192,6 +192,12 @@ package body GID.Decoding_PNG is
       a,b,c,p,pa,pb,pc,pr: Integer;
       j: Integer:= 0;
     begin
+      if full_trace and then x = 0 then
+        Ada.Text_IO.Put_Line(
+          Integer'Image(y) & ": " &
+          Filter_method_0'Image(current_filter)
+        );
+      end if;
       case current_filter is
         when None    =>
           -- Recon(x) = Filt(x)
@@ -270,6 +276,9 @@ package body GID.Decoding_PNG is
         mem_row_bytes(curr_row)(x*bytes_to_unfilter+j):= u(i);
         j:= j + 1;
       end loop;
+      if u'Length /= bytes_to_unfilter then
+        raise constraint_error with "filter mismatch!";
+      end if; -- !!
     end Unfilter_bytes;
 
     filter_stat: array(Filter_method_0) of Natural:= (others => 0);
@@ -1269,7 +1278,6 @@ package body GID.Decoding_PNG is
     if interlaced then
       x_max:= (image.width+7)/8 - 1;
       y_max:= (image.height+7)/8 - 1;
-      pass:= 1;
     else
       x_max:= X_range'Last;
       y_max:= Y_range'Last;

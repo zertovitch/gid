@@ -8,14 +8,14 @@ private package GID.Decoding_PNG.Huffman is
   type HufT_table;
   type p_HufT_table is access HufT_table;
 
+  invalid: constant:= 99; -- invalid value for extra bits
+
   type HufT is record
-    extra_bits : Natural;
+    extra_bits : Natural:= invalid;
     bits       : Natural;
     n          : Natural;
-    next_table : p_HufT_table;
+    next_table : p_HufT_table:= null;
   end record;
-
-  invalid: constant:= 99; -- invalid value for extra bits
 
   type HufT_table is array( Integer range <> ) of aliased HufT;
 
