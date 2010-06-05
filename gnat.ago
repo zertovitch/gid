@@ -5,16 +5,16 @@
 WINDOWS_TARGET
 
 
-7 7 7
-unfil
-set_x
-splun
-Width_range
-bkg_
-tga_image_descriptor
-x_o
-ada.text_io
-uns
+ws
+Get_length
+_dis
+!!
+.n
+....
+...
+descr_combin
+i
+h_lit
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

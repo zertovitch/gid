@@ -4,6 +4,39 @@ with Ada.Unchecked_Deallocation;
 
 package body GID.Decoding_PNG.Huffman is
 
+  procedure Build(t: out Huff_tree; descr: in Huff_descriptor) is
+    curr, alloc: Natural;
+    use Interfaces;
+    code, mask: Unsigned_32;
+  begin
+    alloc:= root;
+    for i in descr'Range loop
+      if descr(i).length > 0 then
+        curr:= root;
+        code:= Unsigned_32(descr(i).code);
+        mask:= Shift_Left(Unsigned_32'(1), descr(i).length-1);
+        for j in 0..descr(i).length-1 loop
+          if (code and mask) /= 0 then
+            if t.node(curr).one = nil then
+              alloc:= alloc + 1;
+              t.node(curr).one:= alloc;
+            end if;
+            curr:= t.node(curr).one;
+          else
+            if t.node(curr).zero = nil then
+              alloc:= alloc + 1;
+              t.node(curr).zero:= alloc;
+            end if;
+            curr:= t.node(curr).zero;
+          end if;
+          mask:= Shift_Right(mask, 1);
+        end loop;
+        t.node(curr).n:= i;
+      end if;
+    end loop;
+    t.last:= alloc;
+  end Build;
+
   -- Free huffman tables starting with table where t points to
 
   procedure HufT_free ( tl: in out p_Table_list ) is
@@ -15,23 +48,29 @@ package body GID.Decoding_PNG.Huffman is
 
     current: p_Table_list;
     tcount : Natural; -- just a stat. Idea: replace table_list with an array
+    tot_length: Natural;
 
   begin
     if full_trace then
       Ada.Text_IO.Put("[HufT_Free... ");
       tcount:= 0;
+      tot_length:= 0;
     end if;
     while tl /= null loop
+      if full_trace then
+        tcount:= tcount+1;
+        tot_length:= tot_length + tl.table'Length;
+      end if;
       Dispose( tl.table ); -- destroy the Huffman table
       current:= tl;
       tl     := tl.next;
       Dispose( current );  -- destroy the current node
-      if full_trace then
-        tcount:= tcount+1;
-      end if;
     end loop;
     if full_trace then
-      Ada.Text_IO.Put_Line( Integer'Image(tcount)& " tables]" );
+      Ada.Text_IO.Put_Line(
+        Integer'Image(tcount)& " tables, of" &
+        Integer'Image(tot_length)& " tot. length]"
+      );
     end if;
   end HufT_free;
 

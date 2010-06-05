@@ -1,3 +1,14 @@
+-- ***********
+--
+-- Version with an alternative "Inflater" based on simple
+-- Huffman tree types. Unfortunately
+-- the same "wrong filter" errors, which appeared with
+-- the UnZip decoder for some pictures, appear too, at the same
+-- places. This leads think the bug is actually not with
+-- this part of decompression. And other pictures fail, seemingly on
+-- fixed "deflate" blocks, with that alternative. 5-Jun-2010.
+--
+
 -- A PNG stream is made of several "chunks" (see type PNG_Chunk_tag).
 -- The image itself is contained in the IDAT chunk(s).
 --
@@ -887,77 +898,116 @@ package body GID.Decoding_PNG is
 
       --------[ Method: Inflate ]--------
 
-      procedure Inflate_Codes ( Tl, Td: p_Table_list; Bl, Bd: Integer ) is
-        CTE    : p_HufT;       -- current table element
-        length : Natural;
-        E      : Integer;      -- table entry flag/number of extra bits
-        W      : Integer:= UnZ_Glob.slide_index;
+      procedure Inflate_Codes ( huf_dis, huf_lit_len: Huff_tree ) is
+        dis_idx, lit_len_idx: Natural; -- indices in both trees
+        val, val_dis, val_len : Natural;
+        use Interfaces;
+
+        procedure Get_length is
+          v32, base, offset, extra: Unsigned_32;
+        begin
+          if val <= 264 then
+            val_len:= 3 + (val-257);
+          elsif val >= 285 then
+            val_len:= 258;
+          else
+            v32:= Unsigned_32(val);
+            extra := 1 + (v32-265)/4;
+            base  := Shift_Left(8, ((val-265)/4)) + 3;
+            offset:= ((v32-265) and 3) * Shift_Left(2, ((val-265)/4));
+            val_len:=
+              UnZ_IO.Bit_buffer.Read_and_dump(Natural(extra)) +
+              Natural(base + offset);
+          end if;
+        end Get_length;
+
+        procedure Get_distance is
+          v32, base, offset, extra: Unsigned_32;
+        begin
+          if val_dis <= 3 then
+            val_dis:= val_dis + 1;
+          else
+            v32:= Unsigned_32(val_dis);
+            base:=   Shift_Left(4, ((val_dis-4)/2))+1;
+            offset:= (v32 and 1) * Shift_Left(2, ((val_dis-4)/2));
+            extra:=  (v32-2)/2;
+            val_dis:=
+              UnZ_IO.Bit_buffer.Read_and_dump(Natural(extra)) +
+              Natural(base + offset);
+          end if;
+        end Get_distance;
+
+        w      : Integer:= UnZ_Glob.slide_index;
         -- more local variable for slide index
       begin
         if full_trace then
           Ada.Text_IO.Put_Line("Begin Inflate_codes");
         end if;
+--ada.text_io.Put_line(UnZ_IO.Bit_buffer.Read_and_dump(8)'img);
 
+        if huf_lit_len.last = nil then
+          return;
+        end if;
+        lit_len_idx:= root;
         -- inflate the coded data
         main_loop:
         while not UnZ_Glob.Zip_EOF loop
-          CTE:= Tl.table( UnZ_IO.Bit_buffer.Read(Bl) )'Access;
-
-          loop
-            E := CTE.extra_bits;
-            exit when E <= 16;
-            if E = invalid then
-              raise error_in_image_data;
-            end if;
-
-            -- then it's a literal
-            UnZ_IO.Bit_buffer.Dump( CTE.bits );
-            E:= E - 16;
-            CTE := CTE.next_table( UnZ_IO.Bit_buffer.Read(E) )'Access;
-          end loop;
-
-          UnZ_IO.Bit_buffer.Dump ( CTE.bits );
-
-          case E is
-            when 16 =>     -- CTE.N is a Litteral
-              UnZ_Glob.slide ( W ) :=  U8( CTE.n );
-              W:= W + 1;
-              UnZ_IO.Flush_if_full(W);
-
-            when 15 =>     -- End of block (EOB)
-              if full_trace then
-                Ada.Text_IO.Put_Line("Exit  Inflate_codes, e=15 EOB");
-              end if;
-              exit main_loop;
-
-            when others => -- We have a length/distance
-
-              -- Get length of block to copy:
-              length:= CTE.n + UnZ_IO.Bit_buffer.Read_and_dump(E);
-
-              -- Decode distance of block to copy:
-              CTE := Td.table( UnZ_IO.Bit_buffer.Read(Bd) )'Access;
-              loop
-                E := CTE.extra_bits;
-                exit when E <= 16;
-                if E = invalid then
-                  raise error_in_image_data;
+          if UnZ_IO.Bit_buffer.Read_and_dump(1) = 0 then
+            lit_len_idx:= huf_lit_len.node(lit_len_idx).zero;
+          else
+            lit_len_idx:= huf_lit_len.node(lit_len_idx).one;
+          end if;
+          if lit_len_idx = nil then
+            raise error_in_image_data;
+          end if;
+          if huf_lit_len.node(lit_len_idx).zero = nil and then
+            huf_lit_len.node(lit_len_idx).one = nil
+          then -- tree node
+            val:= huf_lit_len.node(lit_len_idx).n;
+            case val is
+              when 0 .. 255 =>   -- It is a litteral
+ada.text_io.Put("litt" & val'img);
+                UnZ_Glob.slide ( w ) :=  U8( val );
+                w:= w + 1;
+                UnZ_IO.Flush_if_full(w);
+              when 256 =>        -- End of block (EOB)
+                if full_trace then
+                  Ada.Text_IO.Put_Line("Exit  Inflate_codes, EOB");
                 end if;
-                UnZ_IO.Bit_buffer.Dump( CTE.bits );
-                E:= E - 16;
-                CTE := CTE.next_table( UnZ_IO.Bit_buffer.Read(E) )'Access;
-              end loop;
-              UnZ_IO.Bit_buffer.Dump( CTE.bits );
-
-              UnZ_IO.Copy(
-                distance => CTE.n + UnZ_IO.Bit_buffer.Read_and_dump(E),
-                length   => length,
-                index    => W
-              );
-          end case;
+                exit main_loop;
+              when 257 .. 285 => -- We have a LZ length/distance code
+                Get_length;
+                if huf_dis.last = nil then
+                  -- Empty tree for distances ("fixed"), then read directly
+                  val_dis:= UnZ_IO.Bit_buffer.Read_and_dump(5);
+                else
+                  dis_idx:= root;
+                  while huf_dis.node(dis_idx).zero /= nil or else
+                    huf_dis.node(dis_idx).one /= nil
+                  loop
+                    if UnZ_IO.Bit_buffer.Read_and_dump(1) = 0 then
+                      dis_idx:= huf_dis.node(dis_idx).zero;
+                    else
+                      dis_idx:= huf_dis.node(dis_idx).one;
+                    end if;
+                  end loop;
+                  val_dis:= huf_dis.node(dis_idx).n;
+                end if;
+                Get_distance;
+ada.text_io.Put("dist/length [" & val_dis'img & val_len'img & ']');
+                UnZ_IO.Copy(
+                  distance => val_dis,
+                  length   => val_len,
+                  index    => w
+                );
+              when others =>
+                raise error_in_image_data;
+            end case;
+            lit_len_idx:= root;
+          end if;
         end loop main_loop;
 
-        UnZ_Glob.slide_index:= W;
+        UnZ_Glob.slide_index:= w;
 
         if full_trace then
           Ada.Text_IO.Put_Line("End   Inflate_codes");
@@ -1021,53 +1071,30 @@ package body GID.Decoding_PNG is
       max_dist: Integer:= 29; -- changed to 31 for deflate_e
 
       procedure Inflate_fixed_block is
-        Tl,                        -- literal/length code table
-          Td : p_Table_list;            -- distance code table
-        Bl, Bd : Integer;          -- lookup bits for tl/bd
-        huft_incomplete : Boolean;
-
-        -- length list for HufT_build (literal table)
-        L: constant Length_array( 0..287 ):=
-          ( 0..143=> 8, 144..255=> 9, 256..279=> 7, 280..287=> 8);
-
+        huf_dis, huf_lit_len: Huff_tree;
+        descr_lit_len: Huff_descriptor(0..287);
       begin
         if full_trace then
           Ada.Text_IO.Put_Line("Begin Inflate_fixed_block");
         end if;
+        -- Make the tree descriptor for LZ distances
+        for i in 0 .. 143 loop
+          descr_lit_len(i):= (length => 8, code => 16#30#+i);
+        end loop;
+        for i in 144 .. 255 loop
+          descr_lit_len(i):= (length => 9, code => 16#190#+(i-144));
+        end loop;
+        for i in 256 .. 279 loop
+          descr_lit_len(i):= (length => 7, code => i-256);
+        end loop;
+        for i in 280 .. 287 loop
+          descr_lit_len(i):= (length => 8, code => 16#C0#+(i-280));
+        end loop;
+        -- Build the tree according to the descriptor
+        Build(huf_lit_len, descr_lit_len);
 
-        -- make a complete, but wrong code set
-        Bl := 7;
-        HufT_build(
-          L, 257, copy_lengths_literal, extra_bits_literal,
-          Tl, Bl, huft_incomplete
-        );
-
-        -- Make an incomplete code set
-        Bd := 5;
-        begin
-          HufT_build(
-            (0..max_dist => 5), 0,
-            copy_offset_distance, extra_bits_distance,
-            Td, Bd, huft_incomplete
-          );
-          if huft_incomplete then
-            if full_trace then
-              Ada.Text_IO.Put_Line(
-                "td is incomplete, pointer=null: " &
-                Boolean'Image(Td=null)
-              );
-            end if;
-          end if;
-        exception
-          when huft_out_of_memory | huft_error =>
-            HufT_free( Tl );
-            raise error_in_image_data;
-        end;
-
-        Inflate_Codes ( Tl, Td, Bl, Bd );
-
-        HufT_free ( Tl );
-        HufT_free ( Td );
+        huf_dis.last:= nil;
+        Inflate_Codes ( huf_dis, huf_lit_len );
 
         if full_trace then
           Ada.Text_IO.Put_Line("End   Inflate_fixed_block");
@@ -1075,157 +1102,141 @@ package body GID.Decoding_PNG is
       end Inflate_fixed_block;
 
       procedure Inflate_dynamic_block is
-        bit_order : constant array ( 0..18 ) of Natural :=
-         ( 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15 );
 
-        Lbits : constant:= 9;
-        Dbits : constant:= 6;
+        type H_vector is array(Natural range <>) of Natural;
 
-        current_length: Natural;
-        defined, number_of_lengths: Natural;
-
-        Tl,                             -- literal/length code tables
-          Td : p_Table_list;            -- distance code tables
-
-        CTE : p_HufT;  -- current table element
-
-        Bl, Bd : Integer;                  -- lookup bits for tl/bd
-        Nb : Natural;  -- number of bit length codes
-        Nl : Natural;  -- number of literal length codes
-        Nd : Natural;  -- number of distance codes
-
-        -- literal/length and distance code lengths
-        Ll: Length_array( 0 .. 288+32-1 ):= (others=> 0);
-
-        huft_incomplete : Boolean;
-
-        procedure Repeat_length_code( amount: Natural ) is
+        procedure Make_dynamic_descriptor(h: out Huff_descriptor; lng: in H_vector) is
+          maxLng, code, len: Natural;
         begin
-          if defined + amount > number_of_lengths then
-            raise error_in_image_data;
-          end if;
-          for c in reverse 1..amount loop
-            Ll ( defined ) := current_length;
-            defined:= defined + 1;
+          for i in h'Range loop
+            h(i):= (length => lng(i), code => 0);
           end loop;
-        end Repeat_length_code;
+          maxLng:= 0;
+          for i in h'Range loop
+            if maxLng < lng(i) then
+              maxLng:= lng(i);
+            end if;
+          end loop;
+          declare
+            bl_count, next_code: H_vector(0..maxLng):= (others => 0);
+          begin
+            for i in h'Range loop
+              bl_count(lng(i)):= bl_count(lng(i)) + 1;
+            end loop;
+            code:= 0;
+            bl_count(0):= 0;
+	      for bits in 1 .. maxLng loop
+              code:= (code + bl_count(bits-1)) * 2;
+              next_code(bits):= code;
+            end loop;
+            for n in h'Range loop
+              len:= lng(n);
+              if len > 0 then
+                h(n).code:= next_code(len);
+                next_code(len):= next_code(len) + 1; -- !! before or after (++)
+              end if;
+            end loop;
+          end;
+        end Make_dynamic_descriptor;
+
+        huf_dis, huf_lit: Huff_tree;
+
+        procedure Decode_dynamic_compression_structure is
+          huf_len: Huff_tree;
+          len_idx: Natural;
+          hLit: Natural;
+          hDist: Natural;
+          hCLen: Natural;
+          nExtr: Natural;
+          codeLengthOrder : constant H_vector( 0..18 ) :=
+            ( 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15 );
+          codeLengthCode: H_vector( codeLengthOrder'Range ):= (others => 0);
+
+          value,copyLength: Natural;
+        begin
+          hLit := UnZ_IO.Bit_buffer.Read_and_dump(5);
+          hDist:= UnZ_IO.Bit_buffer.Read_and_dump(5);
+          hCLen:= UnZ_IO.Bit_buffer.Read_and_dump(4);
+ada.text_io.Put_line(hlit'img & hdist'img & hclen'img);
+
+
+          for i in 0 .. hCLen+3 loop
+            codeLengthCode(codeLengthOrder(i)):= UnZ_IO.Bit_buffer.Read_and_dump(3);
+          end loop;
+          declare
+            descr_code: Huff_descriptor(codeLengthCode'Range);
+          begin
+            Make_dynamic_descriptor(descr_code, codeLengthCode);
+            Build(huf_len, descr_code);
+          end;
+
+          declare
+            cl_lit: H_vector(0..(hLit+257)-1);
+            cl_dis: H_vector(0..(hDist+1)-1);
+            cl_combined: H_vector(0..(hLit+257+hDist+1)-1); -- max 321
+            descr_lit: Huff_descriptor( cl_lit'Range );
+            descr_dis: Huff_descriptor( cl_dis'Range );
+          begin
+            nExtr:= 0;
+            len_idx:= root;
+ada.text_io.Put_line(cl_combined'last'img);
+            while nExtr <= hLit+257+hDist loop
+              if UnZ_IO.Bit_buffer.Read_and_dump(1) = 0 then
+                len_idx:= huf_len.node(len_idx).zero;
+              else
+                len_idx:= huf_len.node(len_idx).one;
+              end if;
+              if len_idx = nil then
+                raise error_in_image_data;
+              end if;
+              if huf_len.node(len_idx).zero = nil and then
+                huf_len.node(len_idx).one = nil
+              then
+ada.text_io.Put(nextr'img);
+                value:= huf_len.node(len_idx).n;
+ada.text_io.Put(" val:" & value'img);
+                case value is
+                  when 0..15 => -- length of code in bits (0..15)
+                    cl_combined(nExtr):= value;
+                    nExtr:= nExtr + 1; -- !! ++
+                  when 16 =>    -- repeat last length 3 to 6 times
+                    for copy in 1 .. 3 + UnZ_IO.Bit_buffer.Read_and_dump(2) loop
+                      cl_combined(nExtr):= cl_combined(nExtr-1);
+                      nExtr:= nExtr + 1;
+                    end loop;
+                  when 17 =>    -- 3 to 10 zero length codes
+                    for copy in 1 .. 3 + UnZ_IO.Bit_buffer.Read_and_dump(3) loop
+                      cl_combined(nExtr):= 0;
+                      nExtr:= nExtr + 1;
+                    end loop;
+                  when 18 =>    -- 11 to 138 zero length codes
+                    for copy in 1 .. 11 + UnZ_IO.Bit_buffer.Read_and_dump(7) loop
+                      cl_combined(nExtr):= 0;
+                      nExtr:= nExtr + 1;
+                    end loop;
+                  when others =>
+                    null; -- or error...!!
+                end case;
+                len_idx:= root;
+ada.text_io.Put_LINE("....." & nextr'img);
+              end if;
+            end loop;
+            cl_lit:= cl_combined(cl_lit'Range);
+            cl_dis:= cl_combined(hLit+257..cl_combined'Last);
+            -- NB: we could use only cl_combined if Make_dynamic_descriptor uses lng'First
+            Make_dynamic_descriptor(descr_lit, cl_lit);
+            Build(huf_lit, descr_lit);
+            Make_dynamic_descriptor(descr_dis, cl_dis);
+            Build(huf_dis, descr_dis);
+          end;
+        end Decode_dynamic_compression_structure;
 
       begin
         if full_trace then
           Ada.Text_IO.Put_Line("Begin Inflate_dynamic_block");
         end if;
-
-        -- Read in table lengths
-        Nl := 257 + UnZ_IO.Bit_buffer.Read_and_dump(5);
-        Nd :=   1 + UnZ_IO.Bit_buffer.Read_and_dump(5);
-        Nb :=   4 + UnZ_IO.Bit_buffer.Read_and_dump(4);
-
-        if Nl > 288 or else Nd > 32 then
-          raise error_in_image_data;
-        end if;
-
-        -- Read in bit-length-code lengths.
-        -- The rest, Ll( Bit_Order( Nb .. 18 ) ), is already = 0
-        for J in  0 .. Nb - 1  loop
-          Ll ( bit_order( J ) ) := UnZ_IO.Bit_buffer.Read_and_dump(3);
-        end loop;
-
-        -- Build decoding table for trees--single level, 7 bit lookup
-        Bl := 7;
-        begin
-          HufT_build (
-            Ll( 0..18 ), 19, empty, empty, Tl, Bl, huft_incomplete
-          );
-          if huft_incomplete then
-            HufT_free(Tl);
-            raise error_in_image_data;
-          end if;
-        exception
-          when others =>
-            raise error_in_image_data;
-        end;
-
-        -- Read in literal and distance code lengths
-        number_of_lengths := Nl + Nd;
-        defined := 0;
-        current_length := 0;
-
-        while  defined < number_of_lengths  loop
-          CTE:= Tl.table( UnZ_IO.Bit_buffer.Read(Bl) )'Access;
-          UnZ_IO.Bit_buffer.Dump( CTE.bits );
-
-          case CTE.n is
-            when 0..15 =>       -- length of code in bits (0..15)
-              current_length:= CTE.n;
-              Ll (defined) := current_length;
-              defined:= defined + 1;
-
-            when 16 =>          -- repeat last length 3 to 6 times
-              Repeat_length_code(3 + UnZ_IO.Bit_buffer.Read_and_dump(2));
-
-            when 17 =>          -- 3 to 10 zero length codes
-              current_length:= 0;
-              Repeat_length_code(3 + UnZ_IO.Bit_buffer.Read_and_dump(3));
-
-            when 18 =>          -- 11 to 138 zero length codes
-              current_length:= 0;
-              Repeat_length_code(11 + UnZ_IO.Bit_buffer.Read_and_dump(7));
-
-            when others =>
-              if full_trace then
-                Ada.Text_IO.Put_Line(
-                  "Illegal length code: " &
-                  Integer'Image(CTE.n)
-                );
-              end if;
-
-          end case;
-        end loop;
-
-        HufT_free ( Tl );        -- free decoding table for trees
-
-        -- Build the decoding tables for literal/length codes
-        Bl := Lbits;
-        begin
-          HufT_build (
-            Ll( 0..Nl-1 ), 257,
-            copy_lengths_literal, extra_bits_literal,
-            Tl, Bl, huft_incomplete
-          );
-          if huft_incomplete then
-            HufT_free(Tl);
-            raise error_in_image_data;
-          end if;
-        exception
-          when others =>
-            raise error_in_image_data;
-        end;
-
-        -- Build the decoding tables for distance codes
-        Bd := Dbits;
-        begin
-          HufT_build (
-            Ll( Nl..Nl+Nd-1 ), 0,
-            copy_offset_distance, extra_bits_distance,
-            Td, Bd, huft_incomplete
-          );
-          if huft_incomplete then -- do nothing!
-            if full_trace then
-              Ada.Text_IO.Put_Line("PKZIP 1.93a bug workaround");
-            end if;
-          end if;
-        exception
-          when huft_out_of_memory | huft_error =>
-            HufT_free(Tl);
-            raise error_in_image_data;
-        end;
-
-        -- Decompress until an end-of-block code
-
-        Inflate_Codes ( Tl, Td, Bl, Bd );
-        HufT_free ( Tl );
-        HufT_free ( Td );
-
+        Decode_dynamic_compression_structure;
+        Inflate_Codes( huf_dis, huf_lit );
         if full_trace then
           Ada.Text_IO.Put_Line("End   Inflate_dynamic_block");
         end if;

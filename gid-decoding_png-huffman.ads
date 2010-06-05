@@ -1,9 +1,44 @@
 -- GID.Decoding_PNG.Huffman
 ---------------------------
 -- Huffman tree generation and deletion.
--- Copy UnZip.Decompress.Huffman
+-- Copy of UnZip.Decompress.Huffman
 
 private package GID.Decoding_PNG.Huffman is
+
+  -- Variants A and B.
+
+  -- A/ Simplistic huffman trees, pointerless
+
+  type Length_code_pair is record
+    length: Natural;
+    code  : Natural;
+  end record;
+
+  type Huff_descriptor is array(Natural range <>) of Length_code_pair;
+
+  nil: constant:= 0;
+  root: constant:= 1;
+
+  type Huff_node is record
+    n: Natural; -- value
+    zero, one: Natural:= nil; -- index of next node, if any
+  end record;
+
+  max_size: constant:= 800;
+
+  type Huff_node_list is array(1..max_size) of Huff_node;
+
+  type Huff_tree is record
+    last: Natural:= nil;
+    node: Huff_node_list;
+  end record;
+
+  procedure Build(t: out Huff_tree; descr: in Huff_descriptor);
+
+  -- B/ Huffman tables: several steps in the binary tree
+  -- in one jump.
+  -- Pro: probably faster
+  -- Contra: complicated, relies on pointers, large data.
 
   type HufT_table;
   type p_HufT_table is access HufT_table;
