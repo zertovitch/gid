@@ -506,7 +506,7 @@ package body GID.Decoding_PNG is
                       shift:= shift - bits_per_pixel;
                       Out_Pixel_8(b, b, b, 255);
                       exit when x >= x_max or k = 1;
-                      x:= x + 1;
+                      Inc_XY;
                     end loop;
                   end;
                 when 8 =>
@@ -563,7 +563,7 @@ package body GID.Decoding_PNG is
                       Out_Pixel_Palette(max and U8(Shift_Right(Unsigned_8(uf(0)), shift)));
                       shift:= shift - bits_per_pixel;
                       exit when x >= x_max or k = 1;
-                      x:= x + 1;
+                      Inc_XY;
                     end loop;
                   end;
                 when 8 =>

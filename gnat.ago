@@ -5,6 +5,8 @@
 WINDOWS_TARGET
 
 
+type 3
+type 1
 raise_e
 ch.l
 Init_Buffers
@@ -13,8 +15,6 @@ ws
 Get_length
 _dis
 !!
-.n
-....
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?
