@@ -68,7 +68,7 @@ package body GID.Decoding_PNG is
     begin
       ch.kind:= PNG_Chunk_tag'Value(str4);
       if some_trace then
-        Ada.Text_IO.Put_Line('[' & str4 & ']');
+        Ada.Text_IO.Put_Line('[' & str4 & "], length:" & U32'Image(ch.length));
       end if;
     exception
       when Constraint_Error =>
@@ -658,13 +658,14 @@ package body GID.Decoding_PNG is
       -- > Sliding dictionary for unzipping, and output buffer as well
       slide: Byte_Array( 0..wsize );
       slide_index: Integer:= 0; -- Current Position in slide
+      IDAT_reserve: Natural;
       Zip_EOF  : constant Boolean:= False;
       crc32val : Unsigned_32;  -- crc calculated from data
     end UnZ_Glob;
 
     package UnZ_IO is
 
-      procedure Init_Buffers;
+      procedure Init_Buffers(IDAT_reserve: Natural);
 
       procedure Read_raw_byte ( bt : out U8 );
         pragma Inline(Read_raw_byte);
@@ -708,16 +709,38 @@ package body GID.Decoding_PNG is
     ------------------------------
     package body UnZ_IO is
 
-      procedure Init_Buffers is
+      procedure Init_Buffers(IDAT_reserve: Natural) is
       begin
         UnZ_Glob.slide_index := 0;
         Bit_buffer.Init;
         CRC32.Init( UnZ_Glob.crc32val );
+        UnZ_Glob.IDAT_reserve:= IDAT_reserve;
       end Init_Buffers;
 
       procedure Read_raw_byte ( bt : out U8 ) is
+        ch: Chunk_head;
+        dummy: U32;
       begin
+        if UnZ_Glob.IDAT_reserve = 0 then
+          -- We hit the end of a PNG 'IDAT' chunk, so we go to the next one
+          -- (in petto, it's strange design, but well...).
+          -- This "feature" has taken some time (and nerves) to be addressed.
+          -- Incidentally, I have reprogrammed the whole Huffman
+          -- decoding, and looked at many other wrong places to solve
+          -- the mystery.
+          Big_endian(image.buffer, dummy); -- ending chunk's CRC
+          -- New chunk begins here.
+          Read(image, ch);
+          if ch.kind /= IDAT then
+            Raise_exception(
+              error_in_image_data'Identity,
+              "PNG additional data chunk must be an IDAT"
+            );
+          end if;
+          UnZ_Glob.IDAT_reserve:= Natural(ch.length);
+        end if;
         Buffering.Get_Byte(image.buffer, bt);
+        UnZ_Glob.IDAT_reserve:= UnZ_Glob.IDAT_reserve - 1;
       end Read_raw_byte;
 
       package body Bit_buffer is
@@ -943,7 +966,6 @@ package body GID.Decoding_PNG is
         if full_trace then
           Ada.Text_IO.Put_Line("Begin Inflate_codes");
         end if;
---ada.text_io.Put_line(UnZ_IO.Bit_buffer.Read_and_dump(8)'img);
 
         if huf_lit_len.last = nil then
           return;
@@ -966,7 +988,6 @@ package body GID.Decoding_PNG is
             val:= huf_lit_len.node(lit_len_idx).n;
             case val is
               when 0 .. 255 =>   -- It is a litteral
-ada.text_io.Put("litt" & val'img);
                 UnZ_Glob.slide ( w ) :=  U8( val );
                 w:= w + 1;
                 UnZ_IO.Flush_if_full(w);
@@ -994,7 +1015,6 @@ ada.text_io.Put("litt" & val'img);
                   val_dis:= huf_dis.node(dis_idx).n;
                 end if;
                 Get_distance;
-ada.text_io.Put("dist/length [" & val_dis'img & val_len'img & ']');
                 UnZ_IO.Copy(
                   distance => val_dis,
                   length   => val_len,
@@ -1157,8 +1177,6 @@ ada.text_io.Put("dist/length [" & val_dis'img & val_len'img & ']');
           hLit := UnZ_IO.Bit_buffer.Read_and_dump(5);
           hDist:= UnZ_IO.Bit_buffer.Read_and_dump(5);
           hCLen:= UnZ_IO.Bit_buffer.Read_and_dump(4);
-ada.text_io.Put_line(hlit'img & hdist'img & hclen'img);
-
 
           for i in 0 .. hCLen+3 loop
             codeLengthCode(codeLengthOrder(i)):= UnZ_IO.Bit_buffer.Read_and_dump(3);
@@ -1179,7 +1197,6 @@ ada.text_io.Put_line(hlit'img & hdist'img & hclen'img);
           begin
             nExtr:= 0;
             len_idx:= root;
-ada.text_io.Put_line(cl_combined'last'img);
             while nExtr <= hLit+257+hDist loop
               if UnZ_IO.Bit_buffer.Read_and_dump(1) = 0 then
                 len_idx:= huf_len.node(len_idx).zero;
@@ -1192,9 +1209,7 @@ ada.text_io.Put_line(cl_combined'last'img);
               if huf_len.node(len_idx).zero = nil and then
                 huf_len.node(len_idx).one = nil
               then
-ada.text_io.Put(nextr'img);
                 value:= huf_len.node(len_idx).n;
-ada.text_io.Put(" val:" & value'img);
                 case value is
                   when 0..15 => -- length of code in bits (0..15)
                     cl_combined(nExtr):= value;
@@ -1218,7 +1233,6 @@ ada.text_io.Put(" val:" & value'img);
                     null; -- or error...!!
                 end case;
                 len_idx:= root;
-ada.text_io.Put_LINE("....." & nextr'img);
               end if;
             end loop;
             cl_lit:= cl_combined(cl_lit'Range);
@@ -1299,9 +1313,17 @@ ada.text_io.Put_LINE("....." & nextr'img);
         when IEND => -- 11.2.5 IEND Image trailer
           exit;
         when IDAT => -- 11.2.4 IDAT Image data
+          --
+          -- NB: the compressed data may hold on several IDAT chunks.
+          -- It means that right in the middle of compressed data, you
+          -- can have a chunk crc, and a new IDAT header!...
+          --
           Get_Byte(image.buffer, b); -- zlib compression method/flags code
           Get_Byte(image.buffer, b); -- Additional flags/check bits
-          UnZ_IO.Init_Buffers;
+          --
+          UnZ_IO.Init_Buffers(IDAT_reserve => Natural(ch.length) - 2);
+          -- ^ we indicate that we have a byte reserve of chunk's length,
+          --   minus both zlib header bytes.
           UnZ_Meth.Inflate;
           Big_endian(image.buffer, z_crc); -- zlib Check value
           --  if z_crc /= U32(UnZ_Glob.crc32val) then
@@ -1312,8 +1334,9 @@ ada.text_io.Put_LINE("....." & nextr'img);
           --    );
           --  end if;
           --  ** Mystery: this check fail even with images which decompress perfectly
-          --  ** Is CRC init value different between zip and zlib ?
-          Big_endian(image.buffer, dummy); -- chunk's CRC (then, on compressed data)
+          --  ** Is CRC init value different between zip and zlib ? Is it Adler32 ?
+          Big_endian(image.buffer, dummy);
+          -- last IDAT chunk's CRC (then, on compressed data)
           --
         when tEXt => -- 11.3.4.3 tEXt Textual data
           for i in 1..ch.length loop

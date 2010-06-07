@@ -594,7 +594,7 @@ package body GID.Decoding_PNG is
               end case;
             when 6 =>
               ------------------
-              -- Type 5: RGBA --
+              -- Type 6: RGBA --
               ------------------
               case bits_per_pixel is
                 when 32 =>
@@ -603,7 +603,7 @@ package body GID.Decoding_PNG is
                   Out_Pixel_8(uf(0), uf(1), uf(2), uf(3));
                 when 64 =>
                   Unfilter_bytes(data(i..i+7), uf(0..7));
-                  i:= i + 6;
+                  i:= i + 8;
                   Out_Pixel_16(
                     U16(uf(0)) * 256 + U16(uf(1)),
                     U16(uf(2)) * 256 + U16(uf(3)),

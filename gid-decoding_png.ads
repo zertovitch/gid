@@ -26,6 +26,17 @@ private package GID.Decoding_PNG is
     tRNS, --    contains transparency information.
     zTXt, --    contains compressed text with the same limits as tEXt.
     --
+    -- Public extentions
+    -- PNG Extensions and Register of Public Chunks and Keywords
+    --
+    oFFs, -- image offset from frame or page origin
+    pCAL, -- physical calibration of pixel values
+    sCAL, -- physical scale of image subject
+    sTER, -- stereographic subimage layout
+    gIFg, -- GIF Graphic Control Extension
+    gIFx, -- GIF Application Extension
+    fRAc, -- fractal image parameters
+    --
     -- Private chunks (not defined in the ISO standard)
     --
     vpAg  --    used in ImageMagick to store "virtual page" size
