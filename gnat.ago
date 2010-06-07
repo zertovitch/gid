@@ -5,6 +5,8 @@
 WINDOWS_TARGET
 
 
+x_max
+y_Range'first
 type 3
 type 1
 raise_e
@@ -13,8 +15,6 @@ Init_Buffers
 inflate
 ws
 Get_length
-_dis
-!!
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

@@ -63,11 +63,12 @@ package body GID.Decoding_PNG is
       when Constraint_Error =>
         Raise_exception(
           error_in_image_data'Identity,
-          "PNG chunk: " &
+          "PNG chunk unknown: " &
           Integer'Image(Character'Pos(str4(1))) &
           Integer'Image(Character'Pos(str4(2))) &
           Integer'Image(Character'Pos(str4(3))) &
-          Integer'Image(Character'Pos(str4(4)))
+          Integer'Image(Character'Pos(str4(4))) &
+          " (" & str4 & ')'
         );
     end;
   end Read;
@@ -371,17 +372,17 @@ package body GID.Decoding_PNG is
             --   7 7 7 7 7 7 7 7
             case pass is
               when 1 =>
-               Set_X_Y(    x*8, Y_range'Last     - y*8);
+               Set_X_Y(    x*8, Integer'Max(0, Y_range'Last     - y*8));
               when 2 =>
-               Set_X_Y(4 + x*8, Y_range'Last     - y*8);
+               Set_X_Y(4 + x*8, Integer'Max(0, Y_range'Last     - y*8));
               when 3 =>
-               Set_X_Y(    x*4, Y_range'Last - 4 - y*8);
+               Set_X_Y(    x*4, Integer'Max(0, Y_range'Last - 4 - y*8));
               when 4 =>
-               Set_X_Y(2 + x*4, Y_range'Last     - y*4);
+               Set_X_Y(2 + x*4, Integer'Max(0, Y_range'Last     - y*4));
               when 5 =>
-               Set_X_Y(    x*2, Y_range'Last - 2 - y*4);
+               Set_X_Y(    x*2, Integer'Max(0, Y_range'Last - 2 - y*4));
               when 6 =>
-               Set_X_Y(1 + x*2, Y_range'Last     - y*2);
+               Set_X_Y(1 + x*2, Integer'Max(0, Y_range'Last     - y*2));
               when 7 =>
                 null; -- nothing to to, pixel are contiguous
             end case;
@@ -402,23 +403,23 @@ package body GID.Decoding_PNG is
                 when 1 =>
                   null;
                 when 2 =>
-                  x_max:= (image.width+3)/8 - 1;
-                  y_max:= (image.height+7)/8 - 1;
+                  x_max:= Integer'Max(0, (image.width+3)/8 - 1);
+                  y_max:= Integer'Max(0, (image.height+7)/8 - 1);
                 when 3 =>
-                  x_max:= (image.width+3)/4 - 1;
-                  y_max:= (image.height+3)/8 - 1;
+                  x_max:= Integer'Max(0, (image.width+3)/4 - 1);
+                  y_max:= Integer'Max(0, (image.height+3)/8 - 1);
                 when 4 =>
-                  x_max:= (image.width+1)/4 - 1;
-                  y_max:= (image.height+3)/4 - 1;
+                  x_max:= Integer'Max(0, (image.width+1)/4 - 1);
+                  y_max:= Integer'Max(0, (image.height+3)/4 - 1);
                 when 5 =>
-                  x_max:= (image.width+1)/2 - 1;
-                  y_max:= (image.height+1)/4 - 1;
+                  x_max:= Integer'Max(0, (image.width+1)/2 - 1);
+                  y_max:= Integer'Max(0, (image.height+1)/4 - 1);
                 when 6 =>
-                  x_max:= (image.width  )/2 - 1;
-                  y_max:= (image.height+1)/2 - 1;
+                  x_max:= Integer'Max(0, (image.width  )/2 - 1);
+                  y_max:= Integer'Max(0, (image.height+1)/2 - 1);
                 when 7 =>
-                  x_max:= image.width - 1;
-                  y_max:= image.height/2 - 1;
+                  x_max:= Integer'Max(0, image.width - 1);
+                  y_max:= Integer'Max(0, image.height/2 - 1);
               end case;
             end if;
           end if;
