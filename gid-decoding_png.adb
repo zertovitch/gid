@@ -230,17 +230,31 @@ package body GID.Decoding_PNG is
         when Average =>
           -- Recon(x) = Filt(x) + floor((Recon(a) + Recon(b)) / 2)
           for i in f'Range loop
-            if x = 0 and then y = 0 then
-              c:= 0;
-            elsif x = 0 then -- y > 0
-              c:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
-            elsif y = 0 then -- x > 0
-              c:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
-            else -- x > 0 and y > 0
+            if x > 0 then
               a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
-              b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
-              c:= (a+b)/2;
+            else
+              a:= 0;
             end if;
+            if y > 0 then
+              b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
+            else
+              b:= 0;
+            end if;
+            --
+            --  This doesn't cure the f99n0g04.png
+            --
+            --  if x = 0 and then y = 0 then
+            --    c:= 0;
+            --  elsif x = 0 then -- y > 0
+            --    c:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
+            --  elsif y = 0 then -- x > 0
+            --    c:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
+            --  else -- x > 0 and y > 0
+            --    a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
+            --    b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
+            --    c:= (a+b)/2;
+            --  end if;
+            c:= (a+b)/2;
             u(u'First+j):= f(i) + U8(c);
             j:= j + 1;
           end loop;
