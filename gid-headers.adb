@@ -294,8 +294,20 @@ package body GID.Headers is
       );
     end if;
     Big_endian(image.buffer, n);
+    if n = 0 then
+      Raise_exception(
+        error_in_image_data'Identity,
+        "PNG image with zero width"
+      );
+    end if;
     image.width:=  Natural(n);
     Big_endian(image.buffer, n);
+    if n = 0 then
+      Raise_exception(
+        error_in_image_data'Identity,
+        "PNG image with zero height"
+      );
+    end if;
     image.height:= Natural(n);
     Get_Byte(image.buffer, b);
     image.bits_per_pixel:= Integer(b);

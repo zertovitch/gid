@@ -73,6 +73,7 @@ package body GID.Decoding_PNG is
     end;
   end Read;
 
+
   package CRC32 is
 
     use Interfaces;
@@ -194,8 +195,11 @@ package body GID.Decoding_PNG is
       j: Integer:= 0;
     begin
       if full_trace and then x = 0 then
+        if y = 0 then
+          Ada.Text_IO.New_Line;
+        end if;
         Ada.Text_IO.Put_Line(
-          Integer'Image(y) & ": " &
+          "row" & Integer'Image(y) & ": filter= " &
           Filter_method_0'Image(current_filter)
         );
       end if;
@@ -226,17 +230,18 @@ package body GID.Decoding_PNG is
         when Average =>
           -- Recon(x) = Filt(x) + floor((Recon(a) + Recon(b)) / 2)
           for i in f'Range loop
-            if x > 0 then
+            if x = 0 and then y = 0 then
+              c:= 0;
+            elsif x = 0 then -- y > 0
+              c:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
+            elsif y = 0 then -- x > 0
+              c:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
+            else -- x > 0 and y > 0
               a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
-            else
-              a:= 0;
-            end if;
-            if y > 0 then
               b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
-            else
-              b:= 0;
+              c:= (a+b)/2;
             end if;
-            u(u'First+j):= f(i) + U8((a+b)/2);
+            u(u'First+j):= f(i) + U8(c);
             j:= j + 1;
           end loop;
         when Paeth   =>
@@ -356,6 +361,7 @@ package body GID.Decoding_PNG is
 
       procedure Inc_XY is
       pragma Inline(Inc_XY);
+        xm, ym: Integer;
       begin
         if x < x_max then
           x:= x + 1;
@@ -372,17 +378,17 @@ package body GID.Decoding_PNG is
             --   7 7 7 7 7 7 7 7
             case pass is
               when 1 =>
-               Set_X_Y(    x*8, Integer'Max(0, Y_range'Last     - y*8));
+               Set_X_Y(    x*8, Y_range'Last     - y*8);
               when 2 =>
-               Set_X_Y(4 + x*8, Integer'Max(0, Y_range'Last     - y*8));
+               Set_X_Y(4 + x*8, Y_range'Last     - y*8);
               when 3 =>
-               Set_X_Y(    x*4, Integer'Max(0, Y_range'Last - 4 - y*8));
+               Set_X_Y(    x*4, Y_range'Last - 4 - y*8);
               when 4 =>
-               Set_X_Y(2 + x*4, Integer'Max(0, Y_range'Last     - y*4));
+               Set_X_Y(2 + x*4, Y_range'Last     - y*4);
               when 5 =>
-               Set_X_Y(    x*2, Integer'Max(0, Y_range'Last - 2 - y*4));
+               Set_X_Y(    x*2, Y_range'Last - 2 - y*4);
               when 6 =>
-               Set_X_Y(1 + x*2, Integer'Max(0, Y_range'Last     - y*2));
+               Set_X_Y(1 + x*2, Y_range'Last     - y*2);
               when 7 =>
                 null; -- nothing to to, pixel are contiguous
             end case;
@@ -396,32 +402,39 @@ package body GID.Decoding_PNG is
               Feedback((y*100)/image.height);
             end if;
           elsif interlaced then -- last row has beed displayed
-            if pass < 7 then
+            while pass < 7 loop
               pass:= pass + 1;
               y:= 0;
               case pass is
                 when 1 =>
                   null;
                 when 2 =>
-                  x_max:= Integer'Max(0, (image.width+3)/8 - 1);
-                  y_max:= Integer'Max(0, (image.height+7)/8 - 1);
+                  xm:= (image.width+3)/8 - 1;
+                  ym:= (image.height+7)/8 - 1;
                 when 3 =>
-                  x_max:= Integer'Max(0, (image.width+3)/4 - 1);
-                  y_max:= Integer'Max(0, (image.height+3)/8 - 1);
+                  xm:= (image.width+3)/4 - 1;
+                  ym:= (image.height+3)/8 - 1;
                 when 4 =>
-                  x_max:= Integer'Max(0, (image.width+1)/4 - 1);
-                  y_max:= Integer'Max(0, (image.height+3)/4 - 1);
+                  xm:= (image.width+1)/4 - 1;
+                  ym:= (image.height+3)/4 - 1;
                 when 5 =>
-                  x_max:= Integer'Max(0, (image.width+1)/2 - 1);
-                  y_max:= Integer'Max(0, (image.height+1)/4 - 1);
+                  xm:= (image.width+1)/2 - 1;
+                  ym:= (image.height+1)/4 - 1;
                 when 6 =>
-                  x_max:= Integer'Max(0, (image.width  )/2 - 1);
-                  y_max:= Integer'Max(0, (image.height+1)/2 - 1);
+                  xm:= (image.width  )/2 - 1;
+                  ym:= (image.height+1)/2 - 1;
                 when 7 =>
-                  x_max:= Integer'Max(0, image.width - 1);
-                  y_max:= Integer'Max(0, image.height/2 - 1);
+                  xm:= image.width - 1;
+                  ym:= image.height/2 - 1;
               end case;
-            end if;
+              if xm >=0 and xm <= X_range'Last and ym in Y_range then
+                -- This pass is not empty (otherwise, we will continue
+                -- to the next one, if any).
+                x_max:= xm;
+                y_max:= ym;
+                exit;
+              end if;
+            end loop;
           end if;
         end if;
       end Inc_XY;
@@ -629,6 +642,27 @@ package body GID.Decoding_PNG is
       end if;
     end Output_uncompressed;
 
+    ch: Chunk_head;
+
+    -- Out of some intelligent design, there might be an IDAT chunk
+    -- boundary anywhere inside the zlib compressed block...
+    procedure Jump_IDAT is
+      dummy: U32;
+    begin
+      Big_endian(image.buffer, dummy); -- ending chunk's CRC
+      -- New chunk begins here.
+      loop
+        Read(image, ch);
+        exit when ch.kind /= IDAT or ch.length > 0;
+      end loop;
+      if ch.kind /= IDAT then
+        Raise_exception(
+          error_in_image_data'Identity,
+          "PNG additional data chunk must be an IDAT"
+        );
+      end if;
+    end Jump_IDAT;
+
     ---------------------------------------------------------------------
     -- ** 10: Decompression **                                         --
     -- Excerpt and simplification from UnZip.Decompress (Inflate only) --
@@ -648,14 +682,13 @@ package body GID.Decoding_PNG is
       -- > Sliding dictionary for unzipping, and output buffer as well
       slide: Byte_Array( 0..wsize );
       slide_index: Integer:= 0; -- Current Position in slide
-      IDAT_reserve: Natural;
       Zip_EOF  : constant Boolean:= False;
       crc32val : Unsigned_32;  -- crc calculated from data
     end UnZ_Glob;
 
     package UnZ_IO is
 
-      procedure Init_Buffers(IDAT_reserve: Natural);
+      procedure Init_Buffers;
 
       procedure Read_raw_byte ( bt : out U8 );
         pragma Inline(Read_raw_byte);
@@ -699,38 +732,26 @@ package body GID.Decoding_PNG is
     ------------------------------
     package body UnZ_IO is
 
-      procedure Init_Buffers(IDAT_reserve: Natural) is
+      procedure Init_Buffers is
       begin
         UnZ_Glob.slide_index := 0;
         Bit_buffer.Init;
         CRC32.Init( UnZ_Glob.crc32val );
-        UnZ_Glob.IDAT_reserve:= IDAT_reserve;
       end Init_Buffers;
 
       procedure Read_raw_byte ( bt : out U8 ) is
-        ch: Chunk_head;
-        dummy: U32;
       begin
-        if UnZ_Glob.IDAT_reserve = 0 then
+        if ch.length = 0 then
           -- We hit the end of a PNG 'IDAT' chunk, so we go to the next one
-          -- (in petto, it's strange design, but well...).
+          -- - in petto, it's strange design, but well...
           -- This "feature" has taken some time (and nerves) to be addressed.
           -- Incidentally, I have reprogrammed the whole Huffman
           -- decoding, and looked at many other wrong places to solve
           -- the mystery.
-          Big_endian(image.buffer, dummy); -- ending chunk's CRC
-          -- New chunk begins here.
-          Read(image, ch);
-          if ch.kind /= IDAT then
-            Raise_exception(
-              error_in_image_data'Identity,
-              "PNG additional data chunk must be an IDAT"
-            );
-          end if;
-          UnZ_Glob.IDAT_reserve:= Natural(ch.length);
+          Jump_IDAT;
         end if;
         Buffering.Get_Byte(image.buffer, bt);
-        UnZ_Glob.IDAT_reserve:= UnZ_Glob.IDAT_reserve - 1;
+        ch.length:= ch.length - 1;
       end Read_raw_byte;
 
       package body Bit_buffer is
@@ -1294,7 +1315,6 @@ package body GID.Decoding_PNG is
     -- End of the Decompression part, and of UnZip.Decompress excerpt --
     --------------------------------------------------------------------
 
-    ch: Chunk_head;
     b: U8;
     z_crc, dummy: U32;
 
@@ -1306,25 +1326,41 @@ package body GID.Decoding_PNG is
       x_max:= X_range'Last;
       y_max:= Y_range'Last;
     end if;
+    main_chunk_loop:
     loop
-      Read(image, ch);
+      loop
+        Read(image, ch);
+        exit when ch.kind = IEND or ch.length > 0;
+      end loop;
       case ch.kind is
         when IEND => -- 11.2.5 IEND Image trailer
-          exit;
+          exit main_chunk_loop;
         when IDAT => -- 11.2.4 IDAT Image data
           --
           -- NB: the compressed data may hold on several IDAT chunks.
           -- It means that right in the middle of compressed data, you
           -- can have a chunk crc, and a new IDAT header!...
           --
-          Get_Byte(image.buffer, b); -- zlib compression method/flags code
-          Get_Byte(image.buffer, b); -- Additional flags/check bits
+          UnZ_IO.Read_raw_byte(b); -- zlib compression method/flags code
+          UnZ_IO.Read_raw_byte(b); -- Additional flags/check bits
           --
-          UnZ_IO.Init_Buffers(IDAT_reserve => Natural(ch.length) - 2);
+          UnZ_IO.Init_Buffers;
           -- ^ we indicate that we have a byte reserve of chunk's length,
           --   minus both zlib header bytes.
           UnZ_Meth.Inflate;
-          Big_endian(image.buffer, z_crc); -- zlib Check value
+          z_crc:= 0;
+          for i in 1..4 loop
+            begin
+              UnZ_IO.Read_raw_byte(b);
+            exception
+              when Error_in_image_data =>
+                -- vicious IEND at the wrong place
+                -- basi4a08.png test image (corrupt imho)
+                exit main_chunk_loop;
+            end;
+            z_crc:= z_crc * 256 + U32(b);
+          end loop;
+          -- z_crc : zlib Check value
           --  if z_crc /= U32(UnZ_Glob.crc32val) then
           --    ada.text_io.put(z_crc 'img &  UnZ_Glob.crc32val'img);
           --    Raise_exception(
@@ -1334,7 +1370,7 @@ package body GID.Decoding_PNG is
           --  end if;
           --  ** Mystery: this check fail even with images which decompress perfectly
           --  ** Is CRC init value different between zip and zlib ? Is it Adler32 ?
-          Big_endian(image.buffer, dummy);
+          Big_endian(image.buffer, dummy); -- chunk's CRC
           -- last IDAT chunk's CRC (then, on compressed data)
           --
         when tEXt => -- 11.3.4.3 tEXt Textual data
@@ -1355,7 +1391,7 @@ package body GID.Decoding_PNG is
             Get_Byte(image.buffer, b);
           end loop;
       end case;
-    end loop;
+    end loop main_chunk_loop;
     if some_trace then
       for f in Filter_method_0 loop
         Ada.Text_IO.Put_Line(

@@ -39,7 +39,17 @@ private package GID.Decoding_PNG is
     --
     -- Private chunks (not defined in the ISO standard)
     --
-    vpAg  --    used in ImageMagick to store "virtual page" size
+    vpAg, --    used in ImageMagick to store "virtual page" size
+    spAL,
+    prVW,
+    cmOD,
+    cmPP,
+    cpIp,
+    mkBF,
+    mkBS,
+    mkBT,
+    mkTS,
+    pcLb
   );
 
   type Chunk_head is record
@@ -72,7 +82,7 @@ private
   --
   type Trace_type is (none, some, full);
 
-  trace: constant Trace_type:= full; -- <== Choice
+  trace: constant Trace_type:= full; -- remove when all ok !! -- <== Choice
 
   no_trace  : constant Boolean:= trace=none;
   full_trace: constant Boolean:= trace=full;

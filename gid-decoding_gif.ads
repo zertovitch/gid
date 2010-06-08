@@ -23,6 +23,6 @@ private package GID.Decoding_GIF is
 
 private
 
-  full_trace: constant Boolean:= True;
+  full_trace: constant Boolean:= False; -- For debugging.
 
 end GID.Decoding_GIF;
