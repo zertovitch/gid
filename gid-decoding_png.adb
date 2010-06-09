@@ -286,7 +286,7 @@ package body GID.Decoding_PNG is
             else
               pr:= c;
             end if;
-            u(u'First+j):= U8((Integer(f(i))+pr) mod 255);
+            u(u'First+j):= f(i) + U8(pr);
             j:= j + 1;
           end loop;
       end case;
