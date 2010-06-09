@@ -9,6 +9,11 @@
 --  8: Display pixels these bytes represent;
 --       eventually, locate the interlaced image current point
 --
+-- Reference: Portable Network Graphics (PNG) Specification (Second Edition)
+-- ISO/IEC 15948:2003 (E)
+-- W3C Recommendation 10 November 2003
+-- http://www.w3.org/TR/PNG/
+--
 with GID.Buffering, GID.Decoding_PNG.Huffman;
 
 with Ada.Text_IO, Ada.Exceptions, Interfaces;
@@ -146,7 +151,9 @@ package body GID.Decoding_PNG is
 
   procedure Load (image: in out Image_descriptor) is
 
-    -- !! these constants can be made generic parameters
+    -- !! these local constants can be made generic parameters
+    --    in order to have compile-time evaluations - should
+    --    be a lot faster :-)
     bits_per_pixel: constant Positive:= image.bits_per_pixel;
     subformat_id  : constant Natural := image.subformat_id;
     interlaced    : constant Boolean := image.interlaced;
@@ -178,6 +185,7 @@ package body GID.Decoding_PNG is
     --------------------------
     -- ** 9: Unfiltering ** --
     --------------------------
+    -- http://www.w3.org/TR/PNG/#9Filters
 
     type Filter_method_0 is (None, Sub, Up, Average, Paeth);
 
@@ -189,9 +197,11 @@ package body GID.Decoding_PNG is
     )
     is
     pragma Inline(Unfilter_bytes);
+      -- Byte positions (f is the byte to be unfiltered):
+      --
       -- c b
       -- a f
-      a,b,c,p,pa,pb,pc,pr: Integer;
+      a,b,c, p,pa,pb,pc,pr: Integer;
       j: Integer:= 0;
     begin
       if full_trace and then x = 0 then
@@ -203,6 +213,10 @@ package body GID.Decoding_PNG is
           Filter_method_0'Image(current_filter)
         );
       end if;
+      --
+      -- !! find a way to have f99n0g04.png decoded correctly...
+      --    seems a filter issue.
+      --
       case current_filter is
         when None    =>
           -- Recon(x) = Filt(x)
@@ -240,22 +254,7 @@ package body GID.Decoding_PNG is
             else
               b:= 0;
             end if;
-            --
-            --  This doesn't cure the f99n0g04.png
-            --
-            --  if x = 0 and then y = 0 then
-            --    c:= 0;
-            --  elsif x = 0 then -- y > 0
-            --    c:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
-            --  elsif y = 0 then -- x > 0
-            --    c:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
-            --  else -- x > 0 and y > 0
-            --    a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
-            --    b:= Integer(mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j));
-            --    c:= (a+b)/2;
-            --  end if;
-            c:= (a+b)/2;
-            u(u'First+j):= f(i) + U8(c);
+            u(u'First+j):= U8((Integer(f(i)) + (a+b)/2) mod 256);
             j:= j + 1;
           end loop;
         when Paeth   =>
@@ -280,14 +279,14 @@ package body GID.Decoding_PNG is
             pa:= abs(p - a);
             pb:= abs(p - b);
             pc:= abs(p - c);
-            if pa <= pb and pa <= pc then
+            if pa <= pb and then pa <= pc then
               pr:= a;
             elsif pb <= pc then
               pr:= b;
             else
               pr:= c;
             end if;
-            u(u'First+j):= f(i) + U8(pr);
+            u(u'First+j):= U8((Integer(f(i))+pr) mod 255);
             j:= j + 1;
           end loop;
       end case;
@@ -296,12 +295,17 @@ package body GID.Decoding_PNG is
         mem_row_bytes(curr_row)(x*bytes_to_unfilter+j):= u(i);
         j:= j + 1;
       end loop;
-      if u'Length /= bytes_to_unfilter then
-        raise constraint_error;-- with "filter mismatch!";
-      end if; -- !!
+      --  if u'Length /= bytes_to_unfilter then
+      --    raise Constraint_Error;
+      --  end if;
     end Unfilter_bytes;
 
     filter_stat: array(Filter_method_0) of Natural:= (others => 0);
+
+    ----------------------------------------------
+    -- ** 8: Interlacing and pass extraction ** --
+    ----------------------------------------------
+    -- http://www.w3.org/TR/PNG/#8Interlace
 
     -- Output bytes from decompression
     --
@@ -681,6 +685,7 @@ package body GID.Decoding_PNG is
     -- ** 10: Decompression **                                         --
     -- Excerpt and simplification from UnZip.Decompress (Inflate only) --
     ---------------------------------------------------------------------
+    -- http://www.w3.org/TR/PNG/#10Compression
 
     --  Size of sliding dictionary and circular output buffer
     wsize: constant:= 16#10000#;
