@@ -8,6 +8,7 @@
 
 with GID.Buffering,
      GID.Color_tables,
+     GID.Decoding_JPG,
      GID.Decoding_PNG;
 
 with Ada.Exceptions, Ada.Unchecked_Deallocation;
@@ -76,6 +77,7 @@ package body GID.Headers is
       when Character'Val(16#FF#) =>
         Character'Read(image.stream, c);
         if c=Character'Val(16#D8#) then
+          -- SOI (Start of Image) segment marker (FFD8)
           image.detailed_format:= To_Bounded_String("JPEG");
           image.format:= JPEG;
           return;
@@ -147,6 +149,7 @@ package body GID.Headers is
 
   procedure Read_Intel is new Read_Intel_x86_number( U16 );
   procedure Read_Intel is new Read_Intel_x86_number( U32 );
+  procedure Big_endian is new Big_endian_number( U16 );
   procedure Big_endian is new Big_endian_number( U32 );
 
   ----------------------------------------------------------
@@ -269,8 +272,58 @@ package body GID.Headers is
   end Load_GIF_header;
 
   procedure Load_JPEG_header (image: in out Image_descriptor) is
+    -- http://en.wikipedia.org/wiki/JPEG
+    use GID.Decoding_JPG, GID.Buffering, Bounded_255;
+    sh: Segment_head;
+    b, bits_pp_primary: U8;
+    w, h: U16;
   begin
-    raise known_but_unsupported_image_format; -- !!
+    -- We passed the SOI (Start of Image) segment marker (FFD8)
+    Attach_stream(image.buffer, image.stream);
+    loop
+      Read(image, sh);
+      case sh.kind is
+        when SOF_0 =>
+          image.detailed_format:= To_Bounded_String("JPEG, Baseline DCT");
+          if sh.length < 9 then
+            Raise_exception(
+              error_in_image_data'Identity,
+              "JPEG: SOF_0 segment too small"
+            );
+          end if;
+          Get_Byte(image.buffer, bits_pp_primary);
+          if bits_pp_primary /= 8 then
+            Raise_exception(
+              unsupported_image_subformat'Identity,
+              "Bits per primary color=" & U8'Image(bits_pp_primary)
+            );
+          end if;
+          image.bits_per_pixel:= 3 * Positive(bits_pp_primary);
+          Big_endian(image.buffer, w);
+          Big_endian(image.buffer, h);
+          image.width:= Natural(w);
+          image.height:= Natural(h);
+          -- number of components:
+          Get_Byte(image.buffer, b);
+          image.subformat_id:= Integer(b);
+          -- for each component: 3 bytes
+          for i in 1..image.subformat_id loop
+            -- component id (1 = Y, 2 = Cb, 3 = Cr, 4 = I, 5 = Q)
+            Get_Byte(image.buffer, b);
+            -- sampling factors (bit 0-3 vert., 4-7 hor.)
+            Get_Byte(image.buffer, b);
+            -- quantization table number
+            Get_Byte(image.buffer, b);
+            -- !! store this info
+          end loop;
+          exit; -- we've got header-style informations, then time to quit
+        when others =>
+          -- Skip segment data
+          for i in 1..sh.length loop
+            Get_Byte(image.buffer, b);
+          end loop;
+      end case;
+    end loop;
   end Load_JPEG_header;
 
   ----------------
@@ -322,7 +375,7 @@ package body GID.Headers is
           when others =>
             Raise_exception(
               error_in_image_data'Identity,
-              "PNG: wrong bit-per-channel depth"
+              "PNG, type 0 (greyscale): wrong bit-per-channel depth"
             );
         end case;
       when 2 => -- RGB TrueColor
@@ -332,7 +385,7 @@ package body GID.Headers is
           when others =>
             Raise_exception(
               error_in_image_data'Identity,
-              "PNG: wrong bit-per-channel depth"
+              "PNG, type 2 (RGB): wrong bit-per-channel depth"
             );
         end case;
       when 3 => -- RGB with palette
@@ -343,7 +396,7 @@ package body GID.Headers is
           when others =>
             Raise_exception(
               error_in_image_data'Identity,
-              "PNG: wrong bit-per-channel depth"
+              "PNG, type 3: wrong bit-per-channel depth"
             );
         end case;
       when 4 => -- Grey & Alpha
@@ -355,7 +408,7 @@ package body GID.Headers is
           when others =>
             Raise_exception(
               error_in_image_data'Identity,
-              "PNG: wrong bit-per-channel depth"
+              "PNG, type 4 (Greyscale & Alpha): wrong bit-per-channel depth"
             );
         end case;
       when 6 => -- RGBA
@@ -366,7 +419,7 @@ package body GID.Headers is
           when others =>
             Raise_exception(
               error_in_image_data'Identity,
-              "PNG: wrong bit-per-channel depth"
+              "PNG, type 6 (RGBA): wrong bit-per-channel depth"
             );
         end case;
       when others =>

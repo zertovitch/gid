@@ -1,0 +1,21 @@
+
+
+
+
+
+All image formats decoded by GID have similarities in their structure.
+
+- They all begin with a header containing dimensions and color depth,
+  and the image contents follow. This is obvious to have such a data
+  organisation, since the header details are needed to calibrate the
+  recipient of the image
+
+- They are structured in blocks, with different names depending on
+  the format:
+  - PNG : chunks
+  - GIF : blocks
+  - JPEG: segments
+  - TGA : areas
+  - TIFF: tags
+  etc.
+

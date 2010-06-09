@@ -28,6 +28,7 @@
 with GID.Headers,
      GID.Decoding_BMP,
      GID.Decoding_GIF,
+     GID.Decoding_JPG,
      GID.Decoding_PNG,
      GID.Decoding_TGA;
 
@@ -99,6 +100,9 @@ package body GID is
     procedure GIF_Load is
       new Decoding_GIF.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback, mode );
 
+    procedure JPG_Load is
+      new Decoding_JPG.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback, mode );
+
     procedure PNG_Load is
       new Decoding_PNG.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
 
@@ -114,6 +118,8 @@ package body GID is
         BMP_Load(image);
       when GIF =>
         GIF_Load(image, next_frame);
+      when JPEG =>
+        JPG_Load(image, next_frame);
       when PNG =>
         PNG_Load(image);
       when TGA =>
