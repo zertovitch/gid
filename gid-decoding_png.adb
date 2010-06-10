@@ -62,7 +62,10 @@ package body GID.Decoding_PNG is
     begin
       ch.kind:= PNG_Chunk_tag'Value(str4);
       if some_trace then
-        Ada.Text_IO.Put_Line('[' & str4 & "], length:" & U32'Image(ch.length));
+        Ada.Text_IO.Put_Line(
+          "Chunk [" & str4 &
+          "], length:" & U32'Image(ch.length)
+        );
       end if;
     exception
       when Constraint_Error =>

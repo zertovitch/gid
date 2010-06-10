@@ -5,6 +5,7 @@
 WINDOWS_TARGET
 
 
+remain
 attach
 assoc
 jpeg
@@ -14,7 +15,6 @@ filter
 x_max
 y_Range'first
 type 3
-type 1
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

@@ -182,7 +182,7 @@ private
   end record;
   -- Initial values ensure call to Fill_Buffer on first Get_Byte
 
-  -- JPEG may stores data _before_ any image header (SOF), then we have
+  -- JPEG may store data _before_ any image header (SOF), then we have
   -- to make the image descriptor store that information
   type JPEG_Component is (Y, Cb, Cr, I, Q);
 

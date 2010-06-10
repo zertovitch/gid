@@ -80,7 +80,7 @@ package body GID.Decoding_JPG is
         -- We consider length of contents, without the FFxx marker.
         if some_trace then
           Ada.Text_IO.Put_Line(
-            '[' & JPEG_marker'Image(sh.kind) &
+            "Segment [" & JPEG_marker'Image(sh.kind) &
             "], length:" & U16'Image(sh.length));
         end if;
         return;
@@ -93,18 +93,19 @@ package body GID.Decoding_JPG is
   end Read;
 
   procedure Read_DQT(image: in out Image_descriptor; data_length: Natural) is
-    remaining: Integer:= data_length;
+    remaining: Integer:= data_length; -- data remaining in segment
     b, q8: U8; q16: U16;
     qt_idx: Natural;
     high_prec: Boolean;
   begin
+    multi_tables:
     loop
       Get_Byte(image.buffer, b);
       remaining:= remaining - 1;
       high_prec:= b >= 8;
       qt_idx:= Natural(b and 7);
-      if full_trace then
-        Ada.Text_IO.Put_Line("QT #" & U8'Image(b));
+      if some_trace then
+        Ada.Text_IO.Put_Line("Quantization Table (QT) #" & U8'Image(b));
       end if;
       for i in JPEG_QT'Range loop
         if high_prec then
@@ -118,7 +119,7 @@ package body GID.Decoding_JPG is
         end if;
       end loop;
       exit when remaining <= 0;
-    end loop;
+    end loop multi_tables;
   end Read_DQT;
 
   --------------------
@@ -131,9 +132,82 @@ package body GID.Decoding_JPG is
   )
   is
 
-    procedure Read_DHT is
+    type AC_DC is (AC, DC);
+
+    type VLC_code is record
+      bits, code: U8;
+    end record;
+
+    type VLC_table is array(0..65_535) of VLC_code;
+
+    vlc_defs: array(AC_DC, 0..7) of VLC_table;
+
+    procedure Read_DHT(data_length: Natural) is
+      remaining: Integer:= data_length; -- data remaining in segment
+      b: U8;
+      ht_idx: Natural;
+      kind: AC_DC;
+      counts: array(1..16) of Natural;
+      remain_vlc, spread, currcnt, idx: Natural;
     begin
-      null;--!!
+      multi_tables:
+      loop
+        Get_Byte(image.buffer, b);
+        remaining:= remaining - 1;
+        if b >= 8 then
+          kind:= AC;
+        else
+          kind:= DC;
+        end if;
+        ht_idx:= Natural(b and 7);
+        if some_trace then
+          Ada.Text_IO.Put_Line(
+            "Huffman Table (HT) #" &
+            Natural'Image(ht_idx) & ", " & AC_DC'Image(kind)
+          );
+        end if;
+        for i in counts'range loop
+          Get_Byte(image.buffer, b);
+          remaining:= remaining - 1;
+          counts(i):= Natural(b);
+        end loop;
+        remain_vlc:= 65_536;
+        spread:= 65_536;
+        idx:= 0;
+        for codelen in counts'Range loop
+          spread:= spread / 2;
+          currcnt:= counts(codelen);
+          if currcnt > 0 then
+            if remaining < currcnt then
+              Raise_exception(
+                error_in_image_data'Identity,
+                "JPEG: DHT data too short"
+              );
+            end if;
+            remain_vlc:= remain_vlc - currcnt * spread;
+            if remain_vlc < 0 then
+              Raise_exception(
+                error_in_image_data'Identity,
+                "JPEG: DHT table too short for data"
+              );
+            end if;
+            for i in reverse 1..currcnt loop
+              Get_Byte(image.buffer, b);
+              for j in reverse 1..spread loop
+                vlc_defs(kind, ht_idx)(idx):= (bits => U8(codelen), code => b);
+                idx:= idx + 1;
+              end loop;
+            end loop;
+            remaining:= remaining - currcnt;
+          end if;
+        end loop;
+        while remain_vlc > 0 loop
+          remain_vlc:= remain_vlc - 1;
+          vlc_defs(kind, ht_idx)(idx).bits:= 0;
+          idx:= idx + 1;
+        end loop;
+        exit when remaining <= 0;
+      end loop multi_tables;
     end Read_DHT;
 
     --
@@ -161,7 +235,7 @@ package body GID.Decoding_JPG is
         when DQT =>
           Read_DQT(image, Natural(sh.length));
         when DHT =>
-          Read_DHT;
+          Read_DHT(Natural(sh.length));
         when EOI =>
           exit;
         when others =>
