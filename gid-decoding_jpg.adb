@@ -1,7 +1,7 @@
 -- Steps for decoding a JPEG image
 --
 -- 1. RLE and Huffman decompression
--- 2. Inverse quant.
+-- 2. Inverse quantization (DQT)
 -- 3. Inverse DCT
 -- 4. Oversampling
 -- 5. Color transformation
@@ -11,9 +11,12 @@
 
 with GID.Buffering;
 
-with Ada.Text_IO, Ada.Exceptions, Interfaces;
+with Ada.Text_IO, Ada.Exceptions; --, Interfaces;
 
 package body GID.Decoding_JPG is
+
+  use Ada.Exceptions;
+  use GID.Buffering;
 
   generic
     type Number is mod <>;
@@ -32,14 +35,12 @@ package body GID.Decoding_JPG is
   begin
     n:= 0;
     for i in 1..Number'Size/8 loop
-      Buffering.Get_Byte(from, b);
+      Get_Byte(from, b);
       n:= n * 256 + Number(b);
     end loop;
   end Big_endian_number;
 
   procedure Big_endian is new Big_endian_number( U16 );
-
-  use Ada.Exceptions;
 
   procedure Read( image: in out image_descriptor; sh: out Segment_head) is
     b: U8;
@@ -63,14 +64,14 @@ package body GID.Decoding_JPG is
       EOI      => 16#D9#
     );
   begin
-    Buffering.Get_Byte(image.buffer, b);
+    Get_Byte(image.buffer, b);
     if b /= 16#FF# then
       Raise_exception(
         error_in_image_data'Identity,
         "JPEG: expected marker here"
       );
     end if;
-    Buffering.Get_Byte(image.buffer, b);
+    Get_Byte(image.buffer, b);
     for m in id'Range loop
       if id(m)= b then
         sh.kind:= m;
@@ -91,6 +92,35 @@ package body GID.Decoding_JPG is
     );
   end Read;
 
+  procedure Read_DQT(image: in out Image_descriptor; data_length: Natural) is
+    remaining: Integer:= data_length;
+    b, q8: U8; q16: U16;
+    qt_idx: Natural;
+    high_prec: Boolean;
+  begin
+    loop
+      Get_Byte(image.buffer, b);
+      remaining:= remaining - 1;
+      high_prec:= b >= 8;
+      qt_idx:= Natural(b and 7);
+      if full_trace then
+        Ada.Text_IO.Put_Line("QT #" & U8'Image(b));
+      end if;
+      for i in JPEG_QT'Range loop
+        if high_prec then
+          Big_endian(image.buffer, q16);
+          remaining:= remaining - 2;
+          image.JPEG_stuff.qt_list(qt_idx)(i):= Natural(q16);
+        else
+          Get_Byte(image.buffer, q8);
+          remaining:= remaining - 1;
+          image.JPEG_stuff.qt_list(qt_idx)(i):= Natural(q8);
+        end if;
+      end loop;
+      exit when remaining <= 0;
+    end loop;
+  end Read_DQT;
+
   --------------------
   -- Image decoding --
   --------------------
@@ -100,7 +130,48 @@ package body GID.Decoding_JPG is
     next_frame:    out Ada.Calendar.Day_Duration
   )
   is
+
+    procedure Read_DHT is
+    begin
+      null;--!!
+    end Read_DHT;
+
+    --
+    sh: Segment_head;
+    b: U8;
   begin
+    if some_trace then
+      Ada.Text_IO.Put_Line("Frame has following components:");
+      for c in JPEG_component loop
+        Ada.Text_IO.Put_Line(
+          JPEG_Component'Image(c) & " -> " &
+          Boolean'Image(image.JPEG_stuff.components(c))
+        );
+      end loop;
+    end if;
+    if image.JPEG_stuff.components /= YCbCr then
+      Raise_exception(
+        error_in_image_data'Identity,
+        "JPEG: only YCbCr currently supported"
+      );
+    end if;
+    loop
+      Read(image, sh);
+      case sh.kind is
+        when DQT =>
+          Read_DQT(image, Natural(sh.length));
+        when DHT =>
+          Read_DHT;
+        when EOI =>
+          exit;
+        when others =>
+          -- Skip segment data
+          for i in 1..sh.length loop
+            Get_Byte(image.buffer, b);
+          end loop;
+      end case;
+    end loop;
+    --
     raise known_but_unsupported_image_format; -- !!
   end Load;
 

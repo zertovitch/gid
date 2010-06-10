@@ -13,6 +13,8 @@ with GID.Buffering,
 
 with Ada.Exceptions, Ada.Unchecked_Deallocation;
 
+--!!with ada.Text_IO;
+
 package body GID.Headers is
 
   use Ada.Exceptions;
@@ -271,26 +273,27 @@ package body GID.Headers is
     end if;
   end Load_GIF_header;
 
+  -----------------
+  -- JPEG header --
+  -----------------
+
   procedure Load_JPEG_header (image: in out Image_descriptor) is
     -- http://en.wikipedia.org/wiki/JPEG
     use GID.Decoding_JPG, GID.Buffering, Bounded_255;
     sh: Segment_head;
     b, bits_pp_primary: U8;
     w, h: U16;
+    compo: JPEG_Component;
   begin
     -- We passed the SOI (Start of Image) segment marker (FFD8)
     Attach_stream(image.buffer, image.stream);
     loop
       Read(image, sh);
       case sh.kind is
+        when DQT =>
+          Read_DQT(image, Natural(sh.length));
         when SOF_0 =>
           image.detailed_format:= To_Bounded_String("JPEG, Baseline DCT");
-          if sh.length < 9 then
-            Raise_exception(
-              error_in_image_data'Identity,
-              "JPEG: SOF_0 segment too small"
-            );
-          end if;
           Get_Byte(image.buffer, bits_pp_primary);
           if bits_pp_primary /= 8 then
             Raise_exception(
@@ -310,12 +313,22 @@ package body GID.Headers is
           for i in 1..image.subformat_id loop
             -- component id (1 = Y, 2 = Cb, 3 = Cr, 4 = I, 5 = Q)
             Get_Byte(image.buffer, b);
+            compo:= JPEG_Component'Val(b - 1);
+            image.JPEG_stuff.components(compo):= True;
             -- sampling factors (bit 0-3 vert., 4-7 hor.)
             Get_Byte(image.buffer, b);
+            image.JPEG_stuff.sampl_hor(compo):= Natural(b mod 16);
+            image.JPEG_stuff.sampl_ver(compo):= Natural(b  /  16);
             -- quantization table number
             Get_Byte(image.buffer, b);
-            -- !! store this info
+            image.JPEG_stuff.qt_assoc(compo):= Natural(b);
           end loop;
+          if Natural(sh.length) < 6 + 3 * image.subformat_id then
+            Raise_exception(
+              error_in_image_data'Identity,
+              "JPEG: SOF_0 segment too short"
+            );
+          end if;
           exit; -- we've got header-style informations, then time to quit
         when others =>
           -- Skip segment data

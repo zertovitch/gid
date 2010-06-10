@@ -34,12 +34,16 @@ private package GID.Decoding_JPG is
     EOI        --  End of Image
   );
 
+  YCbCr: constant JPEG_Set_of_Components:= (Y|Cb|Cr => True, others => False);
+
   type Segment_head is record
     length : U16;
     kind   : JPEG_marker;
   end record;
 
-  procedure Read( image: in out image_descriptor; sh: out Segment_head);
+  procedure Read(image: in out Image_descriptor; sh: out Segment_head);
+
+  procedure Read_DQT(image: in out Image_descriptor; data_length: Natural);
 
   --------------------
   -- Image decoding --

@@ -12,7 +12,7 @@
 --   The code is unconditionally portable, independent of the
 --   choice of operating system, processor, endianess and compiler.
 --
--- Image types supported:
+-- Image types currently supported:
 --
 --   BMP, GIF, PNG, TGA
 --
@@ -147,8 +147,8 @@ package GID is
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
 
-  version   : constant String:= "00.3";
-  reference : constant String:= "20-May-2010";
+  version   : constant String:= "00.4";
+  reference : constant String:= "09-Jun-2010";
   web: constant String:= "http://sf.net/projects/gen-img-dec/";
   -- hopefully the latest version is at that URL...
 
@@ -182,6 +182,25 @@ private
   end record;
   -- Initial values ensure call to Fill_Buffer on first Get_Byte
 
+  -- JPEG may stores data _before_ any image header (SOF), then we have
+  -- to make the image descriptor store that information
+  type JPEG_Component is (Y, Cb, Cr, I, Q);
+
+  type JPEG_QT is array(0..63) of Natural;
+  type JPEG_QT_list is array(0..7) of JPEG_QT;
+
+  type JPEG_Compo_vector is array(JPEG_Component) of Integer;
+
+  type JPEG_Set_of_Components is array(JPEG_Component) of Boolean;
+
+  type JPEG_stuff_type is record
+    components: JPEG_Set_of_Components:= (others => False);
+    qt_assoc  : JPEG_Compo_vector;
+    sampl_hor : JPEG_Compo_vector;
+    sampl_ver : JPEG_Compo_vector;
+    qt_list   : JPEG_QT_list;
+  end record;
+
   type Image_descriptor is new Ada.Finalization.Controlled with record
     format             : Image_format_type;
     detailed_format    : Bounded_255.Bounded_String; -- for humans only!
@@ -193,6 +212,7 @@ private
     greyscale          : Boolean:= False;
     interlaced         : Boolean:= False;
     flag_1             : Boolean; -- format-specific information
+    JPEG_stuff         : JPEG_stuff_type;
     stream             : Stream_Access;
     buffer             : Input_buffer;
     palette            : p_Color_table:= null;
