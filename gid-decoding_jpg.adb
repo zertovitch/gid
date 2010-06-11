@@ -210,6 +210,53 @@ package body GID.Decoding_JPG is
       end loop multi_tables;
     end Read_DHT;
 
+    ht_idx_AC, ht_idx_DC: array(JPEG_Component) of Natural;
+
+    -- Start Of Scan (and image data which follow)
+    --
+    procedure Read_SOS is
+      components, b: U8;
+      compo: JPEG_Component;
+      mbx, mby: Natural:= 0;
+    begin
+      Get_Byte(image.buffer, components);
+      if some_trace then
+        Ada.Text_IO.Put_Line(
+          "Start of Scan (SOS), with" &
+          U8'Image(components) & " components"
+        );
+      end if;
+      for i in 1..components loop
+        Get_Byte(image.buffer, b);
+        compo:= JPEG_Component'Val(b - 1);
+        Get_Byte(image.buffer, b);
+        ht_idx_AC(compo):= Natural(b mod 16);
+        ht_idx_DC(compo):= Natural(b  /  16);
+      end loop;
+      -- 3 bytes stuffing
+      Get_Byte(image.buffer, b);
+      Get_Byte(image.buffer, b);
+      Get_Byte(image.buffer, b);
+      --
+      main_decoding_loop:
+      loop
+        components_loop:
+        for i in 1..components loop
+          samples_x_loop:
+          for sbx in 1..image.JPEG_stuff.samples_hor(compo) loop
+            samples_y_loop:
+            for sby in 1..image.JPEG_stuff.samples_ver(compo) loop
+              -- !! here the block decoding...
+              null;
+            end loop samples_y_loop;
+          end loop samples_x_loop;
+        end loop components_loop;
+        -- !! adjust main x/y; exit cond.
+        exit; -- !!
+        -- !! resetting
+      end loop main_decoding_loop;
+    end Read_SOS;
+
     --
     sh: Segment_head;
     b: U8;
@@ -238,6 +285,8 @@ package body GID.Decoding_JPG is
           Read_DHT(Natural(sh.length));
         when EOI =>
           exit;
+        when SOS =>
+          Read_SOS;
         when others =>
           -- Skip segment data
           for i in 1..sh.length loop

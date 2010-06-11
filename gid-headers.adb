@@ -317,8 +317,9 @@ package body GID.Headers is
             image.JPEG_stuff.components(compo):= True;
             -- sampling factors (bit 0-3 vert., 4-7 hor.)
             Get_Byte(image.buffer, b);
-            image.JPEG_stuff.sampl_hor(compo):= Natural(b mod 16);
-            image.JPEG_stuff.sampl_ver(compo):= Natural(b  /  16);
+            image.JPEG_stuff.samples_hor(compo):= Natural(b mod 16);
+            image.JPEG_stuff.samples_ver(compo):= Natural(b  /  16);
+            -- !! check for power of two (if assumed in algo)
             -- quantization table number
             Get_Byte(image.buffer, b);
             image.JPEG_stuff.qt_assoc(compo):= Natural(b);
@@ -330,6 +331,11 @@ package body GID.Headers is
             );
           end if;
           exit; -- we've got header-style informations, then time to quit
+        when SOF_2 .. SOF_13 =>
+          Raise_exception(
+            unsupported_image_subformat'Identity,
+            "JPEG: image type not yet supported: " & JPEG_marker'Image(sh.kind)
+          );
         when others =>
           -- Skip segment data
           for i in 1..sh.length loop

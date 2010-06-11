@@ -184,7 +184,13 @@ private
 
   -- JPEG may store data _before_ any image header (SOF), then we have
   -- to make the image descriptor store that information
-  type JPEG_Component is (Y, Cb, Cr, I, Q);
+  type JPEG_Component is
+    (Y,  -- brightness
+     Cb, -- hue
+     Cr, -- saturation
+     I,
+     Q
+    );
 
   type JPEG_QT is array(0..63) of Natural;
   type JPEG_QT_list is array(0..7) of JPEG_QT;
@@ -194,11 +200,11 @@ private
   type JPEG_Set_of_Components is array(JPEG_Component) of Boolean;
 
   type JPEG_stuff_type is record
-    components: JPEG_Set_of_Components:= (others => False);
-    qt_assoc  : JPEG_Compo_vector;
-    sampl_hor : JPEG_Compo_vector;
-    sampl_ver : JPEG_Compo_vector;
-    qt_list   : JPEG_QT_list;
+    components  : JPEG_Set_of_Components:= (others => False);
+    qt_assoc    : JPEG_Compo_vector;
+    samples_hor : JPEG_Compo_vector;
+    samples_ver : JPEG_Compo_vector;
+    qt_list     : JPEG_QT_list;
   end record;
 
   type Image_descriptor is new Ada.Finalization.Controlled with record
