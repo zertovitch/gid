@@ -92,6 +92,65 @@ package body GID.Decoding_JPG is
     );
   end Read;
 
+  -- SOF - Start Of Frame (the real header)
+  procedure Read_SOF(image: in out Image_descriptor; sh: Segment_head) is
+    use Bounded_255;
+    b, bits_pp_primary: U8;
+    w, h: U16;
+    compo: JPEG_Component;
+  begin
+    case sh.kind is
+      when SOF_0 =>
+        image.detailed_format:= To_Bounded_String("JPEG, Baseline DCT (SOF_0)");
+      when others =>
+        Raise_exception(
+          unsupported_image_subformat'Identity,
+          "JPEG: image type not yet supported: " & JPEG_marker'Image(sh.kind)
+        );
+    end case;
+    Get_Byte(image.buffer, bits_pp_primary);
+    if bits_pp_primary /= 8 then
+      Raise_exception(
+        unsupported_image_subformat'Identity,
+        "Bits per primary color=" & U8'Image(bits_pp_primary)
+      );
+    end if;
+    image.bits_per_pixel:= 3 * Positive(bits_pp_primary);
+    Big_endian(image.buffer, w);
+    Big_endian(image.buffer, h);
+    image.width:= Natural(w);
+    image.height:= Natural(h);
+    -- number of components:
+    Get_Byte(image.buffer, b);
+    image.subformat_id:= Integer(b);
+    -- for each component: 3 bytes
+    for i in 1..image.subformat_id loop
+      -- component id (1 = Y, 2 = Cb, 3 = Cr, 4 = I, 5 = Q)
+      Get_Byte(image.buffer, b);
+      compo:= JPEG_Component'Val(b - 1);
+      image.JPEG_stuff.components(compo):= True;
+      declare
+        info: JPEG_info_per_component_A renames image.JPEG_stuff.info(compo);
+      begin
+        -- sampling factors (bit 0-3 vert., 4-7 hor.)
+        Get_Byte(image.buffer, b);
+        info.samples_hor:= Natural(b mod 16);
+        info.samples_ver:= Natural(b  /  16);
+        -- !! check for power of two (if assumed in algo)
+        -- quantization table number
+        Get_Byte(image.buffer, b);
+        info.qt_assoc:= Natural(b);
+      end;
+    end loop;
+    if Natural(sh.length) < 6 + 3 * image.subformat_id then
+      Raise_exception(
+        error_in_image_data'Identity,
+        "JPEG: SOF_0 segment too short"
+      );
+      --!! SOF_0 only
+    end if;
+  end Read_SOF;
+
   procedure Read_DQT(image: in out Image_descriptor; data_length: Natural) is
     remaining: Integer:= data_length; -- data remaining in segment
     b, q8: U8; q16: U16;
@@ -210,7 +269,12 @@ package body GID.Decoding_JPG is
       end loop multi_tables;
     end Read_DHT;
 
-    ht_idx_AC, ht_idx_DC: array(JPEG_Component) of Natural;
+    type JPEG_info_per_component_B is record
+      ht_idx_AC : Natural;
+      ht_idx_DC : Natural;
+    end record;
+
+    component_info_B: array(JPEG_Component) of JPEG_info_per_component_B;
 
     -- Start Of Scan (and image data which follow)
     --
@@ -226,12 +290,41 @@ package body GID.Decoding_JPG is
           U8'Image(components) & " components"
         );
       end if;
+      if image.subformat_id < Natural(components) then
+        Raise_exception(
+          error_in_image_data'Identity,
+          "JPEG: too many components in Scan segment"
+        );
+      end if;
       for i in 1..components loop
         Get_Byte(image.buffer, b);
         compo:= JPEG_Component'Val(b - 1);
+        if not image.JPEG_stuff.components(compo) then
+          Raise_exception(
+            error_in_image_data'Identity,
+            "JPEG: component " & JPEG_Component'Image(compo) &
+            " has not been defined in the SOF segment"
+          );
+        end if;
         Get_Byte(image.buffer, b);
-        ht_idx_AC(compo):= Natural(b mod 16);
-        ht_idx_DC(compo):= Natural(b  /  16);
+        component_info_B(compo).ht_idx_AC:= Natural(b mod 16);
+        component_info_B(compo).ht_idx_DC:= Natural(b  /  16);
+        if some_trace then
+          Ada.Text_IO.Put_Line(
+            "  Details for component " & JPEG_Component'Image(compo)
+          );
+          Ada.Text_IO.Put_Line(
+            "    samples in x " & Integer'Image(image.JPEG_stuff.info(compo).samples_hor)
+          );
+          Ada.Text_IO.Put_Line(
+            "    samples in y " & Integer'Image(image.JPEG_stuff.info(compo).samples_ver)
+          );
+          Ada.Text_IO.Put_Line(
+            "    AC/DC table index " &
+            Integer'Image(component_info_B(compo).ht_idx_AC) & ", " &
+            Integer'Image(component_info_B(compo).ht_idx_DC)
+          );
+        end if;
       end loop;
       -- 3 bytes stuffing
       Get_Byte(image.buffer, b);
@@ -243,9 +336,9 @@ package body GID.Decoding_JPG is
         components_loop:
         for i in 1..components loop
           samples_x_loop:
-          for sbx in 1..image.JPEG_stuff.samples_hor(compo) loop
+          for sbx in 1..image.JPEG_stuff.info(compo).samples_hor loop
             samples_y_loop:
-            for sby in 1..image.JPEG_stuff.samples_ver(compo) loop
+            for sby in 1..image.JPEG_stuff.info(compo).samples_ver loop
               -- !! here the block decoding...
               null;
             end loop samples_y_loop;

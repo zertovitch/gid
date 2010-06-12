@@ -43,6 +43,9 @@ private package GID.Decoding_JPG is
 
   procedure Read(image: in out Image_descriptor; sh: out Segment_head);
 
+  -- SOF - Start Of Frame (the real header)
+  procedure Read_SOF(image: in out Image_descriptor; sh: Segment_head);
+
   procedure Read_DQT(image: in out Image_descriptor; data_length: Natural);
 
   --------------------
@@ -65,17 +68,5 @@ private package GID.Decoding_JPG is
     image     : in out Image_descriptor;
     next_frame:    out Ada.Calendar.Day_Duration
   );
-
-private
-
-  -- Primitive tracing using Ada.Text_IO, for debugging.
-  --
-  type Trace_type is (none, some, full);
-
-  trace: constant Trace_type:= full; -- <== Choice here
-
-  no_trace  : constant Boolean:= trace=none;
-  full_trace: constant Boolean:= trace=full;
-  some_trace: constant Boolean:= trace>=some;
 
 end GID.Decoding_JPG;

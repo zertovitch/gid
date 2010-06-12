@@ -5,16 +5,16 @@
 WINDOWS_TARGET
 
 
+trace
+.length
+dummy16
+_255
 dht
 sof_0
 remain
 attach
 assoc
 jpeg
-filter
-** 8
-**
-x_max
 -- Begin compiler switches
 DEBUG <- active (current) build mode
 FALSE <- are gcc/gnatmake/main/target-dir of Release := these from Debug mode ?

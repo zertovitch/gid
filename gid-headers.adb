@@ -163,20 +163,21 @@ package body GID.Headers is
   ----------------
 
   procedure Load_BMP_header (image: in out Image_descriptor) is
-    file_size, offset, info_header, n, dummy: U32;
+    n, dummy: U32;
     pragma Warnings(off, dummy);
     w, dummy16: U16;
+    pragma Warnings(off, dummy16);
   begin
     --   Pos= 3, read the file size
-    Read_Intel(image.stream, file_size);
+    Read_Intel(image.stream, dummy);
     --   Pos= 7, read four bytes, unknown
     Read_Intel(image.stream, dummy);
     --   Pos= 11, read four bytes offset, file top to bitmap data.
     --            For 256 colors, this is usually 36 04 00 00
-    Read_Intel(image.stream, offset);
+    Read_Intel(image.stream, dummy);
     --   Pos= 15. The beginning of Bitmap information header.
     --   Data expected:  28H, denoting 40 byte header
-    Read_Intel(image.stream, info_header);
+    Read_Intel(image.stream, dummy);
     --   Pos= 19. Bitmap width, in pixels.  Four bytes
     Read_Intel(image.stream, n);
     image.width:=  Natural(n);
@@ -281,9 +282,7 @@ package body GID.Headers is
     -- http://en.wikipedia.org/wiki/JPEG
     use GID.Decoding_JPG, GID.Buffering, Bounded_255;
     sh: Segment_head;
-    b, bits_pp_primary: U8;
-    w, h: U16;
-    compo: JPEG_Component;
+    b: U8;
   begin
     -- We passed the SOI (Start of Image) segment marker (FFD8)
     Attach_stream(image.buffer, image.stream);
@@ -292,50 +291,9 @@ package body GID.Headers is
       case sh.kind is
         when DQT =>
           Read_DQT(image, Natural(sh.length));
-        when SOF_0 =>
-          image.detailed_format:= To_Bounded_String("JPEG, Baseline DCT");
-          Get_Byte(image.buffer, bits_pp_primary);
-          if bits_pp_primary /= 8 then
-            Raise_exception(
-              unsupported_image_subformat'Identity,
-              "Bits per primary color=" & U8'Image(bits_pp_primary)
-            );
-          end if;
-          image.bits_per_pixel:= 3 * Positive(bits_pp_primary);
-          Big_endian(image.buffer, w);
-          Big_endian(image.buffer, h);
-          image.width:= Natural(w);
-          image.height:= Natural(h);
-          -- number of components:
-          Get_Byte(image.buffer, b);
-          image.subformat_id:= Integer(b);
-          -- for each component: 3 bytes
-          for i in 1..image.subformat_id loop
-            -- component id (1 = Y, 2 = Cb, 3 = Cr, 4 = I, 5 = Q)
-            Get_Byte(image.buffer, b);
-            compo:= JPEG_Component'Val(b - 1);
-            image.JPEG_stuff.components(compo):= True;
-            -- sampling factors (bit 0-3 vert., 4-7 hor.)
-            Get_Byte(image.buffer, b);
-            image.JPEG_stuff.samples_hor(compo):= Natural(b mod 16);
-            image.JPEG_stuff.samples_ver(compo):= Natural(b  /  16);
-            -- !! check for power of two (if assumed in algo)
-            -- quantization table number
-            Get_Byte(image.buffer, b);
-            image.JPEG_stuff.qt_assoc(compo):= Natural(b);
-          end loop;
-          if Natural(sh.length) < 6 + 3 * image.subformat_id then
-            Raise_exception(
-              error_in_image_data'Identity,
-              "JPEG: SOF_0 segment too short"
-            );
-          end if;
+        when SOF_0 .. SOF_15 =>
+          Read_SOF(image, sh);
           exit; -- we've got header-style informations, then time to quit
-        when SOF_2 .. SOF_13 =>
-          Raise_exception(
-            unsupported_image_subformat'Identity,
-            "JPEG: image type not yet supported: " & JPEG_marker'Image(sh.kind)
-          );
         when others =>
           -- Skip segment data
           for i in 1..sh.length loop

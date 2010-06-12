@@ -21,8 +21,4 @@ private package GID.Decoding_GIF is
     next_frame:    out Ada.Calendar.Day_Duration
   );
 
-private
-
-  full_trace: constant Boolean:= False; -- For debugging.
-
 end GID.Decoding_GIF;

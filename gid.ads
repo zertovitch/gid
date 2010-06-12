@@ -195,15 +195,20 @@ private
   type JPEG_QT is array(0..63) of Natural;
   type JPEG_QT_list is array(0..7) of JPEG_QT;
 
-  type JPEG_Compo_vector is array(JPEG_Component) of Integer;
-
   type JPEG_Set_of_Components is array(JPEG_Component) of Boolean;
+
+  type JPEG_info_per_component_A is record -- B is defined inside the decoder
+    qt_assoc    : Natural;
+    samples_hor : Natural;
+    samples_ver : Natural;
+  end record;
+
+  type JPEG_component_info_A is
+    array(JPEG_Component) of JPEG_info_per_component_A;
 
   type JPEG_stuff_type is record
     components  : JPEG_Set_of_Components:= (others => False);
-    qt_assoc    : JPEG_Compo_vector;
-    samples_hor : JPEG_Compo_vector;
-    samples_ver : JPEG_Compo_vector;
+    info        : JPEG_component_info_A;
     qt_list     : JPEG_QT_list;
   end record;
 
@@ -233,5 +238,21 @@ private
   -- this exception should not happen, even with malformed files
   -- its role is to pop up when a feature is set as implemented
   -- but one aspect (e.g. palette) was forgotten.
+
+  --
+  -- Primitive tracing using Ada.Text_IO, for debugging,
+  -- or explaining internals.
+  --
+  type Trace_type is (
+    none, -- No trace at all, no use of console from the library
+    some, -- Image / frame technical informations
+    full  -- Byte / pixel / compressed block details
+  );
+
+  trace: constant Trace_type:= full; -- <== Choice here
+
+  no_trace  : constant Boolean:= trace=none;
+  full_trace: constant Boolean:= trace=full;
+  some_trace: constant Boolean:= trace>=some;
 
 end GID;

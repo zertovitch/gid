@@ -76,16 +76,4 @@ private package GID.Decoding_PNG is
   --
   procedure Load (image: in out Image_descriptor);
 
-private
-
-  -- Primitive tracing using Ada.Text_IO, for debugging.
-  --
-  type Trace_type is (none, some, full);
-
-  trace: constant Trace_type:= none; -- <== Choice here
-
-  no_trace  : constant Boolean:= trace=none;
-  full_trace: constant Boolean:= trace=full;
-  some_trace: constant Boolean:= trace>=some;
-
 end GID.Decoding_PNG;
