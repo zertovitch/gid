@@ -14,7 +14,7 @@
 --
 -- Image types currently supported:
 --
---   BMP, GIF, PNG, TGA
+--   BMP, GIF, JPEG, PNG, TGA
 --
 -- Credits:
 --

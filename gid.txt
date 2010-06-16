@@ -1,14 +1,36 @@
+Generic Image Decoder
+---------------------
 
+The Generic Image Decoder is a package for decoding a broad variety
+of image formats, from any data stream, to any kind of medium.
 
+Some features:
+- Standalone (no dependency on other libraires, bindings,...)
+- Unconditionally portable code: OS-, CPU-, compiler- independent code.
+- Multi-platform
+- Task safe
+- Endian-neutral
+- Free, open-source
 
+Through genericity and use of the Inline pragma at multiple
+nesting levels (like macros inside macros), the package is
+able to deliver a decent decoding performance with a reasonably
+readable source code and without tediously copied pieces of code
+with almost the same contents.
 
+Licensing, supported formats, credits
+-------------------------------------
+Please read the top comments in gid.ads.
+
+Note on the construction of GID.
+--------------------------------
 
 All image formats decoded by GID have similarities in their structure.
 
-- They all begin with a header containing dimensions and color depth,
+- Most begin with a header containing dimensions and color depth,
   and the image contents follow. This is obvious to have such a data
   organisation, since the header details are needed to calibrate the
-  recipient of the image
+  recipient of the image. 
 
 - They are structured in blocks, with different names depending on
   the format:
