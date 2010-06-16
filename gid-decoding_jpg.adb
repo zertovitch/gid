@@ -1,8 +1,8 @@
 -- Steps for decoding a JPEG image
 --
--- 1. RLE and Huffman decompression
--- 2. Inverse quantization (DQT)
--- 3. Inverse DCT
+-- 1. Huffman decompression
+-- 2. Inverse quantization
+-- 3. Inverse cosine transform
 -- 4. Oversampling
 -- 5. Color transformation
 -- 6. Image reconstruction
@@ -11,7 +11,7 @@
 
 with GID.Buffering;
 
-with Ada.Text_IO, Ada.Exceptions; --, Interfaces;
+with Ada.Text_IO, Ada.Exceptions, Ada.IO_Exceptions, Interfaces;
 
 package body GID.Decoding_JPG is
 
@@ -55,9 +55,12 @@ package body GID.Decoding_JPG is
       DHT      => 16#C4#,
       DAC      => 16#CC#,
       DQT      => 16#DB#,
+      DRI      => 16#DD#,
       --
-      APP0  => 16#E0#,  APP1  => 16#E1#,  APP2  => 16#E2#,
-      APP13 => 16#ED#,  APP14 => 16#EE#,
+      APP_0  => 16#E0#, APP_1  => 16#E1#, APP_2  => 16#E2#, APP_3  => 16#E3#,
+      APP_4  => 16#E4#, APP_5  => 16#E5#, APP_6  => 16#E6#, APP_7  => 16#E7#,
+      APP_8  => 16#E8#, APP_9  => 16#E9#, APP_10 => 16#EA#, APP_11 => 16#EB#,
+      APP_12 => 16#EC#, APP_13 => 16#ED#, APP_14 => 16#EE#,
       --
       COM      => 16#FE#,
       SOS      => 16#DA#,
@@ -116,8 +119,8 @@ package body GID.Decoding_JPG is
       );
     end if;
     image.bits_per_pixel:= 3 * Positive(bits_pp_primary);
-    Big_endian(image.buffer, w);
     Big_endian(image.buffer, h);
+    Big_endian(image.buffer, w);
     image.width:= Natural(w);
     image.height:= Natural(h);
     -- number of components:
@@ -269,19 +272,242 @@ package body GID.Decoding_JPG is
       end loop multi_tables;
     end Read_DHT;
 
+    --
+    -- Bit buffer
+    --
+
+    buf: U32:= 0;
+    bufbits: Natural:= 0;
+
+    function ShowBits(bits: Natural) return Natural is
+      newbyte, marker: U8;
+      res: Natural;
+      use Interfaces;
+    begin
+--ada.text_IO.put_line("bufbits (before)= " & bufbits'img);
+      if bits=0 then
+        return 0;
+      end if;
+      while bufbits < bits loop
+        begin
+        Get_Byte(image.buffer, newbyte);
+        bufbits:= bufbits + 8;
+        buf:= buf * 256 + U32(newbyte);
+        if newbyte = 16#FF# then
+          Get_Byte(image.buffer, marker);
+          case marker is
+            when 0 =>
+              null;
+            when 16#D9# =>
+              null; -- !! signal end
+            when 16#D0# .. 16#D7# =>
+              bufbits:= bufbits + 8;
+              buf:= buf * 256 + U32(marker);
+            when others =>
+              Raise_exception(
+                error_in_image_data'Identity,
+                "JPEG: Invalid code (bit buffer)"
+              );
+          end case;
+        end if;
+        exception
+          when Ada.IO_Exceptions.End_Error =>
+            newbyte:= 16#FF#;
+            bufbits:= bufbits + 8;
+            buf:= buf * 256 + U32(newbyte);
+        end;
+      end loop;
+--ada.text_IO.put_line("bufbits (after)= " & bufbits'img);
+--      Ada.Text_IO.Put_Line("buf=" & buf'img);
+      res:= Natural( Shift_Right(Unsigned_32(buf), bufbits - bits) and (2**bits-1) );
+--      Ada.Text_IO.Put_Line("showbits" & bits'img & "->" & res'img);
+      return res;
+    end ShowBits;
+
+    procedure SkipBits(bits: Natural) is
+      dummy: Integer;
+    begin
+      if bufbits < bits then
+        dummy:= ShowBits(bits);
+      end if;
+      bufbits:= bufbits - bits;
+    end;
+
+    function GetBits(bits: Natural) return INteger is
+      res: constant Integer:= ShowBits(bits);
+    begin
+      SkipBits(bits);
+      return res;
+    end;
+
+    procedure ByteAlign is
+    begin
+      bufbits:= Natural(U32(bufbits) and 16#F8#);
+    end;
+
+    --
+
     type JPEG_info_per_component_B is record
       ht_idx_AC : Natural;
       ht_idx_DC : Natural;
+      width, height, stride: Natural;
+      dcpred: Integer:= 0;
     end record;
 
-    component_info_B: array(JPEG_Component) of JPEG_info_per_component_B;
+    info_A: JPEG_component_info_A renames image.JPEG_stuff.info;
+    info_B: array(JPEG_Component) of JPEG_info_per_component_B;
+
+    procedure GetVLC(
+      vlc: VLC_table;
+      code: out U8;
+      value_ret: out Integer
+    )
+    is
+      -- Step 1 is here: Huffman decompression
+      value: Integer:= ShowBits(16);
+      bits: Integer:= Integer(vlc(value).bits);
+    begin
+      if bits = 0 then
+        Raise_exception(
+          error_in_image_data'Identity,
+          "JPEG: VLC table: bits = 0"
+        );
+      end if;
+      SkipBits(bits);
+      value:= Integer(vlc(value).code);
+      code:= U8(value);
+      bits:= value mod 16;
+      value_ret:= 0;
+      if bits /= 0 then
+        value:= GetBits(bits);
+        if value < 2 ** (bits - 1) then
+          value:= value + 1 - 2 ** bits;
+        end if;
+        value_ret:= value;
+      end if;
+--ada.text_IO.put_line(value_ret'img);
+    end GetVLC;
+
+    procedure Decode_Block(c: JPEG_Component) is
+      -- Ordering within a 8x8 block, in zig-zag
+      zig_zag: constant array(0..63) of Integer:=
+       ( 0,  1,  8, 16,  9,  2,  3, 10, 17, 24, 32, 25, 18,
+        11,  4,  5, 12, 19, 26, 33, 40, 48, 41, 34, 27, 20,
+        13,  6,  7, 14, 21, 28, 35, 42, 49, 56, 57, 50, 43,
+        36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 59, 52, 45,
+        38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63 );
+      block: array(0..63) of Integer:= (others => 0);
+      value, coef: Integer;
+      code: U8;
+      qt: JPEG_QT renames image.JPEG_stuff.qt_list(info_A(c).qt_assoc);
+
+      W1: constant:= 2841;
+      W2: constant:= 2676;
+      W3: constant:= 2408;
+      W5: constant:= 1609;
+      W6: constant:= 1108;
+      W7: constant:=  565;
+
+      procedure RowIDCT(start: Integer) is
+      pragma Inline(RowIDCT);
+        x0, x1, x2, x3, x4, x5, x6, x7, x8, val: Integer;
+      begin
+        x1:= block(start + 4) * 2**11;
+        x2:= block(start + 6);
+        x3:= block(start + 2);
+        x4:= block(start + 1);
+        x5:= block(start + 7);
+        x6:= block(start + 5);
+        x7:= block(start + 3);
+        if x1=0 and x2=0 and x3=0 and x4=0 and x5=0 and x6=0 and x7=0 then
+          val:= block(start + 0) * 8;
+          block(start + 0 .. start + 7):= (others => val);
+        else
+          x0:= (block(start + 0) * 2**11) + 128;
+          x8:= W7 * (x4 + x5);
+          x4:= x8 + (W1 - W7) * x4;
+          x5:= x8 - (W1 + W7) * x5;
+          x8:= W3 * (x6 + x7);
+          x6:= x8 - (W3 - W5) * x6;
+          x7:= x8 - (W3 + W5) * x7;
+          x8:= x0 + x1;
+          x0:= x0 - x1;
+          x1:= W6 * (x3 + x2);
+          x2:= x1 - (W2 + W6) * x2;
+          x3:= x1 + (W2 - W6) * x3;
+          x1:= x4 + x6;
+          x4:= x4 - x6;
+          x6:= x5 + x7;
+          x5:= x5 - x7;
+          x7:= x8 + x3;
+          x8:= x8 - x3;
+          x3:= x0 + x2;
+          x0:= x0 - x2;
+          x2:= (181 * (x4 + x5) + 128) / 256;
+          x4:= (181 * (x4 - x5) + 128) / 256;
+          block(start + 0):= (x7 + x1) / 256;
+          block(start + 1):= (x3 + x2) / 256;
+          block(start + 2):= (x0 + x4) / 256;
+          block(start + 3):= (x8 + x6) / 256;
+          block(start + 4):= (x8 - x6) / 256;
+          block(start + 5):= (x0 - x4) / 256;
+          block(start + 6):= (x3 - x2) / 256;
+          block(start + 7):= (x7 - x1) / 256;
+        end if;
+--ada.text_IO.put("RowDCT:");
+--for i in 0..7 loop
+--ada.text_IO.put(" " & block(start + i)'img);
+--end loop;
+--ada.text_IO.New_Line;
+      end RowIDCT;
+
+    begin -- Decode_Block
+      -- Step 2 is here: Inverse quantization
+      GetVLC(vlc_defs(DC, info_B(c).ht_idx_DC), code, value);
+      -- First value in block (0: top left) uses a predictor.
+      info_B(c).dcpred:= info_B(c).dcpred + value;
+      block(0):= info_B(c).dcpred * qt(0);
+      coef:= 0;
+      loop
+        GetVLC(vlc_defs(AC, info_B(c).ht_idx_AC), code, value);
+        exit when code = 0; -- EOB
+        coef:= coef + Integer(code / 16) + 1;
+        if coef > 63 then
+          Raise_exception(
+            error_in_image_data'Identity,
+            "JPEG: coefficient for de-quantization is > 63"
+          );
+        end if;
+        block(zig_zag(coef)):= value * qt(coef);
+        exit when coef = 63;
+      end loop;
+--ada.text_IO.put("Block dump TB:");
+--for i in 0..63 loop
+--ada.text_IO.put(" " & block(i)'img);
+--end loop;
+--ada.text_IO.New_Line;
+      -- Step 3 is here: Inverse cosine transform
+      for row_coef in 0..7 loop
+        RowIDCT(row_coef * 8);
+      end loop;
+--     for (coef = 0;  coef < 8;  ++coef)
+--         njColIDCT(&nj.block[coef], &out[coef], c->stride);
+    end Decode_Block;
+
+    rstinterval: U16:= 0;
 
     -- Start Of Scan (and image data which follow)
     --
     procedure Read_SOS is
       components, b: U8;
       compo: JPEG_Component;
+      -- !!
       mbx, mby: Natural:= 0;
+      ssxmax, ssymax: Natural:= 0;
+      mbsizex, mbsizey, mbwidth, mbheight: Natural;
+      rstcount: U16:= rstinterval;
+      nextrst: U16:= 0;
+      w: U16;
     begin
       Get_Byte(image.buffer, components);
       if some_trace then
@@ -290,10 +516,10 @@ package body GID.Decoding_JPG is
           U8'Image(components) & " components"
         );
       end if;
-      if image.subformat_id < Natural(components) then
+      if image.subformat_id /= Natural(components) then
         Raise_exception(
           error_in_image_data'Identity,
-          "JPEG: too many components in Scan segment"
+          "JPEG: components mismatch in Scan segment"
         );
       end if;
       for i in 1..components loop
@@ -306,48 +532,112 @@ package body GID.Decoding_JPG is
             " has not been defined in the SOF segment"
           );
         end if;
+        -- Huffman table selection
         Get_Byte(image.buffer, b);
-        component_info_B(compo).ht_idx_AC:= Natural(b mod 16);
-        component_info_B(compo).ht_idx_DC:= Natural(b  /  16);
-        if some_trace then
-          Ada.Text_IO.Put_Line(
-            "  Details for component " & JPEG_Component'Image(compo)
-          );
-          Ada.Text_IO.Put_Line(
-            "    samples in x " & Integer'Image(image.JPEG_stuff.info(compo).samples_hor)
-          );
-          Ada.Text_IO.Put_Line(
-            "    samples in y " & Integer'Image(image.JPEG_stuff.info(compo).samples_ver)
-          );
-          Ada.Text_IO.Put_Line(
-            "    AC/DC table index " &
-            Integer'Image(component_info_B(compo).ht_idx_AC) & ", " &
-            Integer'Image(component_info_B(compo).ht_idx_DC)
-          );
-        end if;
+        info_B(compo).ht_idx_AC:= Natural(b mod 16);
+        info_B(compo).ht_idx_DC:= Natural(b  /  16);
+        ssxmax:= Integer'Max(ssxmax, info_A(compo).samples_hor);
+        ssymax:= Integer'Max(ssymax, info_A(compo).samples_ver);
       end loop;
       -- 3 bytes stuffing
       Get_Byte(image.buffer, b);
       Get_Byte(image.buffer, b);
       Get_Byte(image.buffer, b);
+      -- End of SOS segment, image data follow.
+      mbsizex:= ssxmax * 8;
+      mbsizey:= ssymax * 8;
+      mbwidth := (image.width + mbsizex - 1) / mbsizex;
+      mbheight:= (image.height + mbsizey - 1) / mbsizey;
+      if some_trace then
+        Ada.Text_IO.Put_Line(" mbsizex = " & Integer'Image(mbsizex));
+        Ada.Text_IO.Put_Line(" mbsizey = " & Integer'Image(mbsizey));
+        Ada.Text_IO.Put_Line(" mbwidth  = " & Integer'Image(mbwidth));
+        Ada.Text_IO.Put_Line(" mbheight = " & Integer'Image(mbheight));
+      end if;
+      for c in JPEG_Component loop
+        if image.JPEG_stuff.components(c) then
+          info_B(c).width := (image.width  * info_A(c).samples_hor + ssxmax - 1) / ssxmax;
+          info_B(c).height:= (image.height * info_A(c).samples_ver + ssymax - 1) / ssymax;
+          info_B(c).stride:= (mbwidth * mbsizex * info_A(c).samples_hor) / ssxmax;
+          if some_trace then
+            Ada.Text_IO.Put_Line("  Details for component " & JPEG_Component'Image(c));
+            Ada.Text_IO.Put_Line("    samples in x " & Integer'Image(info_A(c).samples_hor));
+            Ada.Text_IO.Put_Line("    samples in y " & Integer'Image(info_A(c).samples_ver));
+            Ada.Text_IO.Put_Line("    width " & Integer'Image(info_B(c).width));
+            Ada.Text_IO.Put_Line("    height " & Integer'Image(info_B(c).height));
+            Ada.Text_IO.Put_Line("    stride " & Integer'Image(info_B(c).stride));
+            Ada.Text_IO.Put_Line(
+              "    AC/DC table index " &
+              Integer'Image(info_B(compo).ht_idx_AC) & ", " &
+              Integer'Image(info_B(compo).ht_idx_DC)
+            );
+          end if;
+          if (info_B(c).width < 3 and info_A(c).samples_hor /= ssxmax) or
+             (info_B(c).height < 3 and info_A(c).samples_ver /= ssymax)
+          then
+            Raise_exception(
+              error_in_image_data'Identity,
+              "JPEG: component " & JPEG_Component'Image(c) &
+              ": sample dimension mismatch"
+            );
+          end if;
+        end if;
+      end loop;
       --
-      main_decoding_loop:
+      macro_blocks_loop:
       loop
         components_loop:
-        for i in 1..components loop
-          samples_x_loop:
-          for sbx in 1..image.JPEG_stuff.info(compo).samples_hor loop
-            samples_y_loop:
-            for sby in 1..image.JPEG_stuff.info(compo).samples_ver loop
-              -- !! here the block decoding...
-              null;
-            end loop samples_y_loop;
-          end loop samples_x_loop;
+        for c in JPEG_Component loop
+          if image.JPEG_stuff.components(c) then
+            samples_x_loop:
+            for sbx in 1..image.JPEG_stuff.info(c).samples_hor loop
+              samples_y_loop:
+              for sby in 1..image.JPEG_stuff.info(c).samples_ver loop
+                Decode_Block(c);
+              end loop samples_y_loop;
+            end loop samples_x_loop;
+          end if;
         end loop components_loop;
-        -- !! adjust main x/y; exit cond.
-        exit; -- !!
-        -- !! resetting
-      end loop main_decoding_loop;
+        mbx:= mbx + 1;
+        if mbx >= mbwidth then
+          mbx:= 0;
+          mby:= mby + 1;
+          exit macro_blocks_loop when mby >= mbheight;
+        end if;
+        if rstinterval > 0 then
+          rstcount:= rstcount - 1;
+          if rstcount = 0 then
+            -- Here the restart occurs:
+            ByteAlign;
+            w:= U16(GetBits(16));
+            if some_trace then
+              Ada.Text_IO.Put_Line(
+                "  Restart #" & U16'Image(nextrst) &
+                "  Code " & U16'Image(w) &
+                " after" & U16'Image(rstinterval) & " macro blocks"
+              );
+            end if;
+            if w not in 16#FFD0# .. 16#FFD8# or
+              (w and 7) /= nextrst
+            then
+              Raise_exception(
+                error_in_image_data'Identity,
+                "JPEG: expected RST (restart) marker Nb " &
+                U16'Image(nextrst)
+              );
+            end if;
+            nextrst:= (nextrst + 1) and 7;
+            rstcount:= rstinterval;
+            -- Block-to-block predictor variables are reset.
+            for c in JPEG_Component loop
+              info_B(c).dcpred:= 0;
+            end loop;
+          end if;
+        end if;
+      end loop macro_blocks_loop;
+      if some_trace then
+        Ada.Text_IO.Put_Line("Image decoded");
+      end if;
     end Read_SOS;
 
     --
@@ -372,14 +662,17 @@ package body GID.Decoding_JPG is
     loop
       Read(image, sh);
       case sh.kind is
-        when DQT =>
+        when DQT => -- Quantization Table
           Read_DQT(image, Natural(sh.length));
-        when DHT =>
+        when DHT => -- Huffman Table
           Read_DHT(Natural(sh.length));
-        when EOI =>
+        when DRI => -- Reset Interval
+          Big_endian(image.buffer, rstinterval);
+        when EOI => -- End Of Input
           exit;
-        when SOS =>
+        when SOS => -- Start Of Scan
           Read_SOS;
+          exit;
         when others =>
           -- Skip segment data
           for i in 1..sh.length loop

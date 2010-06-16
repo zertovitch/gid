@@ -545,9 +545,14 @@ package body GID.Decoding_PNG is
                     end loop;
                   end;
                 when 8 =>
-                  -- !! with bpp as generic param, this case can be merged
+                  -- NB: with bpp as generic param, this case could be merged
                   -- into the general 1,2,4[,8] case without loss of performance
-                  -- if the compiler is smart enough. To be tested first...
+                  -- if the compiler is smart enough to simplify the code, given
+                  -- the value of bits_per_pixel.
+                  -- But we let it here for two reasons:
+                  --   1) a compiler might be not smart enough
+                  --   2) it is a very simple case, perhaps helpful for
+                  --      understanding the algorithm.
                   Unfilter_bytes(data(i..i), uf(0..0));
                   i:= i + 1;
                   Out_Pixel_8(uf(0), uf(0), uf(0), 255);
@@ -602,9 +607,8 @@ package body GID.Decoding_PNG is
                     end loop;
                   end;
                 when 8 =>
-                  -- !! with bpp as generic param, this case can be merged
-                  -- into the general 1,2,4[,8] case without loss of performance
-                  -- if the compiler is smart enough. To be tested first...
+                  -- Same remark for this case (8bpp) as
+                  -- within Image Type 0 / Greyscale above
                   Out_Pixel_Palette(uf(0));
                 when others =>
                   null;

@@ -22,12 +22,23 @@ private package GID.Decoding_JPG is
     DHT      , --  Define Huffman Table
     DAC      , --  Define Arithmetic Coding
     DQT      , --  Define Quantization Table
+    DRI      , --  Define Restart Interval
     --
-    APP0     , --  JFIF - JFIF JPEG image - AVI1 - Motion JPEG (MJPG)
-    APP1     , --  EXIF Metadata, TIFF IFD format, JPEG Thumbnail (160x120)
-    APP2     , --  ICC color profile, FlashPix
-    APP13    , --  Photoshop Save As: IRB, 8BIM, IPTC
-    APP14    , --  Copyright Entries
+    APP_0    , --  JFIF - JFIF JPEG image - AVI1 - Motion JPEG (MJPG)
+    APP_1    , --  EXIF Metadata, TIFF IFD format, JPEG Thumbnail (160x120)
+    APP_2    , --  ICC color profile, FlashPix
+    APP_3    ,
+    APP_4    ,
+    APP_5    ,
+    APP_6    ,
+    APP_7    ,
+    APP_8    ,
+    APP_9    ,
+    APP_10   ,
+    APP_11   ,
+    APP_12   , --  Picture Info
+    APP_13   , --  Photoshop Save As: IRB, 8BIM, IPTC
+    APP_14   , --  Copyright Entries
     --
     COM      , --  Comments
     SOS      , --  Start of Scan
