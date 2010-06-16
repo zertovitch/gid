@@ -45,7 +45,8 @@ private package GID.Decoding_JPG is
     EOI        --  End of Image
   );
 
-  YCbCr: constant JPEG_Set_of_Components:= (Y|Cb|Cr => True, others => False);
+  YCbCr_set : constant JPEG_Set_of_Components:= (Y|Cb|Cr => True, others => False);
+  Y_Grey_set: constant JPEG_Set_of_Components:= (Y => True, others => False);
 
   type Segment_head is record
     length : U16;

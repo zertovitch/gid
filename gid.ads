@@ -18,7 +18,8 @@
 --
 -- Credits:
 --
---   - André van Splunter (GIF's LZW decoder)
+--   - André van Splunter: GIF's LZW decoder
+--   - Martin J. Fiedler: most of the JPEG decoder (from NanoJPEG)
 --
 --   More credits in gid_work.xls, sheet "credits".
 --
@@ -188,8 +189,8 @@ private
     (Y,  -- brightness
      Cb, -- hue
      Cr, -- saturation
-     I,
-     Q
+     I,  -- ??
+     Q   -- ??
     );
 
   type JPEG_QT is array(0..63) of Natural;
@@ -206,8 +207,11 @@ private
   type JPEG_component_info_A is
     array(JPEG_Component) of JPEG_info_per_component_A;
 
+  type JPEG_supported_color_space is (YCbCr, Y_Grey);
+
   type JPEG_stuff_type is record
     components  : JPEG_Set_of_Components:= (others => False);
+    color_space : JPEG_supported_color_space;
     info        : JPEG_component_info_A;
     qt_list     : JPEG_QT_list;
   end record;
