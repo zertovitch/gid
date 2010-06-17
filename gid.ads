@@ -6,8 +6,10 @@
 --
 --   The Generic Image Decoder is a package for decoding a broad
 --   variety of image formats, from any data stream, to any kind
---   of recipient (in-memory bitmap, GUI object, some other stream,
---   browser element, device,...). Animations are supported.
+--   of medium, be it an in-memory bitmap, a GUI object,
+--   some other stream, arrays of floating-point initial data
+--   for scitific calculations, a browser element, a device,...
+--   Animations are supported.
 --
 --   The code is unconditionally portable, independent of the
 --   choice of operating system, processor, endianess and compiler.
