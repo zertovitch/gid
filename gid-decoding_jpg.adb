@@ -16,6 +16,8 @@
 -- http://en.wikipedia.org/wiki/JPEG
 
 -- !! profiling with some 2**n (perhaps should use shifts sometimes)
+-- !! color_space, ssx, ssy ,ssxmax, ssymax
+--    as generic parameters + specialized instances
 
 with GID.Buffering;
 
@@ -147,7 +149,6 @@ package body GID.Decoding_JPG is
         Get_Byte(image.buffer, b);
         info.samples_hor:= Natural(b mod 16);
         info.samples_ver:= Natural(b  /  16);
-        -- !! check for power of two (if assumed in algo)
         -- quantization table number
         Get_Byte(image.buffer, b);
         info.qt_assoc:= Natural(b);
@@ -159,6 +160,15 @@ package body GID.Decoding_JPG is
         "JPEG: SOF_0 segment too short"
       );
       --!! SOF_0 only
+    end if;
+    if some_trace then
+      Put_Line("Frame has following components:");
+      for c in JPEG_component loop
+        Put_Line(
+          JPEG_Component'Image(c) & " -> " &
+          Boolean'Image(image.JPEG_stuff.components(c))
+        );
+      end loop;
     end if;
     if image.JPEG_stuff.components = YCbCr_set then
       image.JPEG_stuff.color_space:= YCbCr;
@@ -615,11 +625,12 @@ package body GID.Decoding_JPG is
 
     procedure Upsampling_and_output(
       m: Macro_block;
-      x0, y0: Natural;
-      ssxmax, ssymax: Positive
+      x0, y0: Natural
     )
     is
     pragma Inline(Upsampling_and_output);
+      ssxmax: constant Positive:= m'Last(2);
+      ssymax: constant Positive:= m'Last(3);
       flat: array(
         JPEG_Component,
         0..8*ssxmax-1,
@@ -627,25 +638,31 @@ package body GID.Decoding_JPG is
       ) of Integer;
       blk_idx: Integer;
       val: Integer;
-      ux, uy: Positive;
+      ssx, ssy, upsx, upsy: Positive;
     begin
       -- Step 4 happens here: Upsampling
       for c in JPEG_Component loop
         if image.JPEG_stuff.components(c) then
-          ux:= info_A(c).samples_hor;
-          uy:= info_A(c).samples_ver;
-          for x in m'Range(2) loop
-            for y in m'Range(3) loop
+          ssx:= info_A(c).samples_hor;
+          ssy:= info_A(c).samples_ver;
+          upsx:= ssxmax/ssx;
+          upsy:= ssymax/ssy;
+          for x in 1..ssx loop
+            for y in 1..ssy loop
               -- We are at the 8x8 block level
               blk_idx:= 0;
               for y8 in 0..7 loop
                 for x8 in 0..7 loop
                   val:= m(c,x,y)(blk_idx);
-                  -- Repeat pixels
-                  for rx in reverse 0..ux-1 loop
-                    for ry in reverse 0..uy-1 loop
-                    --!!rx, ry, ux, uy
-                      flat(c, x8 + 8*(x-1), y8 + 8*(y-1)):= val;
+                  -- Repeat pixels for component c, sample (x,y),
+                  -- position (x8,y8).
+                  for rx in reverse 0..upsx-1 loop
+                    for ry in reverse 0..upsy-1 loop
+                      flat(
+                        c,
+                        rx + upsx * (x8 + 8*(x-1)),
+                        ry + upsy * (y8 + 8*(y-1))
+                      ):= val;
                     end loop;
                   end loop;
                   blk_idx:= blk_idx + 1;
@@ -656,13 +673,13 @@ package body GID.Decoding_JPG is
         end if;
       end loop;
       -- Step 5 and 6 happen here: Color transformation and output
-      case image.JPEG_stuff.color_space is
-        when YCbCR =>
-          for ymb in flat'Range(3) loop
-            exit when y0+ymb >= image.height;
-            Set_X_Y(x0, image.height-1-(y0+ymb));
-            for xmb in flat'Range(2) loop
-              exit when x0+xmb >= image.width;
+      for ymb in flat'Range(3) loop
+        exit when y0+ymb >= image.height;
+        Set_X_Y(x0, image.height-1-(y0+ymb));
+        for xmb in flat'Range(2) loop
+          exit when x0+xmb >= image.width;
+          case image.JPEG_stuff.color_space is
+            when YCbCR =>
               declare
                 y_val, cb_val, cr_val: Integer;
               begin
@@ -675,12 +692,16 @@ package body GID.Decoding_JPG is
                   bb => U8(Clip((y_val + 454 * cb_val                + 128) / 256))
                 );
               end;
-            end loop;
-          end loop;
-        when Y_Grey =>
-          null;--!!
-      end case;
-    end;
+            when Y_Grey =>
+              declare
+                y_val: constant U8:= U8(flat(Y,  xmb, ymb));
+              begin
+                Out_pixel_8(y_val, y_val, y_val);
+              end;
+          end case;
+        end loop;
+      end loop;
+    end Upsampling_and_output;
 
     -- Start Of Scan (and image data which follow)
     --
@@ -780,18 +801,18 @@ package body GID.Decoding_JPG is
         components_loop:
         for c in JPEG_Component loop
           if image.JPEG_stuff.components(c) then
-            samples_x_loop:
-            for sbx in 1..image.JPEG_stuff.info(c).samples_hor loop
-              samples_y_loop:
-              for sby in 1..image.JPEG_stuff.info(c).samples_ver loop
+            samples_y_loop:
+            for sby in 1..info_A(c).samples_ver loop
+              samples_x_loop:
+              for sbx in 1..info_A(c).samples_hor loop
                 Decode_Block(c, mb(c, sbx, sby));
-              end loop samples_y_loop;
-            end loop samples_x_loop;
+              end loop samples_x_loop;
+            end loop samples_y_loop;
           end if;
         end loop components_loop;
         -- All components of the current macro-block are decoded.
         -- Step 4, 5, 6 happen here: Upsampling, color transformation, output
-        Upsampling_and_output(mb, x0, y0, ssxmax, ssymax);
+        Upsampling_and_output(mb, x0, y0);
         --
         mbx:= mbx + 1;
         x0:= x0 + ssxmax * 8;
@@ -844,15 +865,6 @@ package body GID.Decoding_JPG is
     sh: Segment_head;
     b: U8;
   begin -- Load
-    if some_trace then
-      Put_Line("Frame has following components:");
-      for c in JPEG_component loop
-        Put_Line(
-          JPEG_Component'Image(c) & " -> " &
-          Boolean'Image(image.JPEG_stuff.components(c))
-        );
-      end loop;
-    end if;
     loop
       Read(image, sh);
       case sh.kind is

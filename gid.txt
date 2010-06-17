@@ -15,7 +15,15 @@ Some features:
 - Task safe
 - Endian-neutral
 - Free, open-source
-- pure Ada 95 (compiles on Ada 95, Ada 2005, and later compilers)
+- pure Ada 95 (compiled by Ada 95, Ada 2005, and later compilers)
+
+Some possible applications:
+- a drawing program
+- non-interactive image processing
+- a web browser
+- use of images as data for simulations
+- image analysis, text recognition
+- thumbnail generation for a file manager
 
 Through the genericity and the use of the Inline pragma at multiple
 nesting levels (see it like macros inside macros), the package is
