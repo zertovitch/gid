@@ -5,7 +5,7 @@ The Generic Image Decoder (GID) is an Ada package for decoding a
 broad variety of image formats, from any data stream, to any kind
 of medium, be it an in-memory bitmap, a GUI object,
 some other stream, arrays of floating-point initial data
-for scitific calculations, a browser element, a device,...
+for scientific calculations, a browser element, a device,...
 Animations are supported.
 
 Some features:
@@ -15,8 +15,9 @@ Some features:
 - Task safe
 - Endian-neutral
 - Free, open-source
+- pure Ada 95 (compiles on Ada 95, Ada 2005, and later compilers)
 
-Through genericity and use of the Inline pragma at multiple
+Through the genericity and the use of the Inline pragma at multiple
 nesting levels (see it like macros inside macros), the package is
 able to deliver a decent decoding performance with a reasonably
 compact and readable source code and without tediously copied
@@ -58,11 +59,11 @@ Load_image_contents is generic. You provide the following:
 
 This generic construction allows you a total freedom on where and
 how to use GID in your programs. In addition, your Set_X_Y and
-Put_Pixel procedures are inserted (not called) right in the heart
-of the decoding procedures, for each image format, which should
-deliver a decent performance as soon as you set the right compiler
-options (optimization, inlined or macro-expanded generics, suppress
-all checks).
+Put_Pixel procedures are inserted and comple-time, not called,
+right in the heart of the decoding procedures, for each image format,
+which should deliver a decent performance as soon as you set the right
+compiler options (optimization, inlined or macro-expanded generics,
+suppression of all checks, loop unrolling).
      
 Note on the construction of GID.
 --------------------------------

@@ -101,7 +101,7 @@ package body GID is
       new Decoding_GIF.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback, mode );
 
     procedure JPG_Load is
-      new Decoding_JPG.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback, mode );
+      new Decoding_JPG.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
 
     procedure PNG_Load is
       new Decoding_PNG.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );

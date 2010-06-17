@@ -613,28 +613,41 @@ package body GID.Decoding_JPG is
         end case;
       end Out_Pixel_8;
 
-
-    procedure Upsampling_and_output(m: Macro_block; x0, y0: Natural) is
+    procedure Upsampling_and_output(
+      m: Macro_block;
+      x0, y0: Natural;
+      ssxmax, ssymax: Positive
+    )
+    is
+    pragma Inline(Upsampling_and_output);
       flat: array(
         JPEG_Component,
-        0..8*m'Last(2)-1,
-        0..8*m'Last(3)-1
+        0..8*ssxmax-1,
+        0..8*ssymax-1
       ) of Integer;
       blk_idx: Integer;
       val: Integer;
+      ux, uy: Positive;
     begin
       -- Step 4 happens here: Upsampling
       for c in JPEG_Component loop
         if image.JPEG_stuff.components(c) then
+          ux:= info_A(c).samples_hor;
+          uy:= info_A(c).samples_ver;
           for x in m'Range(2) loop
             for y in m'Range(3) loop
-              -- We are a the 8x8 block level
+              -- We are at the 8x8 block level
               blk_idx:= 0;
-              for x8 in 0..7 loop
-                for y8 in 0..7 loop
+              for y8 in 0..7 loop
+                for x8 in 0..7 loop
                   val:= m(c,x,y)(blk_idx);
-                  -- !! upsampling !!
-                  flat(c, x8 + 8*(x-1), y8 + 8*(y-1)):= val;
+                  -- Repeat pixels
+                  for rx in reverse 0..ux-1 loop
+                    for ry in reverse 0..uy-1 loop
+                    --!!rx, ry, ux, uy
+                      flat(c, x8 + 8*(x-1), y8 + 8*(y-1)):= val;
+                    end loop;
+                  end loop;
                   blk_idx:= blk_idx + 1;
                 end loop;
               end loop;
@@ -645,10 +658,11 @@ package body GID.Decoding_JPG is
       -- Step 5 and 6 happen here: Color transformation and output
       case image.JPEG_stuff.color_space is
         when YCbCR =>
-          -- !! clip off-margin when width or height not multiple of 8
           for ymb in flat'Range(3) loop
+            exit when y0+ymb >= image.height;
             Set_X_Y(x0, image.height-1-(y0+ymb));
             for xmb in flat'Range(2) loop
+              exit when x0+xmb >= image.width;
               declare
                 y_val, cb_val, cr_val: Integer;
               begin
@@ -666,8 +680,6 @@ package body GID.Decoding_JPG is
         when Y_Grey =>
           null;--!!
       end case;
-      -- Step 6 happens here: Output
-      null; --!!
     end;
 
     -- Start Of Scan (and image data which follow)
@@ -779,7 +791,7 @@ package body GID.Decoding_JPG is
         end loop components_loop;
         -- All components of the current macro-block are decoded.
         -- Step 4, 5, 6 happen here: Upsampling, color transformation, output
-        Upsampling_and_output(mb, x0, y0);
+        Upsampling_and_output(mb, x0, y0, ssxmax, ssymax);
         --
         mbx:= mbx + 1;
         x0:= x0 + ssxmax * 8;
@@ -788,6 +800,7 @@ package body GID.Decoding_JPG is
           x0:= 0;
           mby:= mby + 1;
           y0:= y0 + ssymax * 8;
+          Feedback((100*mby)/mbheight);
           exit macro_blocks_loop when mby >= mbheight;
         end if;
         if rstinterval > 0 then

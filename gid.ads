@@ -8,7 +8,7 @@
 --   variety of image formats, from any data stream, to any kind
 --   of medium, be it an in-memory bitmap, a GUI object,
 --   some other stream, arrays of floating-point initial data
---   for scitific calculations, a browser element, a device,...
+--   for scientific calculations, a browser element, a device,...
 --   Animations are supported.
 --
 --   The code is unconditionally portable, independent of the

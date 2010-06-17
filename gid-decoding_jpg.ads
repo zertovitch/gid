@@ -74,7 +74,7 @@ private package GID.Decoding_JPG is
     );
       pragma Inline(Put_Pixel);
     with procedure Feedback (percents: Natural);
-    mode: Display_mode;
+    -- mode: Display_mode; -- !! nice -> progressive
   --
   procedure Load (
     image     : in out Image_descriptor;
