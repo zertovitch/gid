@@ -7,6 +7,7 @@
 with GID;
 
 with Ada.Calendar;
+with Ada.Characters.Handling;           use Ada.Characters.Handling;
 with Ada.Command_Line;                  use Ada.Command_Line;
 with Ada.Streams.Stream_IO;             use Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;             use Ada.Strings.Unbounded;
@@ -359,6 +360,7 @@ procedure To_BMP is
   procedure Process(name: String; as_background, test_only: Boolean) is
     f: Ada.Streams.Stream_IO.File_Type;
     i: GID.Image_descriptor;
+    up_name: constant String:= To_Upper(name);
     --
     next_frame, current_frame: Ada.Calendar.Day_Duration:= 0.0;
   begin
@@ -368,7 +370,13 @@ procedure To_BMP is
     Open(f, In_File, name);
     Put_Line(Standard_Error, "Processing " & name & "...");
     --
-    GID.Load_image_header(i, Stream(f).all, try_tga => True);
+    GID.Load_image_header(
+      i,
+      Stream(f).all,
+      try_tga =>
+        name'Length >= 4 and then
+        up_name(up_name'Last-3..up_name'Last) = ".TGA"
+    );
     Put_Line(Standard_Error,
       "  Image format: " & GID.Image_format_type'Image(GID.Format(i))
     );

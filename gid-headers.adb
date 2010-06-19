@@ -552,7 +552,7 @@ package body GID.Headers is
       when others =>
         Raise_exception(
           unsupported_image_subformat'Identity,
-          "Bits per pixels =" & Integer'Image(image.bits_per_pixel)
+          "TGA bits per pixels =" & Integer'Image(image.bits_per_pixel)
         );
     end case;
     image.flag_1:= (tga_image_descriptor and 32) /= 0; -- top first
