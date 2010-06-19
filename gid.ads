@@ -198,7 +198,7 @@ private
   type JPEG_QT is array(0..63) of Natural;
   type JPEG_QT_list is array(0..7) of JPEG_QT;
 
-  type JPEG_Set_of_Components is array(JPEG_Component) of Boolean;
+  type JPEG_compo_set is array(JPEG_Component) of Boolean;
 
   type JPEG_info_per_component_A is record -- B is defined inside the decoder
     qt_assoc    : Natural;
@@ -209,10 +209,14 @@ private
   type JPEG_component_info_A is
     array(JPEG_Component) of JPEG_info_per_component_A;
 
-  type JPEG_supported_color_space is (YCbCr, Y_Grey);
+  type JPEG_supported_color_space is (
+    YCbCr,  -- 3-dim color space
+    Y_Grey, -- 1-dim greyscale
+    CMYK    -- 4-dim Cyan, Magenta, Yellow, blacK
+  );
 
   type JPEG_stuff_type is record
-    components  : JPEG_Set_of_Components:= (others => False);
+    components  : JPEG_compo_set:= (others => False);
     color_space : JPEG_supported_color_space;
     info        : JPEG_component_info_A;
     qt_list     : JPEG_QT_list;

@@ -45,8 +45,9 @@ private package GID.Decoding_JPG is
     EOI        --  End of Image
   );
 
-  YCbCr_set : constant JPEG_Set_of_Components:= (Y|Cb|Cr => True, others => False);
-  Y_Grey_set: constant JPEG_Set_of_Components:= (Y => True, others => False);
+  YCbCr_set : constant JPEG_compo_set:= (Y|Cb|Cr => True, others => False);
+  Y_Grey_set: constant JPEG_compo_set:= (Y => True, others => False);
+  CMYK_set  : constant JPEG_compo_set:= (Y|Cb|Cr|I => True, others => False);
 
   type Segment_head is record
     length : U16;
@@ -74,7 +75,7 @@ private package GID.Decoding_JPG is
     );
       pragma Inline(Put_Pixel);
     with procedure Feedback (percents: Natural);
-    -- mode: Display_mode; -- !! nice -> progressive
+    -- mode: Display_mode; -- nice -> progressive nicely displayed
   --
   procedure Load (
     image     : in out Image_descriptor;

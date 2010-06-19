@@ -125,7 +125,7 @@ package body GID is
       when TGA =>
         TGA_Load(image);
       when others =>
-        raise known_but_unsupported_image_format; -- !!
+        raise known_but_unsupported_image_format;
     end case;
   end Load_image_contents;
 

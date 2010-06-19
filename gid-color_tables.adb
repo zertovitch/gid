@@ -1,5 +1,7 @@
 with GID.Buffering;
 
+with Ada.Exceptions;
+
 package body GID.Color_tables is
 
   procedure Convert(c, d: in U8; rgb: out RGB_Color) is
@@ -56,7 +58,11 @@ package body GID.Color_tables is
                 null;
             end case;
           when others =>
-            null; -- !!
+            Ada.Exceptions.Raise_exception(
+              unsupported_image_subformat'Identity,
+              "Palette loading not implemented for " &
+              Image_format_type'Image(image.format)
+            );
         end case;
       end loop;
     end;

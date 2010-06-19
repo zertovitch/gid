@@ -115,6 +115,9 @@ package body GID.Decoding_JPG is
     case sh.kind is
       when SOF_0 =>
         image.detailed_format:= To_Bounded_String("JPEG, Baseline DCT (SOF_0)");
+      when SOF_2 =>
+        image.detailed_format:= To_Bounded_String("JPEG, Progressive DCT (SOF_2)");
+        image.interlaced:= True;
       when others =>
         Raise_exception(
           unsupported_image_subformat'Identity,
@@ -147,8 +150,8 @@ package body GID.Decoding_JPG is
       begin
         -- sampling factors (bit 0-3 vert., 4-7 hor.)
         Get_Byte(image.buffer, b);
-        info.samples_hor:= Natural(b mod 16);
-        info.samples_ver:= Natural(b  /  16);
+        info.samples_ver:= Natural(b mod 16);
+        info.samples_hor:= Natural(b  /  16);
         -- quantization table number
         Get_Byte(image.buffer, b);
         info.qt_assoc:= Natural(b);
@@ -157,9 +160,8 @@ package body GID.Decoding_JPG is
     if Natural(sh.length) < 6 + 3 * image.subformat_id then
       Raise_exception(
         error_in_image_data'Identity,
-        "JPEG: SOF_0 segment too short"
+        "JPEG: SOF segment too short"
       );
-      --!! SOF_0 only
     end if;
     if some_trace then
       Put_Line("Frame has following components:");
@@ -174,10 +176,24 @@ package body GID.Decoding_JPG is
       image.JPEG_stuff.color_space:= YCbCr;
     elsif image.JPEG_stuff.components = Y_Grey_set then
       image.JPEG_stuff.color_space:= Y_Grey;
+    elsif image.JPEG_stuff.components = CMYK_set then
+      image.JPEG_stuff.color_space:= CMYK;
     else
       Raise_exception(
         unsupported_image_subformat'Identity,
-        "JPEG: only YCbCr and Y_Grey color spaces are currently supported"
+        "JPEG: only YCbCr, Y_Grey and CMYK color spaces are currently supported"
+      );
+    end if;
+    if some_trace then
+      Put_Line(
+        "Color space: " &
+        JPEG_supported_color_space'Image(image.JPEG_stuff.color_space)
+      );
+    end if;
+    if image.JPEG_stuff.color_space= CMYK then
+      Raise_exception(
+        unsupported_image_subformat'Identity,
+        "JPEG: CMYK color space is currently not properly decoded"
       );
     end if;
   end Read_SOF;
@@ -698,6 +714,23 @@ package body GID.Decoding_JPG is
               begin
                 Out_pixel_8(y_val, y_val, y_val);
               end;
+            when CMYK =>
+              declare
+                c_val, m_val, y_val, w_val: Integer;
+              begin
+                -- !! find a working conversion formula
+                --    perhaps it is more complicated (APP_2
+                --    color profile must be used ?)
+                c_val:= flat(Y,  xmb, ymb);
+                m_val:= flat(Cb, xmb, ymb);
+                y_val:= flat(Cr, xmb, ymb);
+                w_val:= flat(I,  xmb, ymb)-255;
+                Out_pixel_8(
+                  br => U8(255-Clip(c_val+w_val)),
+                  bg => U8(255-Clip(m_val+w_val)),
+                  bb => U8(255-Clip(y_val+w_val))
+                );
+              end;
           end case;
         end loop;
       end loop;
@@ -714,6 +747,9 @@ package body GID.Decoding_JPG is
       rstcount: U16:= rstinterval;
       nextrst: U16:= 0;
       w: U16;
+      start_spectral_selection,
+      end_spectral_selection,
+      successive_approximation: U8;
     begin
       Get_Byte(image.buffer, components);
       if some_trace then
@@ -745,11 +781,13 @@ package body GID.Decoding_JPG is
         ssxmax:= Integer'Max(ssxmax, info_A(compo).samples_hor);
         ssymax:= Integer'Max(ssymax, info_A(compo).samples_ver);
       end loop;
-      -- 3 bytes stuffing
-      Get_Byte(image.buffer, b);
-      Get_Byte(image.buffer, b);
-      Get_Byte(image.buffer, b);
+      -- Parameters for progressive display format (SOF_2)
+      Get_Byte(image.buffer, start_spectral_selection);
+      Get_Byte(image.buffer, end_spectral_selection);
+      Get_Byte(image.buffer, successive_approximation);
+      --
       -- End of SOS segment, image data follow.
+      --
       mbsizex:= ssxmax * 8; -- pixels in a row of a macro-block
       mbsizey:= ssymax * 8; -- pixels in a column of a macro-block
       mbwidth := (image.width + mbsizex - 1) / mbsizex;
@@ -792,6 +830,12 @@ package body GID.Decoding_JPG is
         end if;
       end loop;
       --
+      if image.interlaced then
+        Raise_exception(
+          unsupported_image_subformat'Identity,
+          "JPEG: progressive format not yet functional"
+        );
+      end if;
       declare
         mb: Macro_block(JPEG_Component, 1..ssxmax, 1..ssymax);
         x0, y0: Integer:= 0;

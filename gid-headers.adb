@@ -13,8 +13,6 @@ with GID.Buffering,
 
 with Ada.Exceptions, Ada.Unchecked_Deallocation;
 
---!!with ada.Text_IO;
-
 package body GID.Headers is
 
   use Ada.Exceptions;
@@ -151,7 +149,6 @@ package body GID.Headers is
 
   procedure Read_Intel is new Read_Intel_x86_number( U16 );
   procedure Read_Intel is new Read_Intel_x86_number( U32 );
-  procedure Big_endian is new Big_endian_number( U16 );
   procedure Big_endian is new Big_endian_number( U32 );
 
   ----------------------------------------------------------
@@ -228,7 +225,7 @@ package body GID.Headers is
 
   procedure Load_FITS_header (image: in out Image_descriptor) is
   begin
-    raise known_but_unsupported_image_format; -- !!
+    raise known_but_unsupported_image_format;
   end Load_FITS_header;
 
   ----------------
@@ -293,7 +290,7 @@ package body GID.Headers is
           Read_DQT(image, Natural(sh.length));
         when SOF_0 .. SOF_15 =>
           Read_SOF(image, sh);
-          exit; -- we've got header-style informations, then time to quit
+          exit; -- we've got header-style informations, then it's time to quit
         when others =>
           -- Skip segment data
           for i in 1..sh.length loop
@@ -570,7 +567,7 @@ package body GID.Headers is
 
   procedure Load_TIFF_header (image: in out Image_descriptor) is
   begin
-    raise known_but_unsupported_image_format; -- !!
+    raise known_but_unsupported_image_format;
   end Load_TIFF_header;
 
 end;
