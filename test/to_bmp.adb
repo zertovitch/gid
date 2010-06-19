@@ -56,7 +56,7 @@ procedure To_BMP is
   img_buf, bkg_buf: p_Byte_Array:= null;
   bkg: GID.Image_Descriptor;
 
-  -- Load image into a 24-bit truecolor raw bitmap
+  -- Load image into a 24-bit truecolor RGB raw bitmap (for a BMP output)
   procedure Load_raw_image(
     image : in out GID.Image_descriptor;
     buffer: in out p_Byte_Array;
@@ -66,7 +66,6 @@ procedure To_BMP is
     subtype Primary_color_range is Unsigned_8;
     subtype U16 is Unsigned_16;
     image_width: constant Positive:= GID.Pixel_Width(image);
-    -- y_cache: array(0..GID.Pixel_Height(image)-1) of Integer;
     padded_line_size: constant Positive:=
       4 * Integer(Float'Ceiling(Float(image_width) * 3.0 / 4.0));
     -- (in bytes)
@@ -82,9 +81,25 @@ procedure To_BMP is
       mem_x:= x;
       mem_y:= y;
     end Set_X_Y;
-
     --
-    -- Unicolor background version
+    -- No background version of Put_Pixel
+    --
+    procedure Put_Pixel_without_bkg (
+      red, green, blue : Primary_color_range;
+      alpha            : Primary_color_range
+    )
+    is
+    pragma Inline(Put_Pixel_without_bkg);
+    pragma Warnings(off, alpha); -- alpha is just ignored
+    begin
+      buffer(idx)  := blue;
+      buffer(idx+1):= green;
+      buffer(idx+2):= red;
+      idx:= idx + 3;
+      -- ^ GID requires us to look to next pixel on the right for next time.
+    end Put_Pixel_without_bkg;
+    --
+    -- Unicolor background version of Put_Pixel
     --
     procedure Put_Pixel_with_unicolor_bkg (
       red, green, blue : Primary_color_range;
@@ -100,17 +115,16 @@ procedure To_BMP is
         buffer(idx)  := blue;
         buffer(idx+1):= green;
         buffer(idx+2):= red;
-      else
+      else -- blend with bckground color
         buffer(idx)  := Primary_color_range((U16(alpha) * U16(blue)  + U16(255-alpha) * u_blue )/255);
         buffer(idx+1):= Primary_color_range((U16(alpha) * U16(green) + U16(255-alpha) * u_green)/255);
         buffer(idx+2):= Primary_color_range((U16(alpha) * U16(red)   + U16(255-alpha) * u_red  )/255);
       end if;
       idx:= idx + 3;
-      -- ^ GID requires us to look to next pixel of the right for next time.
+      -- ^ GID requires us to look to next pixel on the right for next time.
     end Put_Pixel_with_unicolor_bkg;
-
     --
-    -- Background image version
+    -- Background image version of Put_Pixel
     --
     procedure Put_Pixel_with_image_bkg (
       red, green, blue : Primary_color_range;
@@ -127,7 +141,7 @@ procedure To_BMP is
         buffer(idx)  := blue;
         buffer(idx+1):= green;
         buffer(idx+2):= red;
-      else
+      else -- blend with background image
         bkg_idx:= 3 * (mem_x mod bkg_width) + bkg_padded_line_size * (mem_y mod bkg_height);
         b_blue := bkg_buf(bkg_idx);
         b_green:= bkg_buf(bkg_idx+1);
@@ -137,7 +151,7 @@ procedure To_BMP is
         buffer(idx+2):= Primary_color_range((U16(alpha) * U16(red)   + U16(255-alpha) * U16(b_red)  )/255);
       end if;
       idx:= idx + 3;
-      -- ^ GID requires us to look to next pixel of the right for next time.
+      -- ^ GID requires us to look to next pixel on the right for next time.
       mem_x:= mem_x + 1;
     end Put_Pixel_with_image_bkg;
 
@@ -156,7 +170,21 @@ procedure To_BMP is
     -- into a 24-bit bitmap (because we provide a Put_Pixel
     -- that does that with the pixels), but we could do plenty
     -- of other things instead, like display the image live on a GUI.
-    --
+
+    -- More exciting: for tuning performance, we have 3 different
+    -- instances of GID.Load_image_contents (each of them with the full
+    -- decoders for all formats, own specialized generic instances, inlines,
+    -- etc.) depending on the transparency features.
+
+    procedure BMP24_Load_without_bkg is
+      new GID.Load_image_contents(
+        Primary_color_range,
+        Set_X_Y,
+        Put_Pixel_without_bkg,
+        Feedback,
+        GID.fast
+      );
+
     procedure BMP24_Load_with_unicolor_bkg is
       new GID.Load_image_contents(
         Primary_color_range,
@@ -179,20 +207,20 @@ procedure To_BMP is
     error:= False;
     Dispose(buffer);
     buffer:= new Byte_Array(0..padded_line_size * GID.Pixel_height(image) - 1);
-    --  for y in y_cache'Range loop
-    --    y_cache(y):= padded_line_size * y;
-    --  end loop;
-
-    if background_image_name = Null_Unbounded_String then
-      BMP24_Load_with_unicolor_bkg(image, next_frame);
+    if GID.Expect_transparency(image) then
+      if background_image_name = Null_Unbounded_String then
+        BMP24_Load_with_unicolor_bkg(image, next_frame);
+      else
+        bkg_width:= GID.Pixel_width(bkg);
+        bkg_height:= GID.Pixel_height(bkg);
+        bkg_padded_line_size:=
+          4 * Integer(Float'Ceiling(Float(bkg_width) * 3.0 / 4.0));
+        BMP24_Load_with_image_bkg(image, next_frame);
+      end if;
     else
-      bkg_width:= GID.Pixel_width(bkg);
-      bkg_height:= GID.Pixel_height(bkg);
-      bkg_padded_line_size:=
-        4 * Integer(Float'Ceiling(Float(bkg_width) * 3.0 / 4.0));
-      BMP24_Load_with_image_bkg(image, next_frame);
+      BMP24_Load_without_bkg(image, next_frame);
     end if;
-    --  -- Test: white rectangle with a red half-frame.
+    --  -- For testing: white rectangle with a red half-frame.
     --  buffer.all:= (others => 255);
     --  for x in 0..GID.Pixel_width(image)-1 loop
     --    Put_Pixel_with_unicolor_bkg(x,0,255,0,0,255);
@@ -378,6 +406,9 @@ procedure To_BMP is
     );
     Put_Line(Standard_Error,
       "  Interlaced (GIF: each frame's choice): " & Boolean'Image(GID.Interlaced(i))
+    );
+    Put_Line(Standard_Error,
+      "  Expect transparency: " & Boolean'Image(GID.Expect_transparency(i))
     );
     Put_Line(Standard_Error, "1........10........20");
     Put_Line(Standard_Error, "         |         | ");

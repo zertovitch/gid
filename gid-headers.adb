@@ -242,6 +242,7 @@ package body GID.Headers is
     Read_Intel(image.stream, screen_height);
     image.width:= Natural(screen_width);
     image.height:= Natural(screen_height);
+    image.transparency:= True; -- cannot exclude transparency at this level.
     U8'Read(image.stream, packed);
     --  Global Color Table Flag       1 Bit
     --  Color Resolution              3 Bits

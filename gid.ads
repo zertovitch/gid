@@ -145,13 +145,14 @@ package GID is
   function Interlaced (image: Image_descriptor) return Boolean;
   function Greyscale (image: Image_descriptor) return Boolean;
   function Has_palette (image: Image_descriptor) return Boolean;
+  function Expect_transparency (image: Image_descriptor) return Boolean;
 
   --------------------------------------------------------------
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
 
-  version   : constant String:= "00.4";
-  reference : constant String:= "09-Jun-2010";
+  version   : constant String:= "00.5";
+  reference : constant String:= "19-Jun-2010";
   web: constant String:= "http://sf.net/projects/gen-img-dec/";
   -- hopefully the latest version is at that URL...
 
@@ -259,7 +260,7 @@ private
     full  -- Byte / pixel / compressed block details
   );
 
-  trace: constant Trace_type:= full; -- <== Choice here
+  trace: constant Trace_type:= none; -- <== Choice here
 
   no_trace  : constant Boolean:= trace=none;
   full_trace: constant Boolean:= trace=full;

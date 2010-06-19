@@ -173,6 +173,11 @@ package body GID is
     return image.palette /= null;
   end Has_palette;
 
+  function Expect_transparency (image: Image_descriptor) return Boolean is
+  begin
+    return image.transparency;
+  end Expect_transparency;
+
   procedure Adjust (Object : in out Image_descriptor) is
   begin
     -- Clone the palette

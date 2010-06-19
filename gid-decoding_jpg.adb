@@ -184,6 +184,8 @@ package body GID.Decoding_JPG is
         "JPEG: only YCbCr, Y_Grey and CMYK color spaces are currently supported"
       );
     end if;
+    image.detailed_format:= image.detailed_format & ", " &
+      JPEG_supported_color_space'Image(image.JPEG_stuff.color_space);
     if some_trace then
       Put_Line(
         "Color space: " &
@@ -655,6 +657,8 @@ package body GID.Decoding_JPG is
       blk_idx: Integer;
       val: Integer;
       ssx, ssy, upsx, upsy: Positive;
+      y_val, cb_val, cr_val, c_val, m_val, w_val: Integer;
+      y_val_8: U8;
     begin
       -- Step 4 happens here: Upsampling
       for c in JPEG_Component loop
@@ -696,41 +700,30 @@ package body GID.Decoding_JPG is
           exit when x0+xmb >= image.width;
           case image.JPEG_stuff.color_space is
             when YCbCR =>
-              declare
-                y_val, cb_val, cr_val: Integer;
-              begin
-                y_val := flat(Y,  xmb, ymb) * 256;
-                cb_val:= flat(Cb, xmb, ymb) - 128;
-                cr_val:= flat(Cr, xmb, ymb) - 128;
-                Out_pixel_8(
-                  br => U8(Clip((y_val                + 359 * cr_val + 128) / 256)),
-                  bg => U8(Clip((y_val -  88 * cb_val - 183 * cr_val + 128) / 256)),
-                  bb => U8(Clip((y_val + 454 * cb_val                + 128) / 256))
-                );
-              end;
+              y_val := flat(Y,  xmb, ymb) * 256;
+              cb_val:= flat(Cb, xmb, ymb) - 128;
+              cr_val:= flat(Cr, xmb, ymb) - 128;
+              Out_pixel_8(
+                br => U8(Clip((y_val                + 359 * cr_val + 128) / 256)),
+                bg => U8(Clip((y_val -  88 * cb_val - 183 * cr_val + 128) / 256)),
+                bb => U8(Clip((y_val + 454 * cb_val                + 128) / 256))
+              );
             when Y_Grey =>
-              declare
-                y_val: constant U8:= U8(flat(Y,  xmb, ymb));
-              begin
-                Out_pixel_8(y_val, y_val, y_val);
-              end;
+              y_val_8:= U8(flat(Y,  xmb, ymb));
+              Out_pixel_8(y_val_8, y_val_8, y_val_8);
             when CMYK =>
-              declare
-                c_val, m_val, y_val, w_val: Integer;
-              begin
-                -- !! find a working conversion formula
-                --    perhaps it is more complicated (APP_2
-                --    color profile must be used ?)
-                c_val:= flat(Y,  xmb, ymb);
-                m_val:= flat(Cb, xmb, ymb);
-                y_val:= flat(Cr, xmb, ymb);
-                w_val:= flat(I,  xmb, ymb)-255;
-                Out_pixel_8(
-                  br => U8(255-Clip(c_val+w_val)),
-                  bg => U8(255-Clip(m_val+w_val)),
-                  bb => U8(255-Clip(y_val+w_val))
-                );
-              end;
+              -- !! find a working conversion formula.
+              --    perhaps it is more complicated (APP_2
+              --    color profile must be used ?)
+              c_val:= flat(Y,  xmb, ymb);
+              m_val:= flat(Cb, xmb, ymb);
+              y_val:= flat(Cr, xmb, ymb);
+              w_val:= flat(I,  xmb, ymb)-255;
+              Out_pixel_8(
+                br => U8(255-Clip(c_val+w_val)),
+                bg => U8(255-Clip(m_val+w_val)),
+                bb => U8(255-Clip(y_val+w_val))
+              );
           end case;
         end loop;
       end loop;
