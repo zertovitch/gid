@@ -154,12 +154,21 @@ package body GID.Decoding_PNG is
 
   procedure Load (image: in out Image_descriptor) is
 
-    -- !! these local constants can be made generic parameters
-    --    in order to have compile-time evaluations - should
-    --    be a lot faster :-)
-    bits_per_pixel: constant Positive:= image.bits_per_pixel;
-    subformat_id  : constant Natural := image.subformat_id;
-    interlaced    : constant Boolean := image.interlaced;
+  ----------------------
+  -- Load_specialized --
+  ----------------------
+
+  generic
+    -- These values are invariant through the whole picture,
+    -- so we can make them generic parameters. As a result, all
+    -- "if", "case", etc. using them at the center of the decoding
+    -- are optimized out at compile-time.
+    interlaced    : Boolean;
+    bits_per_pixel: Positive;
+    subformat_id  : Natural;
+  procedure Load_specialized;
+  --
+  procedure Load_specialized is
 
     use GID.Buffering;
 
@@ -1428,6 +1437,99 @@ package body GID.Decoding_PNG is
       end loop;
     end if;
     Feedback(100);
+  end Load_specialized;
+
+  -- Instances of Load_specialized, with hard-coded parameters.
+  -- They may take an insane amount of time to compile, and bloat the
+  -- .o code , but are significantly faster since they make the
+  -- compiler skip corresponding tests at pixel level.
+  -- These instances are for most current PNG sub-formats.
+
+  procedure Load_interlaced_1pal is new Load_specialized(True, 1, 3);
+  procedure Load_interlaced_2pal is new Load_specialized(True, 2, 3);
+  procedure Load_interlaced_4pal is new Load_specialized(True, 4, 3);
+  procedure Load_interlaced_8pal is new Load_specialized(True, 8, 3);
+  procedure Load_interlaced_24   is new Load_specialized(True, 24, 2);
+  procedure Load_interlaced_32   is new Load_specialized(True, 32, 6);
+  --
+  procedure Load_straight_1pal is new Load_specialized(False, 1, 3);
+  procedure Load_straight_2pal is new Load_specialized(False, 2, 3);
+  procedure Load_straight_4pal is new Load_specialized(False, 4, 3);
+  procedure Load_straight_8pal is new Load_specialized(False, 8, 3);
+  procedure Load_straight_24   is new Load_specialized(False, 24, 2);
+  procedure Load_straight_32   is new Load_specialized(False, 32, 6);
+  --
+  -- For unusual sub-formats, we prefer to fall back to the
+  -- slightly slower, general version, where parameters values
+  -- are not known at compile-time:
+  --
+  procedure Load_general is new
+    Load_specialized(
+      interlaced     => image.interlaced,
+      bits_per_pixel => image.bits_per_pixel,
+      subformat_id   => image.subformat_id
+    );
+
+  begin -- Load
+    --
+    -- All these case tests are better done at the picture
+    -- level than at the pixel level.
+    --
+    case image.subformat_id is
+      when 2 => -- RGB
+        case image.bits_per_pixel is
+          when 24 =>
+            if image.interlaced then
+              Load_interlaced_24;
+            else
+              Load_straight_24;
+            end if;
+          when others =>
+            Load_general;
+        end case;
+      when 3 => -- Palette
+        case image.bits_per_pixel is
+          when 1 =>
+            if image.interlaced then
+              Load_interlaced_1pal;
+            else
+              Load_straight_1pal;
+            end if;
+          when 2 =>
+            if image.interlaced then
+              Load_interlaced_2pal;
+            else
+              Load_straight_2pal;
+            end if;
+          when 4 =>
+            if image.interlaced then
+              Load_interlaced_4pal;
+            else
+              Load_straight_4pal;
+            end if;
+          when 8 =>
+            if image.interlaced then
+              Load_interlaced_8pal;
+            else
+              Load_straight_8pal;
+            end if;
+          when others =>
+            Load_general;
+        end case;
+      when 6 => -- RGBA
+        case image.bits_per_pixel is
+          when 32 =>
+            if image.interlaced then
+              Load_interlaced_32;
+            else
+              Load_straight_32;
+            end if;
+          when others =>
+            Load_general;
+        end case;
+      when others =>
+        Load_general;
+    end case;
   end Load;
 
 end GID.Decoding_PNG;

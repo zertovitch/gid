@@ -18,26 +18,54 @@ Some features:
 - pure Ada 95 (compiled by Ada 95, Ada 2005, and later compilers)
 
 Some possible applications:
+- image processing (interactive or not)
+- image analysis, text recognition
 - a drawing program
-- non-interactive image processing
 - a web browser
 - use of images as data for simulations
-- image analysis, text recognition
 - thumbnail generation for a file manager
 
 Through the genericity and the use of the Inline pragma at multiple
 nesting levels (see it like macros inside macros), the package is
-able to deliver a decent decoding performance with a reasonably
-compact and readable source code and without tediously copied
+able to deliver a decent decoding performance, keep a reasonably
+compact and readable source code, and avoid tediously copied
 pieces of code with almost the same contents corresponding to
 different subformats.
 
-Licensing, warranty, copyright, supported formats, credits
-----------------------------------------------------------
+Licensing, warranty, copyright, supported formats, authors, credits
+-------------------------------------------------------------------
 Please read the top comments in gid.ads.
 
-How to use GID
---------------
+Files
+-----
+gid.ads   GID package specification
+gid.adb   GID package body
+gid-*.ad* private packages for decoding specific
+            formats, reading headers,...
+
+To summarize, the gid*.ad* files are the whole GID source files. 
+For example, you can have a copy of those in a gid/ subdirectory
+in your project.
+
+gid.gpr             GNAT/GCC project file - to be opened with GPS or used
+                      with the command: gnatmake -P gid
+gid_objectada.prj   ObjectAda (7.2.2+) project file
+
+gid_work.xls        this workbook contains GID's history, a list of open
+                      bugs, technical informations about formats, etc.
+
+test/to_bmp.adb     middle-size command-line demo which converts all image
+                      files given as arguments (also works from a GUI file
+                      explorer with drag & drop) into BMP images with the
+                      .dib extension. Typically, you put plenty of images
+                      into the test folder and launch "to_bmp *" to convert
+                      them all.
+
+test/tb*.ad*        wrappers for to_bmp, for obtaining trace-back
+
+How to use GID in your programs
+-------------------------------
+
 Hopefully the package specification (in the file gid.ads) is self
 explanatory enough. There are three steps needed:
 
@@ -55,36 +83,62 @@ Load_image_contents is generic. You provide the following:
   * Primary_color_range: the type of primary colors.
     Usually it is a byte (E.g. Unsigned_8)
   * procedure Set_X_Y: setting a "cursor" (an array index, for instance)
-  * procedure Put_Pixel: set a color (and transparency on
+  * procedure Put_Pixel: set a color (and transparency) on
       the "cursor" place; the cursor is meant to move one pixel
-      to te right then
+      to te right, then
   * procedure Feedback: display progress (if you want it, otherwise
-      you can provide an empty procedure)
-  * mode: Display_mode: here tell if you want the decoding rather
+      you can always provide an empty procedure)
+  * mode: Display_mode: here you tell if you want the decoding rather
       nicer or faster, when the decoder is processing "progressive"
       (JPEG) or "interlaced" (GIF, PNG) pictures. Note: the end
       result is exactly the same.
 
 This generic construction allows you a total freedom on where and
 how to use GID in your programs. In addition, your Set_X_Y and
-Put_Pixel procedures are inserted and comple-time, not called,
+Put_Pixel procedures are inserted at compile-time, (no call instruction),
 right in the heart of the decoding procedures, for each image format,
 which should deliver a decent performance as soon as you set the right
 compiler options (optimization, inlined or macro-expanded generics,
 suppression of all checks, loop unrolling).
+
+Memory requirements and usage
+-----------------------------
+GID uses only memory for decoding purposes (e.g. decompression
+structures, color tables) and doesn't store the image itself.
+As a result, memory will be reserved for only one copy of the output
+bitmap, and this under the format you want or need to have.
+As an example, the to_bmp demo stores the image as a packed
+RBG byte array with a 4-byte padding which is the appropriate
+format for dumping a BMP file in the end. But there are many
+other possible storage formats, and GID lets you the total
+freedom about it. It can be even the case that the bitmap
+storage is more appropriate through an operating system or
+a specific library; in such a case you would not store the
+bitmap within the Ada progam at all and Put_Pixel would be used
+to transmit the pixels further.
+All memory used by GID is taken on the stack, with the exception
+of palettes which are dynamically allocated on the heap and
+deallocated upon scope end of a variable of the Image_descriptor
+type.
+ 
+
+Where to find the latest version
+--------------------------------
+Please check the "web" constant in gid.ads.
      
 Note on the construction of GID.
 --------------------------------
 
 All image formats decoded by GID have similarities in their structure.
 
-- Most begin with a header containing dimensions and color depth,
-  and the image contents follow. This is obvious to have such a data
-  organisation, since the header details are needed to calibrate the
-  recipient of the image. 
+- Most streams begin with a signature, followed by a header
+  containing dimensions and the color depth. Then the image contents
+  follow. This is obvious to have such a data organisation,
+  since the header details are needed to calibrate the recipient
+  of the image.
 
-- They are structured in blocks, with different names depending on
-  the format:
+- Streams are structured in blocks of data which are given different
+  names depending on the format:
   - PNG : chunks
   - GIF : blocks
   - JPEG: segments
