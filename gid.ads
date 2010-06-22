@@ -217,10 +217,11 @@ private
   );
 
   type JPEG_stuff_type is record
-    components  : JPEG_compo_set:= (others => False);
-    color_space : JPEG_supported_color_space;
-    info        : JPEG_component_info_A;
-    qt_list     : JPEG_QT_list;
+    components       : JPEG_compo_set:= (others => False);
+    color_space      : JPEG_supported_color_space;
+    info             : JPEG_component_info_A;
+    qt_list          : JPEG_QT_list;
+    restart_interval : Natural; -- predictor restarts every... (0: never)
   end record;
 
   type Image_descriptor is new Ada.Finalization.Controlled with record

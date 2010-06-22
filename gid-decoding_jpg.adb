@@ -231,6 +231,16 @@ package body GID.Decoding_JPG is
     end loop multi_tables;
   end Read_DQT;
 
+  procedure Read_DRI(image: in out Image_descriptor) is
+    ri: U16;
+  begin
+    Big_endian(image.buffer, ri);
+    if some_trace then
+      Put_Line("  Restart interval set to:" & U16'Image(ri));
+    end if;
+    image.JPEG_stuff.restart_interval:= Natural(ri);
+  end Read_DRI;
+
   --------------------
   -- Image decoding --
   --------------------
@@ -337,26 +347,26 @@ package body GID.Decoding_JPG is
       end if;
       while bufbits < bits loop
         begin
-        Get_Byte(image.buffer, newbyte);
-        bufbits:= bufbits + 8;
-        buf:= buf * 256 + U32(newbyte);
-        if newbyte = 16#FF# then
-          Get_Byte(image.buffer, marker);
-          case marker is
-            when 0 =>
-              null;
-            when 16#D9# =>
-              null; -- !! signal end
-            when 16#D0# .. 16#D7# =>
-              bufbits:= bufbits + 8;
-              buf:= buf * 256 + U32(marker);
-            when others =>
-              Raise_exception(
-                error_in_image_data'Identity,
-                "JPEG: Invalid code (bit buffer)"
-              );
-          end case;
-        end if;
+          Get_Byte(image.buffer, newbyte);
+          bufbits:= bufbits + 8;
+          buf:= buf * 256 + U32(newbyte);
+          if newbyte = 16#FF# then
+            Get_Byte(image.buffer, marker);
+            case marker is
+              when 0 =>
+                null;
+              when 16#D9# =>
+                null; -- !! signal end
+              when 16#D0# .. 16#D7# =>
+                bufbits:= bufbits + 8;
+                buf:= buf * 256 + U32(marker);
+              when others =>
+                Raise_exception(
+                  error_in_image_data'Identity,
+                  "JPEG: Invalid code (bit buffer)"
+                );
+            end case;
+          end if;
         exception
           when Ada.IO_Exceptions.End_Error =>
             newbyte:= 16#FF#;
@@ -579,12 +589,17 @@ package body GID.Decoding_JPG is
       GetVLC(vlc_defs(DC, info_B(c).ht_idx_DC), code, value);
       -- First value in block (0: top left) uses a predictor.
       info_B(c).dcpred:= info_B(c).dcpred + value;
-      block(0):= info_B(c).dcpred * qt(0);
-      block(1..63):= (others => 0);
+      block:= (0 => info_B(c).dcpred * qt(0), others => 0);
       coef:= 0;
       loop
         GetVLC(vlc_defs(AC, info_B(c).ht_idx_AC), code, value);
         exit when code = 0; -- EOB
+        if (code and 16#0F#) = 0 and code /= 16#F0# then
+          Raise_exception(
+            error_in_image_data'Identity,
+            "JPEG: error in VLC AC code for de-quantization"
+          );
+        end if;
         coef:= coef + Integer(code / 16) + 1;
         if coef > 63 then
           Raise_exception(
@@ -608,8 +623,6 @@ package body GID.Decoding_JPG is
         ColIDCT(col);
       end loop;
     end Decode_Block;
-
-    rstinterval: U16:= 0;
 
     type Macro_block is array(
       JPEG_Component range <>, -- component
@@ -738,7 +751,7 @@ package body GID.Decoding_JPG is
       mbx, mby: Natural:= 0;
       ssxmax, ssymax: Natural:= 0;
       mbsizex, mbsizey, mbwidth, mbheight: Natural;
-      rstcount: U16:= rstinterval;
+      rstcount: Natural:= image.JPEG_stuff.restart_interval;
       nextrst: U16:= 0;
       w: U16;
       start_spectral_selection,
@@ -862,7 +875,7 @@ package body GID.Decoding_JPG is
           Feedback((100*mby)/mbheight);
           exit macro_blocks_loop when mby >= mbheight;
         end if;
-        if rstinterval > 0 then
+        if image.JPEG_stuff.restart_interval > 0 then
           rstcount:= rstcount - 1;
           if rstcount = 0 then
             -- Here the restart occurs:
@@ -872,7 +885,8 @@ package body GID.Decoding_JPG is
               Put_Line(
                 "  Restart #" & U16'Image(nextrst) &
                 "  Code " & U16'Image(w) &
-                " after" & U16'Image(rstinterval) & " macro blocks"
+                " after" & Natural'Image(image.JPEG_stuff.restart_interval) &
+                " macro blocks"
               );
             end if;
             if w not in 16#FFD0# .. 16#FFD8# or
@@ -885,7 +899,7 @@ package body GID.Decoding_JPG is
               );
             end if;
             nextrst:= (nextrst + 1) and 7;
-            rstcount:= rstinterval;
+            rstcount:= image.JPEG_stuff.restart_interval;
             -- Block-to-block predictor variables are reset.
             for c in JPEG_Component loop
               info_B(c).dcpred:= 0;
@@ -910,8 +924,8 @@ package body GID.Decoding_JPG is
           Read_DQT(image, Natural(sh.length));
         when DHT => -- Huffman Table
           Read_DHT(Natural(sh.length));
-        when DRI => -- Reset Interval
-          Big_endian(image.buffer, rstinterval);
+        when DRI => -- Restart Interval
+          Read_DRI(image);
         when EOI => -- End Of Input
           exit;
         when SOS => -- Start Of Scan

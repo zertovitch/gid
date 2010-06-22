@@ -282,13 +282,16 @@ package body GID.Headers is
     sh: Segment_head;
     b: U8;
   begin
-    -- We passed the SOI (Start of Image) segment marker (FFD8)
+    -- We have already passed the SOI (Start of Image) segment marker (FFD8).
+    image.JPEG_stuff.restart_interval:= 0;
     Attach_stream(image.buffer, image.stream);
     loop
       Read(image, sh);
       case sh.kind is
         when DQT =>
           Read_DQT(image, Natural(sh.length));
+        when DRI => -- Restart Interval
+          Read_DRI(image);
         when SOF_0 .. SOF_15 =>
           Read_SOF(image, sh);
           exit; -- we've got header-style informations, then it's time to quit
