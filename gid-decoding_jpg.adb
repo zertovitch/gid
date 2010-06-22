@@ -176,6 +176,7 @@ package body GID.Decoding_JPG is
       image.JPEG_stuff.color_space:= YCbCr;
     elsif image.JPEG_stuff.components = Y_Grey_set then
       image.JPEG_stuff.color_space:= Y_Grey;
+      image.greyscale:= True;
     elsif image.JPEG_stuff.components = CMYK_set then
       image.JPEG_stuff.color_space:= CMYK;
     else
