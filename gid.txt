@@ -32,9 +32,9 @@ compact and readable source code, and avoid tediously copied
 pieces of code with almost the same contents corresponding to
 different subformats.
 
-Licensing, warranty, copyright, supported formats, authors, credits
--------------------------------------------------------------------
-Please read the top comments in gid.ads.
+Licensing, warranty, copyright, supported formats, authors, credits, history
+----------------------------------------------------------------------------
+Please read the top comments in gid.ads, and further details in gid_work.xls.
 
 Files
 -----
@@ -117,10 +117,9 @@ a specific library; in such a case you would not store the
 bitmap within the Ada progam at all and Put_Pixel would be used
 to transmit the pixels further.
 All memory used by GID is taken on the stack, with the exception
-of palettes which are dynamically allocated on the heap and
-deallocated upon scope end of a variable of the Image_descriptor
-type.
- 
+of palettes and JPEG's DHT tables. Those are dynamically allocated
+on the heap and deallocated upon scope end of a variable of the
+Image_descriptor type. It means there is no memory leak possible. 
 
 Where to find the latest version
 --------------------------------
