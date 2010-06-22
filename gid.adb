@@ -187,9 +187,19 @@ package body GID is
   procedure Finalize (Object : in out Image_descriptor) is
     procedure Dispose is
       new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
+    procedure Dispose is
+      new Ada.Unchecked_Deallocation(
+        JPEG_defs.VLC_table,
+        JPEG_defs.p_VLC_table
+      );
   begin
     -- Deterministic garbage collection
     Dispose(Object.palette);
+    for ad in JPEG_defs.VLC_defs_type'Range(1) loop
+      for idx in JPEG_defs.VLC_defs_type'Range(2) loop
+        Dispose(Object.JPEG_stuff.vlc_defs(ad, idx));
+      end loop;
+    end loop;
   end Finalize;
 
 end GID;

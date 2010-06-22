@@ -110,7 +110,7 @@ package body GID.Decoding_JPG is
     use Bounded_255;
     b, bits_pp_primary: U8;
     w, h: U16;
-    compo: JPEG_Component;
+    compo: JPEG_defs.Component;
   begin
     case sh.kind is
       when SOF_0 =>
@@ -143,10 +143,10 @@ package body GID.Decoding_JPG is
     for i in 1..image.subformat_id loop
       -- component id (1 = Y, 2 = Cb, 3 = Cr, 4 = I, 5 = Q)
       Get_Byte(image.buffer, b);
-      compo:= JPEG_Component'Val(b - 1);
+      compo:= JPEG_defs.Component'Val(b - 1);
       image.JPEG_stuff.components(compo):= True;
       declare
-        info: JPEG_info_per_component_A renames image.JPEG_stuff.info(compo);
+        info: JPEG_defs.info_per_component_A renames image.JPEG_stuff.info(compo);
       begin
         -- sampling factors (bit 0-3 vert., 4-7 hor.)
         Get_Byte(image.buffer, b);
@@ -165,9 +165,9 @@ package body GID.Decoding_JPG is
     end if;
     if some_trace then
       Put_Line("Frame has following components:");
-      for c in JPEG_component loop
+      for c in JPEG_defs.component loop
         Put_Line(
-          JPEG_Component'Image(c) & " -> " &
+          JPEG_defs.Component'Image(c) & " -> " &
           Boolean'Image(image.JPEG_stuff.components(c))
         );
       end loop;
@@ -186,20 +186,93 @@ package body GID.Decoding_JPG is
       );
     end if;
     image.detailed_format:= image.detailed_format & ", " &
-      JPEG_supported_color_space'Image(image.JPEG_stuff.color_space);
+      JPEG_defs.Supported_color_space'Image(image.JPEG_stuff.color_space);
     if some_trace then
       Put_Line(
         "Color space: " &
-        JPEG_supported_color_space'Image(image.JPEG_stuff.color_space)
+        JPEG_defs.Supported_color_space'Image(image.JPEG_stuff.color_space)
       );
     end if;
-    if image.JPEG_stuff.color_space= CMYK then
+    if image.JPEG_stuff.color_space = CMYK then
       Raise_exception(
         unsupported_image_subformat'Identity,
         "JPEG: CMYK color space is currently not properly decoded"
       );
     end if;
   end Read_SOF;
+
+  procedure Read_DHT(image: in out Image_descriptor; data_length: Natural) is
+    remaining: Integer:= data_length; -- data remaining in segment
+    b: U8;
+    ht_idx: Natural;
+    kind: AC_DC;
+    counts: array(1..16) of Natural;
+    spread, currcnt, idx: Natural;
+    remain_vlc: Integer;
+  begin
+    multi_tables:
+    loop
+      Get_Byte(image.buffer, b);
+      remaining:= remaining - 1;
+      if b >= 8 then
+        kind:= AC;
+      else
+        kind:= DC;
+      end if;
+      ht_idx:= Natural(b and 7);
+      if some_trace then
+        Put_Line(
+          "Huffman Table (HT) #" &
+          Natural'Image(ht_idx) & ", " & AC_DC'Image(kind)
+        );
+      end if;
+      if image.JPEG_stuff.vlc_defs(kind, ht_idx) = null then
+        image.JPEG_stuff.vlc_defs(kind, ht_idx):= new VLC_table;
+      end if;
+      for i in counts'range loop
+        Get_Byte(image.buffer, b);
+        remaining:= remaining - 1;
+        counts(i):= Natural(b);
+      end loop;
+      remain_vlc:= 65_536;
+      spread:= 65_536;
+      idx:= 0;
+      for codelen in counts'Range loop
+        spread:= spread / 2;
+        currcnt:= counts(codelen);
+        if currcnt > 0 then
+          if remaining < currcnt then
+            Raise_exception(
+              error_in_image_data'Identity,
+              "JPEG: DHT data too short"
+            );
+          end if;
+          remain_vlc:= remain_vlc - currcnt * spread;
+          if remain_vlc < 0 then
+            Raise_exception(
+              error_in_image_data'Identity,
+              "JPEG: DHT table too short for data"
+            );
+          end if;
+          for i in reverse 1..currcnt loop
+            Get_Byte(image.buffer, b);
+            for j in reverse 1..spread loop
+              image.JPEG_stuff.vlc_defs(kind, ht_idx)(idx):=
+                (bits => U8(codelen), code => b);
+              idx:= idx + 1;
+            end loop;
+          end loop;
+          remaining:= remaining - currcnt;
+        end if;
+      end loop;
+      while remain_vlc > 0 loop
+        remain_vlc:= remain_vlc - 1;
+        image.JPEG_stuff.vlc_defs(kind, ht_idx)(idx).bits:= 0;
+        idx:= idx + 1;
+      end loop;
+      exit when remaining <= 0;
+    end loop multi_tables;
+  end Read_DHT;
 
   procedure Read_DQT(image: in out Image_descriptor; data_length: Natural) is
     remaining: Integer:= data_length; -- data remaining in segment
@@ -216,7 +289,7 @@ package body GID.Decoding_JPG is
       if some_trace then
         Put_Line("Quantization Table (QT) #" & U8'Image(b));
       end if;
-      for i in JPEG_QT'Range loop
+      for i in QT'Range loop
         if high_prec then
           Big_endian(image.buffer, q16);
           remaining:= remaining - 2;
@@ -250,89 +323,9 @@ package body GID.Decoding_JPG is
     next_frame:    out Ada.Calendar.Day_Duration
   )
   is
-
-    type AC_DC is (AC, DC);
-
-    type VLC_code is record
-      bits, code: U8;
-    end record;
-
-    type VLC_table is array(0..65_535) of VLC_code;
-
-    vlc_defs: array(AC_DC, 0..7) of VLC_table;
-
-    procedure Read_DHT(data_length: Natural) is
-      remaining: Integer:= data_length; -- data remaining in segment
-      b: U8;
-      ht_idx: Natural;
-      kind: AC_DC;
-      counts: array(1..16) of Natural;
-      remain_vlc, spread, currcnt, idx: Natural;
-    begin
-      multi_tables:
-      loop
-        Get_Byte(image.buffer, b);
-        remaining:= remaining - 1;
-        if b >= 8 then
-          kind:= AC;
-        else
-          kind:= DC;
-        end if;
-        ht_idx:= Natural(b and 7);
-        if some_trace then
-          Put_Line(
-            "Huffman Table (HT) #" &
-            Natural'Image(ht_idx) & ", " & AC_DC'Image(kind)
-          );
-        end if;
-        for i in counts'range loop
-          Get_Byte(image.buffer, b);
-          remaining:= remaining - 1;
-          counts(i):= Natural(b);
-        end loop;
-        remain_vlc:= 65_536;
-        spread:= 65_536;
-        idx:= 0;
-        for codelen in counts'Range loop
-          spread:= spread / 2;
-          currcnt:= counts(codelen);
-          if currcnt > 0 then
-            if remaining < currcnt then
-              Raise_exception(
-                error_in_image_data'Identity,
-                "JPEG: DHT data too short"
-              );
-            end if;
-            remain_vlc:= remain_vlc - currcnt * spread;
-            if remain_vlc < 0 then
-              Raise_exception(
-                error_in_image_data'Identity,
-                "JPEG: DHT table too short for data"
-              );
-            end if;
-            for i in reverse 1..currcnt loop
-              Get_Byte(image.buffer, b);
-              for j in reverse 1..spread loop
-                vlc_defs(kind, ht_idx)(idx):= (bits => U8(codelen), code => b);
-                idx:= idx + 1;
-              end loop;
-            end loop;
-            remaining:= remaining - currcnt;
-          end if;
-        end loop;
-        while remain_vlc > 0 loop
-          remain_vlc:= remain_vlc - 1;
-          vlc_defs(kind, ht_idx)(idx).bits:= 0;
-          idx:= idx + 1;
-        end loop;
-        exit when remaining <= 0;
-      end loop multi_tables;
-    end Read_DHT;
-
     --
     -- Bit buffer
     --
-
     buf: U32:= 0;
     bufbits: Natural:= 0;
 
@@ -405,15 +398,15 @@ package body GID.Decoding_JPG is
 
     --
 
-    type JPEG_info_per_component_B is record
+    type Info_per_component_B is record
       ht_idx_AC : Natural;
       ht_idx_DC : Natural;
       width, height, stride: Natural;
       dcpred: Integer:= 0;
     end record;
 
-    info_A: JPEG_component_info_A renames image.JPEG_stuff.info;
-    info_B: array(JPEG_Component) of JPEG_info_per_component_B;
+    info_A: Component_info_A renames image.JPEG_stuff.info;
+    info_B: array(Component) of Info_per_component_B;
 
     procedure GetVLC(
       vlc: VLC_table;
@@ -468,10 +461,10 @@ package body GID.Decoding_JPG is
       36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 59, 52, 45,
       38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63 );
 
-    procedure Decode_Block(c: JPEG_Component; block: in out Block_8x8) is
+    procedure Decode_Block(c: Component; block: in out Block_8x8) is
       value, coef: Integer;
       code: U8;
-      qt: JPEG_QT renames image.JPEG_stuff.qt_list(info_A(c).qt_assoc);
+      qt: JPEG_defs.QT renames image.JPEG_stuff.qt_list(info_A(c).qt_assoc);
       --
       W1: constant:= 2841;
       W2: constant:= 2676;
@@ -586,13 +579,13 @@ package body GID.Decoding_JPG is
     begin -- Decode_Block
       --
       -- Step 2 happens here: Inverse quantization
-      GetVLC(vlc_defs(DC, info_B(c).ht_idx_DC), code, value);
+      GetVLC(image.JPEG_stuff.vlc_defs(DC, info_B(c).ht_idx_DC).all, code, value);
       -- First value in block (0: top left) uses a predictor.
       info_B(c).dcpred:= info_B(c).dcpred + value;
       block:= (0 => info_B(c).dcpred * qt(0), others => 0);
       coef:= 0;
       loop
-        GetVLC(vlc_defs(AC, info_B(c).ht_idx_AC), code, value);
+        GetVLC(image.JPEG_stuff.vlc_defs(AC, info_B(c).ht_idx_AC).all, code, value);
         exit when code = 0; -- EOB
         if (code and 16#0F#) = 0 and code /= 16#F0# then
           Raise_exception(
@@ -625,9 +618,9 @@ package body GID.Decoding_JPG is
     end Decode_Block;
 
     type Macro_block is array(
-      JPEG_Component range <>, -- component
-      Positive range <>,       -- x sample range
-      Positive range <>        -- y sample range
+      Component range <>, -- component
+      Positive range <>,  -- x sample range
+      Positive range <>   -- y sample range
     ) of Block_8x8;
 
       procedure Out_Pixel_8(br, bg, bb: U8) is
@@ -664,7 +657,7 @@ package body GID.Decoding_JPG is
       ssxmax: constant Positive:= m'Last(2);
       ssymax: constant Positive:= m'Last(3);
       flat: array(
-        JPEG_Component,
+        Component,
         0..8*ssxmax-1,
         0..8*ssymax-1
       ) of Integer;
@@ -675,7 +668,7 @@ package body GID.Decoding_JPG is
       y_val_8: U8;
     begin
       -- Step 4 happens here: Upsampling
-      for c in JPEG_Component loop
+      for c in Component loop
         if image.JPEG_stuff.components(c) then
           ssx:= info_A(c).samples_hor;
           ssy:= info_A(c).samples_ver;
@@ -747,7 +740,7 @@ package body GID.Decoding_JPG is
     --
     procedure Read_SOS is
       components, b: U8;
-      compo: JPEG_Component;
+      compo: Component;
       mbx, mby: Natural:= 0;
       ssxmax, ssymax: Natural:= 0;
       mbsizex, mbsizey, mbwidth, mbheight: Natural;
@@ -773,11 +766,11 @@ package body GID.Decoding_JPG is
       end if;
       for i in 1..components loop
         Get_Byte(image.buffer, b);
-        compo:= JPEG_Component'Val(b - 1);
+        compo:= Component'Val(b - 1);
         if not image.JPEG_stuff.components(compo) then
           Raise_exception(
             error_in_image_data'Identity,
-            "JPEG: component " & JPEG_Component'Image(compo) &
+            "JPEG: component " & Component'Image(compo) &
             " has not been defined in the SOF segment"
           );
         end if;
@@ -807,13 +800,13 @@ package body GID.Decoding_JPG is
         Put_Line(" mbwidth  = " & Integer'Image(mbwidth));
         Put_Line(" mbheight = " & Integer'Image(mbheight));
       end if;
-      for c in JPEG_Component loop
+      for c in Component loop
         if image.JPEG_stuff.components(c) then
           info_B(c).width := (image.width  * info_A(c).samples_hor + ssxmax - 1) / ssxmax;
           info_B(c).height:= (image.height * info_A(c).samples_ver + ssymax - 1) / ssymax;
           info_B(c).stride:= (mbwidth * mbsizex * info_A(c).samples_hor) / ssxmax;
           if some_trace then
-            Put_Line("  Details for component " & JPEG_Component'Image(c));
+            Put_Line("  Details for component " & Component'Image(c));
             Put_Line("    samples in x " & Integer'Image(info_A(c).samples_hor));
             Put_Line("    samples in y " & Integer'Image(info_A(c).samples_ver));
             Put_Line("    width " & Integer'Image(info_B(c).width));
@@ -830,7 +823,7 @@ package body GID.Decoding_JPG is
           then
             Raise_exception(
               error_in_image_data'Identity,
-              "JPEG: component " & JPEG_Component'Image(c) &
+              "JPEG: component " & Component'Image(c) &
               ": sample dimension mismatch"
             );
           end if;
@@ -844,13 +837,13 @@ package body GID.Decoding_JPG is
         );
       end if;
       declare
-        mb: Macro_block(JPEG_Component, 1..ssxmax, 1..ssymax);
+        mb: Macro_block(Component, 1..ssxmax, 1..ssymax);
         x0, y0: Integer:= 0;
       begin
       macro_blocks_loop:
       loop
         components_loop:
-        for c in JPEG_Component loop
+        for c in Component loop
           if image.JPEG_stuff.components(c) then
             samples_y_loop:
             for sby in 1..info_A(c).samples_ver loop
@@ -901,7 +894,7 @@ package body GID.Decoding_JPG is
             nextrst:= (nextrst + 1) and 7;
             rstcount:= image.JPEG_stuff.restart_interval;
             -- Block-to-block predictor variables are reset.
-            for c in JPEG_Component loop
+            for c in Component loop
               info_B(c).dcpred:= 0;
             end loop;
           end if;
@@ -923,7 +916,7 @@ package body GID.Decoding_JPG is
         when DQT => -- Quantization Table
           Read_DQT(image, Natural(sh.length));
         when DHT => -- Huffman Table
-          Read_DHT(Natural(sh.length));
+          Read_DHT(image, Natural(sh.length));
         when DRI => -- Restart Interval
           Read_DRI(image);
         when EOI => -- End Of Input

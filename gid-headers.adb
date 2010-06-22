@@ -288,6 +288,8 @@ package body GID.Headers is
     loop
       Read(image, sh);
       case sh.kind is
+        when DHT => -- Huffman Table
+          Read_DHT(image, Natural(sh.length));
         when DQT =>
           Read_DQT(image, Natural(sh.length));
         when DRI => -- Restart Interval

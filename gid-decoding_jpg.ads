@@ -1,5 +1,7 @@
 private package GID.Decoding_JPG is
 
+  use JPEG_defs;
+
   type JPEG_marker is
   (
     SOI      , --  Start Of Image
@@ -45,9 +47,9 @@ private package GID.Decoding_JPG is
     EOI        --  End of Image
   );
 
-  YCbCr_set : constant JPEG_compo_set:= (Y|Cb|Cr => True, others => False);
-  Y_Grey_set: constant JPEG_compo_set:= (Y => True, others => False);
-  CMYK_set  : constant JPEG_compo_set:= (Y|Cb|Cr|I => True, others => False);
+  YCbCr_set : constant Compo_set:= (Y|Cb|Cr => True, others => False);
+  Y_Grey_set: constant Compo_set:= (Y => True, others => False);
+  CMYK_set  : constant Compo_set:= (Y|Cb|Cr|I => True, others => False);
 
   type Segment_head is record
     length : U16;
@@ -59,6 +61,7 @@ private package GID.Decoding_JPG is
   -- SOF - Start Of Frame (the real header)
   procedure Read_SOF(image: in out Image_descriptor; sh: Segment_head);
 
+  procedure Read_DHT(image: in out Image_descriptor; data_length: Natural);
   procedure Read_DQT(image: in out Image_descriptor; data_length: Natural);
   procedure Read_DRI(image: in out Image_descriptor);
 

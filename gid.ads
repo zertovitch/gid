@@ -151,8 +151,8 @@ package GID is
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
 
-  version   : constant String:= "00.5";
-  reference : constant String:= "19-Jun-2010";
+  version   : constant String:= "00.6";
+  reference : constant String:= "22-Jun-2010";
   web: constant String:= "http://sf.net/projects/gen-img-dec/";
   -- hopefully the latest version is at that URL...
 
@@ -187,8 +187,11 @@ private
   -- Initial values ensure call to Fill_Buffer on first Get_Byte
 
   -- JPEG may store data _before_ any image header (SOF), then we have
-  -- to make the image descriptor store that information
-  type JPEG_Component is
+  -- to make the image descriptor store that information, alas...
+
+  package JPEG_defs is
+
+  type Component is
     (Y,  -- brightness
      Cb, -- hue
      Cr, -- saturation
@@ -196,31 +199,46 @@ private
      Q   -- ??
     );
 
-  type JPEG_QT is array(0..63) of Natural;
-  type JPEG_QT_list is array(0..7) of JPEG_QT;
+  type QT is array(0..63) of Natural;
+  type QT_list is array(0..7) of QT;
 
-  type JPEG_compo_set is array(JPEG_Component) of Boolean;
+  type Compo_set is array(Component) of Boolean;
 
-  type JPEG_info_per_component_A is record -- B is defined inside the decoder
+  type Info_per_component_A is record -- B is defined inside the decoder
     qt_assoc    : Natural;
     samples_hor : Natural;
     samples_ver : Natural;
   end record;
 
-  type JPEG_component_info_A is
-    array(JPEG_Component) of JPEG_info_per_component_A;
+  type Component_info_A is
+    array(Component) of Info_per_component_A;
 
-  type JPEG_supported_color_space is (
+  type Supported_color_space is (
     YCbCr,  -- 3-dim color space
     Y_Grey, -- 1-dim greyscale
     CMYK    -- 4-dim Cyan, Magenta, Yellow, blacK
   );
 
+    type AC_DC is (AC, DC);
+
+    type VLC_code is record
+      bits, code: U8;
+    end record;
+
+    type VLC_table is array(0..65_535) of VLC_code;
+
+    type p_VLC_table is access VLC_table;
+
+    type VLC_defs_type is array(AC_DC, 0..7) of p_VLC_table;
+
+  end JPEG_defs;
+
   type JPEG_stuff_type is record
-    components       : JPEG_compo_set:= (others => False);
-    color_space      : JPEG_supported_color_space;
-    info             : JPEG_component_info_A;
-    qt_list          : JPEG_QT_list;
+    components       : JPEG_defs.Compo_set:= (others => False);
+    color_space      : JPEG_defs.Supported_color_space;
+    info             : JPEG_defs.Component_info_A;
+    qt_list          : JPEG_defs.QT_list;
+    vlc_defs         : JPEG_defs.VLC_defs_type:= (others => (others => null));
     restart_interval : Natural; -- predictor restarts every... (0: never)
   end record;
 
