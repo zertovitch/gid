@@ -408,8 +408,8 @@ package body GID.Decoding_JPG is
     )
     is
       -- Step 1 happens here: Huffman decompression
-      value: U32:= U32(Show_bits(16));
-      bits : U32:= U32(vlc(Integer(value)).bits);
+      value: Integer:= Show_bits(16);
+      bits : Natural:= Natural(vlc(value).bits);
     begin
       if bits = 0 then
         Raise_exception(
@@ -417,17 +417,17 @@ package body GID.Decoding_JPG is
           "JPEG: VLC table: bits = 0"
         );
       end if;
-      Skip_bits(Integer(bits));
-      value:= U32(vlc(Integer(value)).code);
+      Skip_bits(bits);
+      value:= Integer(vlc(value).code);
       code:= U8(value);
-      bits:= value and 15;
+      bits:= Natural(U32(value) and 15);
       value_ret:= 0;
       if bits /= 0 then
-        value:= U32(Get_bits(Integer(bits)));
-        if value < Shift_Left(1, Integer(bits - 1)) then
-          value:= value + 1 - Shift_Left(1, Integer(bits));
+        value:= Get_bits(bits);
+        if value < Integer(Shift_Left(U32'(1), bits - 1)) then
+          value:= value + 1 - Integer(Shift_Left(U32'(1), bits));
         end if;
-        value_ret:= Natural(value);
+        value_ret:= value;
       end if;
     end Get_VLC;
 
