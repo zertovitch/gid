@@ -49,6 +49,7 @@
 -- http://www.opensource.org/licenses/mit-license.php
 
 with Ada.Calendar, Ada.Streams, Ada.Strings.Bounded, Ada.Finalization;
+with Interfaces;
 
 package GID is
 
@@ -158,9 +159,11 @@ package GID is
 
 private
 
-  type U8  is mod 2 ** 8;   for U8'Size  use 8;
-  type U16 is mod 2 ** 16;  for U16'Size use 16;
-  type U32 is mod 2 ** 32;  for U32'Size use 32;
+  use Interfaces;
+
+  subtype U8  is Unsigned_8;
+  subtype U16 is Unsigned_16;
+  subtype U32 is Unsigned_32;
 
   package Bounded_255 is
     new Ada.Strings.Bounded.Generic_Bounded_Length(255);

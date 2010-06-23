@@ -6,7 +6,6 @@ package body GID.Decoding_PNG.Huffman is
 
   procedure Build(t: out Huff_tree; descr: in Huff_descriptor) is
     curr, alloc: Natural;
-    use Interfaces;
     code, mask: Unsigned_32;
   begin
     alloc:= root;
@@ -83,8 +82,6 @@ package body GID.Decoding_PNG.Huffman is
                          m    : in out Integer;
               huft_incomplete :    out Boolean)
   is
-    use Interfaces;
-
     b_max  : constant:= 16;
     b_maxp1: constant:= b_max + 1;
 

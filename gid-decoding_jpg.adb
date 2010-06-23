@@ -22,14 +22,12 @@
 --      using Shift_Right
 
 with GID.Buffering;
-
-with Ada.Text_IO, Ada.Exceptions, Ada.IO_Exceptions, Interfaces;
+with Ada.Text_IO, Ada.Exceptions, Ada.IO_Exceptions;
 
 package body GID.Decoding_JPG is
 
   use GID.Buffering;
   use Ada.Text_IO, Ada.Exceptions;
-  use Interfaces;
 
   generic
     type Number is mod <>;
@@ -334,9 +332,7 @@ package body GID.Decoding_JPG is
 
     function Show_bits(bits: Natural) return Natural is
       newbyte, marker: U8;
-      res: Natural;
     begin
---ada.text_IO.put_line("bufbits (before)= " & bufbits'img);
       if bits=0 then
         return 0;
       end if;
@@ -369,15 +365,11 @@ package body GID.Decoding_JPG is
             buf:= buf * 256 + U32(newbyte);
         end;
       end loop;
---ada.text_IO.put_line("bufbits (after)= " & bufbits'img);
---      Ada.Text_IO.Put_Line("buf=" & buf'img);
-      res:= Natural(
-          Shift_Right(Unsigned_32(buf), bufbits - bits)
+      return Natural(
+          Shift_Right(buf, bufbits - bits)
         and
           (Shift_Left(1, bits)-1)
       );
---      Ada.Text_IO.Put_Line("Show_bits" & bits'img & "->" & res'img);
-      return res;
     end Show_bits;
 
     procedure Skip_bits(bits: Natural) is
@@ -409,15 +401,15 @@ package body GID.Decoding_JPG is
     info_A: Component_info_A renames image.JPEG_stuff.info;
     info_B: array(Component) of Info_per_component_B;
 
-    procedure GetVLC(
+    procedure Get_VLC(
       vlc: VLC_table;
       code: out U8;
       value_ret: out Integer
     )
     is
       -- Step 1 happens here: Huffman decompression
-      value: Unsigned_32:= Unsigned_32(Show_bits(16));
-      bits : Unsigned_32:= Unsigned_32(vlc(Integer(value)).bits);
+      value: U32:= U32(Show_bits(16));
+      bits : U32:= U32(vlc(Integer(value)).bits);
     begin
       if bits = 0 then
         Raise_exception(
@@ -426,19 +418,18 @@ package body GID.Decoding_JPG is
         );
       end if;
       Skip_bits(Integer(bits));
-      value:= Unsigned_32(vlc(Integer(value)).code);
+      value:= U32(vlc(Integer(value)).code);
       code:= U8(value);
       bits:= value and 15;
       value_ret:= 0;
       if bits /= 0 then
-        value:= Unsigned_32(Get_bits(Integer(bits)));
+        value:= U32(Get_bits(Integer(bits)));
         if value < Shift_Left(1, Integer(bits - 1)) then
           value:= value + 1 - Shift_Left(1, Integer(bits));
         end if;
         value_ret:= Natural(value);
       end if;
---ada.text_IO.put_line(value_ret'img);
-    end GetVLC;
+    end Get_VLC;
 
     function Clip(x: Integer) return Integer is
     pragma Inline(Clip);
@@ -474,8 +465,8 @@ package body GID.Decoding_JPG is
       W6: constant:= 1108;
       W7: constant:=  565;
       --
-      procedure RowIDCT(start: Integer) is
-      pragma Inline(RowIDCT);
+      procedure Row_IDCT(start: Integer) is
+      pragma Inline(Row_IDCT);
         x0, x1, x2, x3, x4, x5, x6, x7, x8, val: Integer;
       begin
         x1:= block(start + 4) * 2**11;
@@ -520,15 +511,10 @@ package body GID.Decoding_JPG is
           block(start + 6):= (x3 - x2) / 256;
           block(start + 7):= (x7 - x1) / 256;
         end if;
---ada.text_IO.put("RowDCT:");
---for i in 0..7 loop
---ada.text_IO.put(" " & block(start + i)'img);
---end loop;
---ada.text_IO.New_Line;
-      end RowIDCT;
+      end Row_IDCT;
 
-      procedure ColIDCT(start: Integer) is
-      pragma Inline(ColIDCT);
+      procedure Col_IDCT(start: Integer) is
+      pragma Inline(Col_IDCT);
         x0, x1, x2, x3, x4, x5, x6, x7, x8, val: Integer;
       begin
         x1:= block(start + 8*4) * 256;
@@ -575,18 +561,18 @@ package body GID.Decoding_JPG is
           block(start + 8*6):= Clip(((x3 - x2) / 2**14) + 128);
           block(start + 8*7):= Clip(((x7 - x1) / 2**14) + 128);
         end if;
-      end ColIDCT;
+      end Col_IDCT;
 
     begin -- Decode_Block
       --
       -- Step 2 happens here: Inverse quantization
-      GetVLC(image.JPEG_stuff.vlc_defs(DC, info_B(c).ht_idx_DC).all, code, value);
+      Get_VLC(image.JPEG_stuff.vlc_defs(DC, info_B(c).ht_idx_DC).all, code, value);
       -- First value in block (0: top left) uses a predictor.
       info_B(c).dcpred:= info_B(c).dcpred + value;
       block:= (0 => info_B(c).dcpred * qt(0), others => 0);
       coef:= 0;
       loop
-        GetVLC(image.JPEG_stuff.vlc_defs(AC, info_B(c).ht_idx_AC).all, code, value);
+        Get_VLC(image.JPEG_stuff.vlc_defs(AC, info_B(c).ht_idx_AC).all, code, value);
         exit when code = 0; -- EOB
         if (code and 16#0F#) = 0 and code /= 16#F0# then
           Raise_exception(
@@ -594,7 +580,7 @@ package body GID.Decoding_JPG is
             "JPEG: error in VLC AC code for de-quantization"
           );
         end if;
-        coef:= coef + Integer(code / 16) + 1;
+        coef:= coef + Integer(Shift_Right(code, 4)) + 1;
         if coef > 63 then
           Raise_exception(
             error_in_image_data'Identity,
@@ -604,17 +590,12 @@ package body GID.Decoding_JPG is
         block(zig_zag(coef)):= value * qt(coef);
         exit when coef = 63;
       end loop;
---ada.text_IO.put("Block dump TB:");
---for i in 0..63 loop
---ada.text_IO.put(" " & block(i)'img);
---end loop;
---ada.text_IO.New_Line;
       -- Step 3 happens here: Inverse cosine transform
       for row in 0..7 loop
-        RowIDCT(row * 8);
+        Row_IDCT(row * 8);
       end loop;
       for col in 0..7 loop
-        ColIDCT(col);
+        Col_IDCT(col);
       end loop;
     end Decode_Block;
 
@@ -744,9 +725,12 @@ package body GID.Decoding_JPG is
       end loop;
       -- Step 5 and 6 happen here: Color transformation and output
       case image.JPEG_stuff.color_space is
-        when YCbCr =>   Ct_YCbCr;
-        when Y_Grey =>  Ct_Y_Grey;
-        when CMYK =>    Ct_CMYK;
+        when YCbCr =>
+          Ct_YCbCr;
+        when Y_Grey =>
+          Ct_Y_Grey;
+        when CMYK =>
+          Ct_CMYK;
       end case;
     end Upsampling_and_output;
 
@@ -767,8 +751,7 @@ package body GID.Decoding_JPG is
       Get_Byte(image.buffer, components);
       if some_trace then
         Put_Line(
-          "Start of Scan (SOS), with" &
-          U8'Image(components) & " components"
+          "Start of Scan (SOS), with" & U8'Image(components) & " components"
         );
       end if;
       if image.subformat_id /= Natural(components) then
@@ -853,68 +836,65 @@ package body GID.Decoding_JPG is
         mb: Macro_block(Component, 1..ssxmax, 1..ssymax);
         x0, y0: Integer:= 0;
       begin
-      macro_blocks_loop:
-      loop
-        components_loop:
-        for c in Component loop
-          if image.JPEG_stuff.components(c) then
-            samples_y_loop:
-            for sby in 1..info_A(c).samples_ver loop
-              samples_x_loop:
-              for sbx in 1..info_A(c).samples_hor loop
-                Decode_Block(c, mb(c, sbx, sby));
-              end loop samples_x_loop;
-            end loop samples_y_loop;
-          end if;
-        end loop components_loop;
-        -- All components of the current macro-block are decoded.
-        -- Step 4, 5, 6 happen here: Upsampling, color transformation, output
-        Upsampling_and_output(mb, x0, y0);
-        --
-        mbx:= mbx + 1;
-        x0:= x0 + ssxmax * 8;
-        if mbx >= mbwidth then
-          mbx:= 0;
-          x0:= 0;
-          mby:= mby + 1;
-          y0:= y0 + ssymax * 8;
-          Feedback((100*mby)/mbheight);
-          exit macro_blocks_loop when mby >= mbheight;
-        end if;
-        if image.JPEG_stuff.restart_interval > 0 then
-          rstcount:= rstcount - 1;
-          if rstcount = 0 then
-            -- Here begins the restart.
-            bufbits:= Natural(U32(bufbits) and 16#F8#); -- byte alignment
-            -- Now the restart marker. We expect a
-            w:= U16(Get_bits(16));
-            if some_trace then
-              Put_Line(
-                "  Restart #" & U16'Image(nextrst) &
-                "  Code " & U16'Image(w) &
-                " after" & Natural'Image(image.JPEG_stuff.restart_interval) &
-                " macro blocks"
-              );
+        macro_blocks_loop:
+        loop
+          components_loop:
+          for c in Component loop
+            if image.JPEG_stuff.components(c) then
+              samples_y_loop:
+              for sby in 1..info_A(c).samples_ver loop
+                samples_x_loop:
+                for sbx in 1..info_A(c).samples_hor loop
+                  Decode_Block(c, mb(c, sbx, sby));
+                end loop samples_x_loop;
+              end loop samples_y_loop;
             end if;
-            if w not in 16#FFD0# .. 16#FFD7# or (w and 7) /= nextrst then
-              Raise_exception(
-                error_in_image_data'Identity,
-                "JPEG: expected RST (restart) marker Nb " & U16'Image(nextrst)
-              );
-            end if;
-            nextrst:= (nextrst + 1) and 7;
-            rstcount:= image.JPEG_stuff.restart_interval;
-            -- Block-to-block predictor variables are reset.
-            for c in Component loop
-              info_B(c).dcpred:= 0;
-            end loop;
+          end loop components_loop;
+          -- All components of the current macro-block are decoded.
+          -- Step 4, 5, 6 happen here: Upsampling, color transformation, output
+          Upsampling_and_output(mb, x0, y0);
+          --
+          mbx:= mbx + 1;
+          x0:= x0 + ssxmax * 8;
+          if mbx >= mbwidth then
+            mbx:= 0;
+            x0:= 0;
+            mby:= mby + 1;
+            y0:= y0 + ssymax * 8;
+            Feedback((100*mby)/mbheight);
+            exit macro_blocks_loop when mby >= mbheight;
           end if;
-        end if;
-      end loop macro_blocks_loop;
+          if image.JPEG_stuff.restart_interval > 0 then
+            rstcount:= rstcount - 1;
+            if rstcount = 0 then
+              -- Here begins the restart.
+              bufbits:= Natural(U32(bufbits) and 16#F8#); -- byte alignment
+              -- Now the restart marker. We expect a
+              w:= U16(Get_bits(16));
+              if some_trace then
+                Put_Line(
+                  "  Restart #" & U16'Image(nextrst) &
+                  "  Code " & U16'Image(w) &
+                  " after" & Natural'Image(image.JPEG_stuff.restart_interval) &
+                  " macro blocks"
+                );
+              end if;
+              if w not in 16#FFD0# .. 16#FFD7# or (w and 7) /= nextrst then
+                Raise_exception(
+                  error_in_image_data'Identity,
+                  "JPEG: expected RST (restart) marker Nb " & U16'Image(nextrst)
+                );
+              end if;
+              nextrst:= (nextrst + 1) and 7;
+              rstcount:= image.JPEG_stuff.restart_interval;
+              -- Block-to-block predictor variables are reset.
+              for c in Component loop
+                info_B(c).dcpred:= 0;
+              end loop;
+            end if;
+          end if;
+        end loop macro_blocks_loop;
       end;
-      if some_trace then
-        Put_Line("Image decoded !");
-      end if;
     end Read_SOS;
 
     --

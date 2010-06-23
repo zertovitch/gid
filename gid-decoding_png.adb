@@ -84,8 +84,6 @@ package body GID.Decoding_PNG is
 
   package CRC32 is
 
-    use Interfaces;
-
     procedure Init( CRC: out Unsigned_32 );
 
     function  Final( CRC: Unsigned_32 ) return Unsigned_32;
@@ -536,7 +534,6 @@ package body GID.Decoding_PNG is
                     declare
                       b: U8;
                       shift: Integer:= 8 - bits_per_pixel;
-                      use Interfaces;
                       max: constant U8:= U8(Shift_Left(Unsigned_32'(1), bits_per_pixel)-1);
                       -- Scaling factor to obtain the correct color value on a 0..255 range.
                       -- The division is exact in all cases (bpp=8,4,2,1),
@@ -604,7 +601,6 @@ package body GID.Decoding_PNG is
                   when 1 | 2 | 4 =>
                     declare
                       shift: Integer:= 8 - bits_per_pixel;
-                      use Interfaces;
                       max: constant U8:= U8(Shift_Left(Unsigned_32'(1), bits_per_pixel)-1);
                     begin
                       -- loop through the number of pixels in this byte:
@@ -709,8 +705,6 @@ package body GID.Decoding_PNG is
       --------------------------------------
       -- Specifications of UnZ_* packages --
       --------------------------------------
-
-      use Interfaces;
 
       package UnZ_Glob is
         -- I/O Buffers
