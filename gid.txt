@@ -1,6 +1,5 @@
 Generic Image Decoder
 ---------------------
-
 The Generic Image Decoder (GID) is an Ada package for decoding a
 broad variety of image formats, from any data stream, to any kind
 of medium, be it an in-memory bitmap, a GUI object,
@@ -65,7 +64,6 @@ test/tb*.ad*        wrappers for to_bmp, for obtaining trace-back
 
 How to use GID in your programs
 -------------------------------
-
 Hopefully the package specification (in the file gid.ads) is self
 explanatory enough. There are three steps needed:
 
@@ -101,6 +99,19 @@ which should deliver a decent performance as soon as you set the right
 compiler options (optimization, inlined or macro-expanded generics,
 suppression of all checks, loop unrolling).
 
+How to build GID
+----------------
+- From GPS, press F4 - that's it. The executable is in the /test folder.
+- From ObjectAda, press F7 - that's it. The .exe is in the folder created
+     by ObjectAda upon first project opening.
+- From AdaGIDE, press F3. There will be .o and .ali files at unexpected
+     places, so it's better to build first with GPS or the command line
+- From the command line, with GNAT:
+   - default build mode: gnatmake -P gid
+   - other build mode (e.g. Small): gnatmake -P gid -XBuild_Mode=Small
+   
+We assume here you consider GID unpacked "out of the box", with directories.
+
 Memory requirements and usage
 -----------------------------
 GID uses only memory for decoding purposes (e.g. decompression
@@ -120,6 +131,10 @@ All memory used by GID is taken on the stack, with the exception
 of palettes and JPEG's DHT tables. Those are dynamically allocated
 on the heap and deallocated upon scope end of a variable of the
 Image_descriptor type. It means there is no memory leak possible. 
+The use of heap allocation is justified there because of the
+relatively large size of those objects. They could very well
+be also part of the descriptor record, with a maximal size for
+palette (2**16, for the TGA format).
 
 Where to find the latest version
 --------------------------------
@@ -127,7 +142,6 @@ Please check the "web" constant in gid.ads.
      
 Note on the construction of GID.
 --------------------------------
-
 All image formats decoded by GID have similarities in their structure.
 
 - Most streams begin with a signature, followed by a header

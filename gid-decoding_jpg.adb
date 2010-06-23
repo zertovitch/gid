@@ -15,9 +15,11 @@
 -- Other informations:
 -- http://en.wikipedia.org/wiki/JPEG
 
--- !! profiling with some 2**n (perhaps should use shifts sometimes)
--- !! color_space, ssx, ssy ,ssxmax, ssymax
---    as generic parameters + specialized instances
+-- !! ssx, ssy ,ssxmax, ssymax
+--      as generic parameters + specialized instances
+-- !! consider only power-of-two upsampling factors ?
+-- !! simplify upsampling loops in case of power-of-two upsampling factors
+--      using Shift_Right
 
 with GID.Buffering;
 
@@ -25,8 +27,9 @@ with Ada.Text_IO, Ada.Exceptions, Ada.IO_Exceptions, Interfaces;
 
 package body GID.Decoding_JPG is
 
-  use Ada.Text_IO, Ada.Exceptions;
   use GID.Buffering;
+  use Ada.Text_IO, Ada.Exceptions;
+  use Interfaces;
 
   generic
     type Number is mod <>;
@@ -329,10 +332,9 @@ package body GID.Decoding_JPG is
     buf: U32:= 0;
     bufbits: Natural:= 0;
 
-    function ShowBits(bits: Natural) return Natural is
+    function Show_bits(bits: Natural) return Natural is
       newbyte, marker: U8;
       res: Natural;
-      use Interfaces;
     begin
 --ada.text_IO.put_line("bufbits (before)= " & bufbits'img);
       if bits=0 then
@@ -369,32 +371,31 @@ package body GID.Decoding_JPG is
       end loop;
 --ada.text_IO.put_line("bufbits (after)= " & bufbits'img);
 --      Ada.Text_IO.Put_Line("buf=" & buf'img);
-      res:= Natural( Shift_Right(Unsigned_32(buf), bufbits - bits) and (2**bits-1) );
---      Ada.Text_IO.Put_Line("showbits" & bits'img & "->" & res'img);
+      res:= Natural(
+          Shift_Right(Unsigned_32(buf), bufbits - bits)
+        and
+          (Shift_Left(1, bits)-1)
+      );
+--      Ada.Text_IO.Put_Line("Show_bits" & bits'img & "->" & res'img);
       return res;
-    end ShowBits;
+    end Show_bits;
 
-    procedure SkipBits(bits: Natural) is
+    procedure Skip_bits(bits: Natural) is
       dummy: Integer;
       pragma Warnings(off, dummy);
     begin
       if bufbits < bits then
-        dummy:= ShowBits(bits);
+        dummy:= Show_bits(bits);
       end if;
       bufbits:= bufbits - bits;
-    end;
+    end Skip_bits;
 
-    function GetBits(bits: Natural) return INteger is
-      res: constant Integer:= ShowBits(bits);
+    function Get_bits(bits: Natural) return INteger is
+      res: constant Integer:= Show_bits(bits);
     begin
-      SkipBits(bits);
+      Skip_bits(bits);
       return res;
-    end;
-
-    procedure ByteAlign is
-    begin
-      bufbits:= Natural(U32(bufbits) and 16#F8#);
-    end;
+    end Get_bits;
 
     --
 
@@ -415,8 +416,8 @@ package body GID.Decoding_JPG is
     )
     is
       -- Step 1 happens here: Huffman decompression
-      value: Integer:= ShowBits(16);
-      bits: Integer:= Integer(vlc(value).bits);
+      value: Unsigned_32:= Unsigned_32(Show_bits(16));
+      bits : Unsigned_32:= Unsigned_32(vlc(Integer(value)).bits);
     begin
       if bits = 0 then
         Raise_exception(
@@ -424,17 +425,17 @@ package body GID.Decoding_JPG is
           "JPEG: VLC table: bits = 0"
         );
       end if;
-      SkipBits(bits);
-      value:= Integer(vlc(value).code);
+      Skip_bits(Integer(bits));
+      value:= Unsigned_32(vlc(Integer(value)).code);
       code:= U8(value);
-      bits:= value mod 16;
+      bits:= value and 15;
       value_ret:= 0;
       if bits /= 0 then
-        value:= GetBits(bits);
-        if value < 2 ** (bits - 1) then
-          value:= value + 1 - 2 ** bits;
+        value:= Unsigned_32(Get_bits(Integer(bits)));
+        if value < Shift_Left(1, Integer(bits - 1)) then
+          value:= value + 1 - Shift_Left(1, Integer(bits));
         end if;
-        value_ret:= value;
+        value_ret:= Natural(value);
       end if;
 --ada.text_IO.put_line(value_ret'img);
     end GetVLC;
@@ -648,24 +649,66 @@ package body GID.Decoding_JPG is
         end case;
       end Out_Pixel_8;
 
+    ssxmax, ssymax: Natural:= 0;
+
     procedure Upsampling_and_output(
       m: Macro_block;
       x0, y0: Natural
     )
     is
-    pragma Inline(Upsampling_and_output);
-      ssxmax: constant Positive:= m'Last(2);
-      ssymax: constant Positive:= m'Last(3);
-      flat: array(
-        Component,
-        0..8*ssxmax-1,
-        0..8*ssymax-1
-      ) of Integer;
+      flat: array(Component, 0..8*ssxmax-1, 0..8*ssymax-1) of Integer;
+
+      generic
+        color_space: Supported_color_space;
+      procedure Color_transformation_and_output;
+      --
+      procedure Color_transformation_and_output is
+        y_val, cb_val, cr_val, c_val, m_val, w_val: Integer;
+        y_val_8: U8;
+      begin
+        for ymb in flat'Range(3) loop
+          exit when y0+ymb >= image.height;
+          Set_X_Y(x0, image.height-1-(y0+ymb));
+          for xmb in flat'Range(2) loop
+            exit when x0+xmb >= image.width;
+            case color_space is
+              when YCbCR =>
+                y_val := flat(Y,  xmb, ymb) * 256;
+                cb_val:= flat(Cb, xmb, ymb) - 128;
+                cr_val:= flat(Cr, xmb, ymb) - 128;
+                Out_pixel_8(
+                  br => U8(Clip((y_val                + 359 * cr_val + 128) / 256)),
+                  bg => U8(Clip((y_val -  88 * cb_val - 183 * cr_val + 128) / 256)),
+                  bb => U8(Clip((y_val + 454 * cb_val                + 128) / 256))
+                );
+              when Y_Grey =>
+                y_val_8:= U8(flat(Y,  xmb, ymb));
+                Out_pixel_8(y_val_8, y_val_8, y_val_8);
+              when CMYK =>
+                -- !! find a working conversion formula.
+                --    perhaps it is more complicated (APP_2
+                --    color profile must be used ?)
+                c_val:= flat(Y,  xmb, ymb);
+                m_val:= flat(Cb, xmb, ymb);
+                y_val:= flat(Cr, xmb, ymb);
+                w_val:= flat(I,  xmb, ymb)-255;
+                Out_pixel_8(
+                  br => U8(255-Clip(c_val+w_val)),
+                  bg => U8(255-Clip(m_val+w_val)),
+                  bb => U8(255-Clip(y_val+w_val))
+                );
+            end case;
+          end loop;
+        end loop;
+      end Color_transformation_and_output;
+      --
+      procedure Ct_YCbCr  is new Color_transformation_and_output(YCbCr);
+      procedure Ct_Y_Grey is new Color_transformation_and_output(Y_Grey);
+      procedure Ct_CMYK   is new Color_transformation_and_output(CMYK);
+
       blk_idx: Integer;
       val: Integer;
       ssx, ssy, upsx, upsy: Positive;
-      y_val, cb_val, cr_val, c_val, m_val, w_val: Integer;
-      y_val_8: U8;
     begin
       -- Step 4 happens here: Upsampling
       for c in Component loop
@@ -700,40 +743,11 @@ package body GID.Decoding_JPG is
         end if;
       end loop;
       -- Step 5 and 6 happen here: Color transformation and output
-      for ymb in flat'Range(3) loop
-        exit when y0+ymb >= image.height;
-        Set_X_Y(x0, image.height-1-(y0+ymb));
-        for xmb in flat'Range(2) loop
-          exit when x0+xmb >= image.width;
-          case image.JPEG_stuff.color_space is
-            when YCbCR =>
-              y_val := flat(Y,  xmb, ymb) * 256;
-              cb_val:= flat(Cb, xmb, ymb) - 128;
-              cr_val:= flat(Cr, xmb, ymb) - 128;
-              Out_pixel_8(
-                br => U8(Clip((y_val                + 359 * cr_val + 128) / 256)),
-                bg => U8(Clip((y_val -  88 * cb_val - 183 * cr_val + 128) / 256)),
-                bb => U8(Clip((y_val + 454 * cb_val                + 128) / 256))
-              );
-            when Y_Grey =>
-              y_val_8:= U8(flat(Y,  xmb, ymb));
-              Out_pixel_8(y_val_8, y_val_8, y_val_8);
-            when CMYK =>
-              -- !! find a working conversion formula.
-              --    perhaps it is more complicated (APP_2
-              --    color profile must be used ?)
-              c_val:= flat(Y,  xmb, ymb);
-              m_val:= flat(Cb, xmb, ymb);
-              y_val:= flat(Cr, xmb, ymb);
-              w_val:= flat(I,  xmb, ymb)-255;
-              Out_pixel_8(
-                br => U8(255-Clip(c_val+w_val)),
-                bg => U8(255-Clip(m_val+w_val)),
-                bb => U8(255-Clip(y_val+w_val))
-              );
-          end case;
-        end loop;
-      end loop;
+      case image.JPEG_stuff.color_space is
+        when YCbCr =>   Ct_YCbCr;
+        when Y_Grey =>  Ct_Y_Grey;
+        when CMYK =>    Ct_CMYK;
+      end case;
     end Upsampling_and_output;
 
     -- Start Of Scan (and image data which follow)
@@ -742,7 +756,6 @@ package body GID.Decoding_JPG is
       components, b: U8;
       compo: Component;
       mbx, mby: Natural:= 0;
-      ssxmax, ssymax: Natural:= 0;
       mbsizex, mbsizey, mbwidth, mbheight: Natural;
       rstcount: Natural:= image.JPEG_stuff.restart_interval;
       nextrst: U16:= 0;
@@ -871,9 +884,10 @@ package body GID.Decoding_JPG is
         if image.JPEG_stuff.restart_interval > 0 then
           rstcount:= rstcount - 1;
           if rstcount = 0 then
-            -- Here the restart occurs:
-            ByteAlign;
-            w:= U16(GetBits(16));
+            -- Here begins the restart.
+            bufbits:= Natural(U32(bufbits) and 16#F8#); -- byte alignment
+            -- Now the restart marker. We expect a
+            w:= U16(Get_bits(16));
             if some_trace then
               Put_Line(
                 "  Restart #" & U16'Image(nextrst) &
@@ -882,13 +896,10 @@ package body GID.Decoding_JPG is
                 " macro blocks"
               );
             end if;
-            if w not in 16#FFD0# .. 16#FFD8# or
-              (w and 7) /= nextrst
-            then
+            if w not in 16#FFD0# .. 16#FFD7# or (w and 7) /= nextrst then
               Raise_exception(
                 error_in_image_data'Identity,
-                "JPEG: expected RST (restart) marker Nb " &
-                U16'Image(nextrst)
+                "JPEG: expected RST (restart) marker Nb " & U16'Image(nextrst)
               );
             end if;
             nextrst:= (nextrst + 1) and 7;
