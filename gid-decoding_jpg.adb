@@ -15,11 +15,13 @@
 -- Other informations:
 -- http://en.wikipedia.org/wiki/JPEG
 
+-- !! ** Some optimizations to consider **
 -- !! ssx, ssy ,ssxmax, ssymax
 --      as generic parameters + specialized instances
 -- !! consider only power-of-two upsampling factors ?
 -- !! simplify upsampling loops in case of power-of-two upsampling factors
 --      using Shift_Right
+-- !! Col_IDCT output direct to "flat", or something similar to NanoJPEG
 
 with GID.Buffering;
 with Ada.Text_IO, Ada.Exceptions, Ada.IO_Exceptions;
@@ -106,6 +108,9 @@ package body GID.Decoding_JPG is
     );
   end Read;
 
+  shift_arg: constant array(0..15) of Integer:=
+    (1 => 0, 2 => 1, 4 => 2, 8 => 3, others => -1);
+
   -- SOF - Start Of Frame (the real header)
   procedure Read_SOF(image: in out Image_descriptor; sh: Segment_head) is
     use Bounded_255;
@@ -140,6 +145,9 @@ package body GID.Decoding_JPG is
     -- number of components:
     Get_Byte(image.buffer, b);
     image.subformat_id:= Integer(b);
+    --
+    image.JPEG_stuff.max_samples_hor:= 0;
+    image.JPEG_stuff.max_samples_ver:= 0;
     -- for each component: 3 bytes
     for i in 1..image.subformat_id loop
       -- component id (1 = Y, 2 = Cb, 3 = Cr, 4 = I, 5 = Q)
@@ -147,16 +155,34 @@ package body GID.Decoding_JPG is
       compo:= JPEG_defs.Component'Val(b - 1);
       image.JPEG_stuff.components(compo):= True;
       declare
-        info: JPEG_defs.info_per_component_A renames image.JPEG_stuff.info(compo);
+        stuff: JPEG_stuff_type renames image.JPEG_stuff;
+        info: JPEG_defs.info_per_component_A renames stuff.info(compo);
       begin
         -- sampling factors (bit 0-3 vert., 4-7 hor.)
         Get_Byte(image.buffer, b);
         info.samples_ver:= Natural(b mod 16);
         info.samples_hor:= Natural(b  /  16);
+        stuff.max_samples_hor:=
+          Integer'Max(stuff.max_samples_hor, info.samples_hor);
+        stuff.max_samples_ver:=
+          Integer'Max(stuff.max_samples_ver, info.samples_ver);
         -- quantization table number
         Get_Byte(image.buffer, b);
         info.qt_assoc:= Natural(b);
       end;
+    end loop;
+    for c in Component loop
+      if image.JPEG_stuff.components(c) then
+        declare
+          stuff: JPEG_stuff_type renames image.JPEG_stuff;
+          info: JPEG_defs.info_per_component_A renames stuff.info(c);
+        begin
+          info.up_factor_x:= stuff.max_samples_hor / info.samples_hor;
+          info.up_factor_y:= stuff.max_samples_ver / info.samples_ver;
+          info.shift_x:= shift_arg(info.up_factor_x);
+          info.shift_y:= shift_arg(info.up_factor_y);
+        end;
+      end if;
     end loop;
     if Natural(sh.length) < 6 + 3 * image.subformat_id then
       Raise_exception(
@@ -373,6 +399,7 @@ package body GID.Decoding_JPG is
     end Show_bits;
 
     procedure Skip_bits(bits: Natural) is
+    pragma Inline(Skip_bits);
       dummy: Integer;
       pragma Warnings(off, dummy);
     begin
@@ -382,7 +409,8 @@ package body GID.Decoding_JPG is
       bufbits:= bufbits - bits;
     end Skip_bits;
 
-    function Get_bits(bits: Natural) return INteger is
+    function Get_bits(bits: Natural) return Integer is
+    pragma Inline(Get_bits);
       res: constant Integer:= Show_bits(bits);
     begin
       Skip_bits(bits);
@@ -630,7 +658,9 @@ package body GID.Decoding_JPG is
         end case;
       end Out_Pixel_8;
 
-    ssxmax, ssymax: Natural:= 0;
+    -- !! might be generic parameters
+    ssxmax: constant Natural:= image.JPEG_stuff.max_samples_hor;
+    ssymax: constant Natural:= image.JPEG_stuff.max_samples_ver;
 
     procedure Upsampling_and_output(
       m: Macro_block;
@@ -689,21 +719,19 @@ package body GID.Decoding_JPG is
 
       blk_idx: Integer;
       val: Integer;
-      ssx, ssy, upsx, upsy: Positive;
+      upsx, upsy: Natural;
     begin
       -- Step 4 happens here: Upsampling
       for c in Component loop
         if image.JPEG_stuff.components(c) then
-          ssx:= info_A(c).samples_hor;
-          ssy:= info_A(c).samples_ver;
-          upsx:= ssxmax/ssx;
-          upsy:= ssymax/ssy;
-          for x in 1..ssx loop
-            for y in 1..ssy loop
+          upsx:= info_A(c).up_factor_x;
+          upsy:= info_A(c).up_factor_y;
+          for x in reverse 1..info_A(c).samples_hor loop
+            for y in reverse 1..info_A(c).samples_ver loop
               -- We are at the 8x8 block level
-              blk_idx:= 0;
-              for y8 in 0..7 loop
-                for x8 in 0..7 loop
+              blk_idx:= 63;
+              for y8 in reverse 0..7 loop
+                for x8 in reverse 0..7 loop
                   val:= m(c,x,y)(blk_idx);
                   -- Repeat pixels for component c, sample (x,y),
                   -- position (x8,y8).
@@ -716,7 +744,7 @@ package body GID.Decoding_JPG is
                       ):= val;
                     end loop;
                   end loop;
-                  blk_idx:= blk_idx + 1;
+                  blk_idx:= blk_idx - 1;
                 end loop;
               end loop;
             end loop;
@@ -767,15 +795,13 @@ package body GID.Decoding_JPG is
           Raise_exception(
             error_in_image_data'Identity,
             "JPEG: component " & Component'Image(compo) &
-            " has not been defined in the SOF segment"
+            " has not been defined in the header (SOF) segment"
           );
         end if;
         -- Huffman table selection
         Get_Byte(image.buffer, b);
         info_B(compo).ht_idx_AC:= Natural(b mod 16);
         info_B(compo).ht_idx_DC:= Natural(b  /  16);
-        ssxmax:= Integer'Max(ssxmax, info_A(compo).samples_hor);
-        ssymax:= Integer'Max(ssymax, info_A(compo).samples_ver);
       end loop;
       -- Parameters for progressive display format (SOF_2)
       Get_Byte(image.buffer, start_spectral_selection);

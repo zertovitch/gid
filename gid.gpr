@@ -12,29 +12,29 @@ project GID is
 
    case Build_Mode is
       when "Debug" =>
-         for Main use ("tb.ads", "to_bmp.adb");
+         for Main use ("tb.ads", "to_bmp.adb", "mini.adb");
          for Object_Dir use "obj_debug";
       when "Fast" =>
-         for Main use ("to_bmp.adb");
+         for Main use ("to_bmp.adb", "mini.adb");
          for Object_Dir use "obj_fast";
       when "Safer" =>
-         for Main use ("to_bmp.adb");
+         for Main use ("to_bmp.adb", "mini.adb");
          for Object_Dir use "obj_safer";
       when "Small" =>
-         for Main use ("to_bmp.adb");
+         for Main use ("to_bmp.adb", "mini.adb");
          for Object_Dir use "obj_small";
       when "Smallest" =>
-         for Main use ("to_bmp.adb");
+         for Main use ("to_bmp.adb", "mini.adb");
          for Object_Dir use "obj_smallest";
       when "Profiling" =>
-         for Main use ("to_bmp.adb");
+         for Main use ("to_bmp.adb", "mini.adb");
          for Object_Dir use "obj_profiling";
    end case;
 
    package Compiler is
       case Build_Mode is
          when "Debug" =>
-            for Default_Switches ("ada") use ("-gnatwal", "-gnatVa", "-gnato", "-g", "-fstack-check", "-gnatec../debug.pra");
+            for Default_Switches ("ada") use ("-gnatwal", "-gnatVa", "-gnato", "-g", "-fno-inline", "-fstack-check", "-gnatec../debug.pra");
          when "Fast" =>
             for Default_Switches ("ada") use ("-O3", "-gnatpn", "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers");
          when "Safer" =>
@@ -42,9 +42,9 @@ project GID is
          when "Small" =>
             for Default_Switches ("ada") use ("-Os", "-gnatpn", "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0", "-mpreferred-stack-boundary=2");
          when "Smallest" =>
-            for Default_Switches ("ada") use ("-Os", "-gnatp",  "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0", "-mpreferred-stack-boundary=2");
+            for Default_Switches ("ada") use ("-Os", "-gnatp", "-fno-inline",  "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0", "-mpreferred-stack-boundary=2");
          when "Profiling" =>
-            for Default_Switches ("ada") use ("-O3", "-gnatpn", "-funroll-loops", "-fpeel-loops", "-funswitch-loops", "-ftracer", "-fweb", "-frename-registers", "-g", "-pg");
+            for Default_Switches ("ada") use ("-O3", "-gnatp", "-fno-inline", "-funroll-loops", "-fpeel-loops", "-funswitch-loops", "-ftracer", "-fweb", "-frename-registers", "-g", "-pg");
       end case;
    end Compiler;
 

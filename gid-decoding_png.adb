@@ -16,7 +16,7 @@
 --
 with GID.Buffering, GID.Decoding_PNG.Huffman;
 
-with Ada.Text_IO, Ada.Exceptions, Interfaces;
+with Ada.Text_IO, Ada.Exceptions;
 
 package body GID.Decoding_PNG is
 
@@ -1347,7 +1347,14 @@ package body GID.Decoding_PNG is
       b: U8;
       z_crc, dummy: U32;
 
-    begin -- Load
+    begin -- Load_specialized
+      --
+      -- For optimization reasons, bytes_to_unfilter is passed as a
+      -- generic parameter but should be always as below right to "/=" :
+      --
+      if bytes_to_unfilter /= Integer'Max(1, bits_per_pixel / 8) then
+        raise Program_Error;
+      end if;
       if interlaced then
         x_max:= (image.width+7)/8 - 1;
         y_max:= (image.height+7)/8 - 1;

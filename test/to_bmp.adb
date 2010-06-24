@@ -1,7 +1,8 @@
 --
--- Convert any image file to BMP file
+-- Convert any image or animation file to BMP file(s).
 --
--- Simple test for the GID (Generic Image Decoder) package
+-- Middle-size test for the GID (Generic Image Decoder) package.
+-- For a smaller example, look for mini.adb .
 --
 
 with GID;
@@ -57,7 +58,7 @@ procedure To_BMP is
   img_buf, bkg_buf: p_Byte_Array:= null;
   bkg: GID.Image_Descriptor;
 
-  -- Load image into a 24-bit truecolor RGB raw bitmap (for a BMP output)
+  -- Load image into a 24-bit truecolor BGR raw bitmap (for a BMP output)
   procedure Load_raw_image(
     image : in out GID.Image_descriptor;
     buffer: in out p_Byte_Array;
@@ -233,6 +234,7 @@ procedure To_BMP is
     when others =>
       if forgive_errors then
         error:= True;
+        next_frame:= 0.0;
       else
         raise;
       end if;
