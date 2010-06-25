@@ -94,9 +94,7 @@ procedure To_BMP is
     pragma Inline(Put_Pixel_without_bkg);
     pragma Warnings(off, alpha); -- alpha is just ignored
     begin
-      buffer(idx)  := blue;
-      buffer(idx+1):= green;
-      buffer(idx+2):= red;
+      buffer(idx..idx+2):= (blue, green, red);
       idx:= idx + 3;
       -- ^ GID requires us to look to next pixel on the right for next time.
     end Put_Pixel_without_bkg;
@@ -114,9 +112,7 @@ procedure To_BMP is
       u_blue : constant:= 32;
     begin
       if alpha = 255 then
-        buffer(idx)  := blue;
-        buffer(idx+1):= green;
-        buffer(idx+2):= red;
+        buffer(idx..idx+2):= (blue, green, red);
       else -- blend with bckground color
         buffer(idx)  := Primary_color_range((U16(alpha) * U16(blue)  + U16(255-alpha) * u_blue )/255);
         buffer(idx+1):= Primary_color_range((U16(alpha) * U16(green) + U16(255-alpha) * u_green)/255);
@@ -140,9 +136,7 @@ procedure To_BMP is
       bkg_idx: Natural;
     begin
       if alpha = 255 then
-        buffer(idx)  := blue;
-        buffer(idx+1):= green;
-        buffer(idx+2):= red;
+        buffer(idx..idx+2):= (blue, green, red);
       else -- blend with background image
         bkg_idx:= 3 * (mem_x mod bkg_width) + bkg_padded_line_size * (mem_y mod bkg_height);
         b_blue := bkg_buf(bkg_idx);

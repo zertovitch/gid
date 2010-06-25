@@ -11,7 +11,7 @@ del *.ppm
 
 to_bmp - nasa*.jpg
 
-for /l %%i in (1,1,7) do timeit -s -f c:gid.dat -k jpg_rev90 to_bmp.exe nasa*.jpg
+for /l %%i in (1,1,7) do timeit -s -f c:gid.dat -k jpg_rev91 to_bmp.exe nasa*.jpg
 
 
 rem for /l %%i in (1,1,7) do timeit -f gid.dat -k png001 to_bmp.exe - nasa*.png
