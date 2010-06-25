@@ -240,36 +240,32 @@ procedure To_BMP is
       end if;
   end Load_raw_image;
 
-  procedure Dump_BMP_24 (
-    name: String;
-    i   : GID.Image_descriptor
-  )
-  is
+  procedure Dump_BMP_24(name: String; i: GID.Image_descriptor) is
     f: Ada.Streams.Stream_IO.File_Type;
     type BITMAPFILEHEADER is record
       bfType     : Unsigned_16;
       bfSize     : Unsigned_32;
-      bfReserved1: Unsigned_16;
-      bfReserved2: Unsigned_16;
+      bfReserved1: Unsigned_16:= 0;
+      bfReserved2: Unsigned_16:= 0;
       bfOffBits  : Unsigned_32;
     end record;
-    -- No packing needed
+    -- ^ No packing needed
     BITMAPFILEHEADER_Bytes: constant:= 14;
 
     type BITMAPINFOHEADER is record
       biSize         : Unsigned_32;
       biWidth        : Unsigned_32;
       biHeight       : Unsigned_32;
-      biPlanes       : Unsigned_16;
+      biPlanes       : Unsigned_16:= 1;
       biBitCount     : Unsigned_16;
-      biCompression  : Unsigned_32;
+      biCompression  : Unsigned_32:= 0;
       biSizeImage    : Unsigned_32;
-      biXPelsPerMeter: Unsigned_32;
-      biYPelsPerMeter: Unsigned_32;
-      biClrUsed      : Unsigned_32;
-      biClrImportant : Unsigned_32;
+      biXPelsPerMeter: Unsigned_32:= 0;
+      biYPelsPerMeter: Unsigned_32:= 0;
+      biClrUsed      : Unsigned_32:= 0;
+      biClrImportant : Unsigned_32:= 0;
     end record;
-    -- No packing needed
+    -- ^ No packing needed
     BITMAPINFOHEADER_Bytes: constant:= 40;
 
     FileInfo  : BITMAPINFOHEADER;
@@ -293,20 +289,12 @@ procedure To_BMP is
   begin
     FileHeader.bfType := 16#4D42#; -- 'BM'
     FileHeader.bfOffBits := BITMAPINFOHEADER_Bytes + BITMAPFILEHEADER_Bytes;
-    FileHeader.bfReserved1:= 0;
-    FileHeader.bfReserved2:= 0;
 
     FileInfo.biSize       := BITMAPINFOHEADER_Bytes;
     FileInfo.biWidth      := Unsigned_32(GID.Pixel_width(i));
     FileInfo.biHeight     := Unsigned_32(GID.Pixel_height(i));
-    FileInfo.biPlanes     := 1;
     FileInfo.biBitCount   := 24;
-    FileInfo.biCompression:= 0;
     FileInfo.biSizeImage  := Unsigned_32(img_buf.all'Length);
-    FileInfo.biXPelsPerMeter:= 0;
-    FileInfo.biYPelsPerMeter:= 0;
-    FileInfo.biClrUsed      := 0;
-    FileInfo.biClrImportant := 0;
 
     FileHeader.bfSize := FileHeader.bfOffBits + FileInfo.biSizeImage;
 

@@ -718,7 +718,6 @@ package body GID.Decoding_JPG is
       procedure Ct_CMYK   is new Color_transformation_and_output(CMYK);
 
       blk_idx: Integer;
-      val: Integer;
       upsx, upsy: Natural;
     begin
       -- Step 4 happens here: Upsampling
@@ -732,18 +731,19 @@ package body GID.Decoding_JPG is
               blk_idx:= 63;
               for y8 in reverse 0..7 loop
                 for x8 in reverse 0..7 loop
-                  val:= m(c,x,y)(blk_idx);
-                  -- Repeat pixels for component c, sample (x,y),
-                  -- position (x8,y8).
-                  for rx in reverse 0..upsx-1 loop
-                    for ry in reverse 0..upsy-1 loop
-                      flat(
-                        c,
-                        rx + upsx * (x8 + 8*(x-1)),
-                        ry + upsy * (y8 + 8*(y-1))
-                      ):= val;
+                  declare
+                    val: constant Integer:= m(c,x,y)(blk_idx);
+                    big_pixel_x: constant Natural:= upsx * (x8 + 8*(x-1));
+                    big_pixel_y: constant Natural:= upsy * (y8 + 8*(y-1));
+                  begin
+                    -- Repeat pixels for component c, sample (x,y),
+                    -- position (x8,y8).
+                    for rx in reverse 0..upsx-1 loop
+                      for ry in reverse 0..upsy-1 loop
+                        flat(c, rx + big_pixel_x, ry + big_pixel_y):= val;
+                      end loop;
                     end loop;
-                  end loop;
+                  end;
                   blk_idx:= blk_idx - 1;
                 end loop;
               end loop;
