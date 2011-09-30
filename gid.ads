@@ -102,13 +102,11 @@ package GID is
     --   16-bit coding is seen in some high-end apps/devices/formats.
     --
     with procedure Set_X_Y (x, y: Natural);
-      pragma Inline(Set_X_Y);
     -- After Set_X_Y, next pixel is meant to be displayed at position (x,y)
     with procedure Put_Pixel (
       red, green, blue : Primary_color_range;
       alpha            : Primary_color_range
     );
-      pragma Inline(Put_Pixel);
     -- When Put_Pixel is called twice without a Set_X_Y inbetween,
     -- the pixel must be displayed on the next X position after the last one.
     -- [ Rationale: if the image lands into an array with contiguous pixels

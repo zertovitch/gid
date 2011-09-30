@@ -22,7 +22,7 @@ package body GID.Headers is
   -------------------------------------------------------
 
   procedure Load_signature (
-    image   :    out Image_descriptor;
+    image   : in out Image_descriptor;
     try_tga :        Boolean:= False
 
   )
