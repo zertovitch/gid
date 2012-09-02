@@ -25,7 +25,7 @@
 --
 --   More credits in gid_work.xls, sheet "credits".
 --
--- Copyright (c) Gautier de Montmollin 2010
+-- Copyright (c) Gautier de Montmollin 2010..2012
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -150,8 +150,8 @@ package GID is
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
 
-  version   : constant String:= "00.6";
-  reference : constant String:= "22-Jun-2010";
+  version   : constant String:= "01 - preview";
+  reference : constant String:= "2-Sep-2012";
   web: constant String:= "http://sf.net/projects/gen-img-dec/";
   -- hopefully the latest version is at that URL...
 
@@ -280,15 +280,15 @@ private
   -- or explaining internals.
   --
   type Trace_type is (
-    none, -- No trace at all, no use of console from the library
-    some, -- Image / frame technical informations
-    full  -- Byte / pixel / compressed block details
+    none,   -- No trace at all, no use of console from the library
+    some_t, -- Image / frame technical informations
+    full    -- Byte / pixel / compressed block details
   );
 
   trace: constant Trace_type:= none; -- <== Choice here
 
   no_trace  : constant Boolean:= trace=none;
   full_trace: constant Boolean:= trace=full;
-  some_trace: constant Boolean:= trace>=some;
+  some_trace: constant Boolean:= trace>=some_t;
 
 end GID;

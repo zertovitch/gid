@@ -7,7 +7,7 @@ project GID is
    for Source_Dirs use (".", "test");
    for Exec_Dir use "test";
    type Build_Mode_Type is
-      ("Debug", "Safer", "Fast", "Small", "Smallest", "Profiling");
+      ("Debug", "Fast_but_checked", "Fast", "Small", "Smallest", "Profiling");
    Build_Mode : Build_Mode_Type := external ("Build_Mode", "Debug");
 
    case Build_Mode is
@@ -17,7 +17,7 @@ project GID is
       when "Fast" =>
          for Main use ("to_bmp.adb", "mini.adb");
          for Object_Dir use "obj_fast";
-      when "Safer" =>
+      when "Fast_but_checked" =>
          for Main use ("to_bmp.adb", "mini.adb");
          for Object_Dir use "obj_safer";
       when "Small" =>
@@ -34,10 +34,10 @@ project GID is
    package Compiler is
       case Build_Mode is
          when "Debug" =>
-            for Default_Switches ("ada") use ("-gnatwal", "-gnatVa", "-gnato", "-g", "-fno-inline", "-fstack-check", "-gnatec../debug.pra");
+            for Default_Switches ("ada") use ("-gnat95", "-gnatwa", "-gnatVa", "-gnato", "-g", "-fno-inline", "-fstack-check", "-gnatec../debug.pra");
          when "Fast" =>
             for Default_Switches ("ada") use ("-O3", "-gnatpn", "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers");
-         when "Safer" =>
+         when "Fast_but_checked" =>
             for Default_Switches ("ada") use ("-O3", "-gnato",  "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers");
          when "Small" =>
             for Default_Switches ("ada") use ("-Os", "-gnatpn", "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0", "-mpreferred-stack-boundary=2");
@@ -54,7 +54,7 @@ project GID is
             for Default_Switches ("ada") use ("-g");
          when "Fast" =>
             for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections");
-         when "Safer" =>
+         when "Fast_but_checked" =>
             for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections");
          when "Small" =>
             for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections");
@@ -70,7 +70,7 @@ project GID is
          when "Debug" =>
             for Default_Switches ("ada") use ("-E");
          when "Fast" =>
-         when "Safer" =>
+         when "Fast_but_checked" =>
          when "Small" =>
          when "Smallest" =>
          when "Profiling" =>
