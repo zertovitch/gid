@@ -85,6 +85,11 @@ package body GID is
     return image.height;
   end Pixel_height;
 
+  function Display_orientation (image: Image_descriptor) return Orientation is
+  begin
+    return image.display_orientation;
+  end Display_orientation;
+
   -------------------------
   -- Load_image_contents --
   -------------------------

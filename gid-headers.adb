@@ -37,8 +37,11 @@ package body GID.Headers is
     procedure Dispose is
       new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
   begin
+    -- Some cleanup
     Dispose(image.palette);
     image.next_frame:= 0.0;
+    image.display_orientation:= Standard;
+    --
     Character'Read(image.stream, c);
     image.first_byte:= Character'Pos(c);
     case c is
@@ -297,6 +300,8 @@ package body GID.Headers is
         when SOF_0 .. SOF_15 =>
           Read_SOF(image, sh);
           exit; -- we've got header-style informations, then it's time to quit
+        when APP_1 =>
+          Read_EXIF(image, Natural(sh.length));
         when others =>
           -- Skip segment data
           for i in 1..sh.length loop

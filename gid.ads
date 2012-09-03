@@ -84,6 +84,15 @@ package GID is
   function Pixel_width (image: Image_descriptor) return Positive;
   function Pixel_height (image: Image_descriptor) return Positive;
 
+  -- Standard orientation has origin at top left
+
+  type Orientation is (
+    Standard,
+    Rotation_90, Rotation_180, Rotation_270
+  );
+
+  function Display_orientation (image: Image_descriptor) return Orientation;
+
   --------------------------------------------------------------------
   -- 3) Load and decode the image itself. If the image is animated, --
   --    call Load_image_contents until next_frame is 0.0            --
@@ -253,6 +262,7 @@ private
     detailed_format    : Bounded_255.Bounded_String; -- for humans only!
     subformat_id       : Integer:= 0;
     width, height      : Positive;
+    display_orientation: Orientation;
     bits_per_pixel     : Positive;
     RLE_encoded        : Boolean:= False;
     transparency       : Boolean:= False;

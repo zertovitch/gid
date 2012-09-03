@@ -341,6 +341,84 @@ package body GID.Decoding_JPG is
     image.JPEG_stuff.restart_interval:= Natural(ri);
   end Read_DRI;
 
+  procedure Read_EXIF(image: in out Image_descriptor; data_length: Natural) is
+    b, orientation_value: U8;
+    x: Natural;
+    Exif_signature: constant String:= "Exif" & ASCII.NUL & ASCII.NUL;
+    signature: String(1..6);
+    IFD_tag: U16;
+  begin
+    if some_trace then
+      Put_Line("APP1");
+    end if;
+    if data_length < 6 then
+      -- Skip segment data
+      for i in 1..data_length loop
+        Get_Byte(image.buffer, b);
+      end loop;
+    else
+      for i in 1..6 loop
+        Get_Byte(image.buffer, b);
+        signature(i):= Character'Val(b);
+      end loop;
+      if signature /= Exif_signature then
+        for i in 7..data_length loop
+          Get_Byte(image.buffer, b);
+        end loop;
+        if some_trace then
+          Put_Line("APP1 is not Exif");
+        end if;
+        return;
+      end if;
+      if some_trace then
+        Put_Line("APP1 is Exif");
+      end if;
+      for i in 7..16 loop -- TIFF 6.0 header + IFD0 entries
+        Get_Byte(image.buffer, b);
+      end loop;
+      x:= 17;
+      while x <= data_length - 12 loop
+        Get_Byte(image.buffer, b);
+        IFD_tag:= U16(b);
+        Get_Byte(image.buffer, b);
+        IFD_tag:= IFD_tag + 16#100# * U16(b);
+        for i in 3..8 loop
+          Get_Byte(image.buffer, b);
+        end loop;
+        Get_Byte(image.buffer, orientation_value);
+        for i in 10..12 loop
+          Get_Byte(image.buffer, b);
+        end loop;
+        x:= x + 12;
+        if IFD_tag = 16#112# then
+          case orientation_value is
+            when 1 =>
+              image.display_orientation:= Standard;
+            when 8 =>
+              image.display_orientation:= Rotation_90;
+            when 3 =>
+              image.display_orientation:= Rotation_180;
+            when 6 =>
+              image.display_orientation:= Rotation_270;
+            when others =>
+              image.display_orientation:= Standard;
+          end case;
+          if some_trace then
+            Put_Line(
+              "IFD tag: Orientation set to: " &
+              Orientation'Image(image.display_orientation)
+            );
+          end if;
+          exit;
+        end if;
+      end loop;
+      -- Skip rest of data
+      for i in x..data_length loop
+        Get_Byte(image.buffer, b);
+      end loop;
+    end if;
+  end Read_EXIF;
+
   --------------------
   -- Image decoding --
   --------------------

@@ -65,6 +65,8 @@ private package GID.Decoding_JPG is
   procedure Read_DQT(image: in out Image_descriptor; data_length: Natural);
   procedure Read_DRI(image: in out Image_descriptor);
 
+  procedure Read_EXIF(image: in out Image_descriptor; data_length: Natural);
+
   --------------------
   -- Image decoding --
   --------------------

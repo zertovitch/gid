@@ -4,6 +4,8 @@
 -- Middle-size test for the GID (Generic Image Decoder) package.
 -- For a smaller example, look for mini.adb .
 --
+-- !! to do: do something with the EXIF orientation
+--
 
 with GID;
 
@@ -374,6 +376,10 @@ procedure To_BMP is
       "  Dimensions in pixels: " &
       Integer'Image(GID.Pixel_Width(i)) & " x" &
       Integer'Image(GID.Pixel_Height(i))
+    );
+    Put_Line(Standard_Error,
+      "  Display orientation: " &
+      GID.Orientation'Image(GID.Display_orientation(i))
     );
     Put(Standard_Error,
       "  Color depth: " &
