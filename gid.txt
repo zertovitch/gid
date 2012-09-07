@@ -1,13 +1,16 @@
-Generic Image Decoder
----------------------
+GID - the Generic Image Decoder
+-------------------------------
+
 The Generic Image Decoder (GID) is an Ada package for decoding a
 broad variety of image formats, from any data stream, to any kind
 of medium, be it an in-memory bitmap, a GUI object,
 some other stream, arrays of floating-point initial data
 for scientific calculations, a browser element, a device,...
+
 Animations are supported.
 
 Some features:
+
 - Standalone (no dependency on other libraires, bindings,...)
 - Unconditionally portable code: OS-, CPU-, compiler- independent code.
 - Multi-platform, but native code
@@ -17,6 +20,7 @@ Some features:
 - pure Ada 95 (compiled by Ada 95, Ada 2005, and later compilers)
 
 Some possible applications:
+
 - image processing (interactive or not)
 - image analysis, text recognition
 - a drawing program
@@ -85,12 +89,13 @@ Load_image_contents is generic. You provide the following:
   * procedure Put_Pixel: set a color (and transparency) on
       the "cursor" place; the cursor is meant to move one pixel
       to te right, then
-  * procedure Feedback: display progress (if you want it, otherwise
-      you can always provide an empty procedure)
+  * procedure Feedback: display progress (if you want or need it;
+      otherwise, you can always provide an empty procedure)
   * mode: Display_mode: here you tell if you want the decoding rather
       nicer or faster, when the decoder is processing "progressive"
       (JPEG) or "interlaced" (GIF, PNG) pictures. Note: the end
-      result is exactly the same.
+      result is exactly the same. The visual difference appears only
+      during the decoding.
 
 This generic construction allows you a total freedom on where and
 how to use GID in your programs. In addition, your Set_X_Y and
@@ -117,8 +122,8 @@ Memory requirements and usage
 -----------------------------
 GID uses only memory for decoding purposes (e.g. decompression
 structures, color tables) and doesn't store the image itself.
-As a result, memory will be reserved for only one copy of the output
-bitmap, and this under the format you want or need to have.
+As a result, memory will be reserved for at most only one copy of
+the output bitmap, and this under the format you want or need to have.
 As an example, the to_bmp demo stores the image as a packed
 RBG byte array with a 4-byte padding which is the appropriate
 format for dumping a BMP file in the end. But there are many
@@ -131,7 +136,7 @@ to transmit the pixels further.
 All memory used by GID is taken on the stack, with the exception
 of palettes and JPEG's DHT tables. Those are dynamically allocated
 on the heap and deallocated upon scope end of a variable of the
-Image_descriptor type. It means there is no memory leak possible. 
+Image_descriptor type. It means there is no possible memory leak. 
 The use of heap allocation is justified there because of the
 relatively large size of those objects. They could very well
 be also part of the descriptor record, with a maximal size for

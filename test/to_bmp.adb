@@ -4,7 +4,7 @@
 -- Middle-size test/demo for the GID (Generic Image Decoder) package.
 --
 -- Supports:
--- - Transparency (blends opaque/transparenc areas with a background
+-- - Transparency (blends opaque/transparent areas with a background
 --     image or a fixed colour)
 -- - Display orientation (JPEG EXIF informations from digital cameras)
 --

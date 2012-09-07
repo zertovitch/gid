@@ -159,8 +159,8 @@ package GID is
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
 
-  version   : constant String:= "02 - preview";
-  reference : constant String:= "6-Sep-2012";
+  version   : constant String:= "02";
+  reference : constant String:= "8-Sep-2012";
   web: constant String:= "http://sf.net/projects/gen-img-dec/";
   -- Hopefully the latest version is at that URL...
 
