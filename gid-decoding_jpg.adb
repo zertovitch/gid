@@ -393,7 +393,7 @@ package body GID.Decoding_JPG is
         if IFD_tag = 16#112# then
           case orientation_value is
             when 1 =>
-              image.display_orientation:= Standard;
+              image.display_orientation:= Unchanged;
             when 8 =>
               image.display_orientation:= Rotation_90;
             when 3 =>
@@ -401,7 +401,7 @@ package body GID.Decoding_JPG is
             when 6 =>
               image.display_orientation:= Rotation_270;
             when others =>
-              image.display_orientation:= Standard;
+              image.display_orientation:= Unchanged;
           end case;
           if some_trace then
             Put_Line(

@@ -84,10 +84,10 @@ package GID is
   function Pixel_width (image: Image_descriptor) return Positive;
   function Pixel_height (image: Image_descriptor) return Positive;
 
-  -- Standard orientation has origin at top left
+  -- "Unchanged" orientation has origin at top left
 
   type Orientation is (
-    Standard,
+    Unchanged,
     Rotation_90, Rotation_180, Rotation_270
   );
 
@@ -159,10 +159,10 @@ package GID is
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
 
-  version   : constant String:= "01 - preview";
-  reference : constant String:= "2-Sep-2012";
+  version   : constant String:= "02 - preview";
+  reference : constant String:= "6-Sep-2012";
   web: constant String:= "http://sf.net/projects/gen-img-dec/";
-  -- hopefully the latest version is at that URL...
+  -- Hopefully the latest version is at that URL...
 
 private
 

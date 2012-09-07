@@ -1,10 +1,14 @@
 --
 -- Convert any image or animation file to BMP file(s).
 --
--- Middle-size test for the GID (Generic Image Decoder) package.
--- For a smaller example, look for mini.adb .
+-- Middle-size test/demo for the GID (Generic Image Decoder) package.
 --
--- !! to do: do something with the EXIF orientation
+-- Supports:
+-- - Transparency (blends opaque/transparenc areas with a background
+--     image or a fixed colour)
+-- - Display orientation (JPEG EXIF informations from digital cameras)
+--
+-- For a smaller and simpler example, look for mini.adb .
 --
 
 with GID;
@@ -60,7 +64,15 @@ procedure To_BMP is
   img_buf, bkg_buf: p_Byte_Array:= null;
   bkg: GID.Image_Descriptor;
 
+  generic
+    correct_orientation: GID.Orientation;
   -- Load image into a 24-bit truecolor BGR raw bitmap (for a BMP output)
+  procedure Load_raw_image(
+    image : in out GID.Image_descriptor;
+    buffer: in out p_Byte_Array;
+    next_frame: out Ada.Calendar.Day_Duration
+  );
+  --
   procedure Load_raw_image(
     image : in out GID.Image_descriptor;
     buffer: in out p_Byte_Array;
@@ -70,18 +82,33 @@ procedure To_BMP is
     subtype Primary_color_range is Unsigned_8;
     subtype U16 is Unsigned_16;
     image_width: constant Positive:= GID.Pixel_Width(image);
-    padded_line_size: constant Positive:=
+    image_height: constant Positive:= GID.Pixel_Height(image);
+    padded_line_size_x: constant Positive:=
       4 * Integer(Float'Ceiling(Float(image_width) * 3.0 / 4.0));
+    padded_line_size_y: constant Positive:=
+      4 * Integer(Float'Ceiling(Float(image_height) * 3.0 / 4.0));
     -- (in bytes)
-    idx: Natural;
+    idx: Integer;
     mem_x, mem_y: Natural;
     bkg_padded_line_size: Positive;
     bkg_width, bkg_height: Natural;
     --
     procedure Set_X_Y (x, y: Natural) is
     pragma Inline(Set_X_Y);
+      use GID;
+      rev_x: constant Natural:= image_width - (x+1);
+      rev_y: constant Natural:= image_height - (y+1);
     begin
-      idx:= 3 * x + padded_line_size * y;
+      case correct_orientation is
+        when Unchanged =>
+          idx:= 3 * x + padded_line_size_x * y;
+        when Rotation_90 =>
+          idx:= 3 * rev_y + padded_line_size_y * x;
+        when Rotation_180 =>
+          idx:= 3 * rev_x + padded_line_size_x * rev_y;
+        when Rotation_270 =>
+          idx:= 3 * y + padded_line_size_y * rev_x;
+      end case;
       mem_x:= x;
       mem_y:= y;
     end Set_X_Y;
@@ -95,10 +122,20 @@ procedure To_BMP is
     is
     pragma Inline(Put_Pixel_without_bkg);
     pragma Warnings(off, alpha); -- alpha is just ignored
+      use GID;
     begin
       buffer(idx..idx+2):= (blue, green, red);
-      idx:= idx + 3;
-      -- ^ GID requires us to look to next pixel on the right for next time.
+      -- GID requires us to look to next pixel for next time:
+      case correct_orientation is
+        when Unchanged =>
+          idx:= idx + 3;
+        when Rotation_90 =>
+          idx:= idx + padded_line_size_y;
+        when Rotation_180 =>
+          idx:= idx - 3;
+        when Rotation_270 =>
+          idx:= idx - padded_line_size_y;
+      end case;
     end Put_Pixel_without_bkg;
     --
     -- Unicolor background version of Put_Pixel
@@ -204,7 +241,12 @@ procedure To_BMP is
   begin
     error:= False;
     Dispose(buffer);
-    buffer:= new Byte_Array(0..padded_line_size * GID.Pixel_height(image) - 1);
+    case correct_orientation is
+      when GID.Unchanged | GID.Rotation_180 =>
+        buffer:= new Byte_Array(0..padded_line_size_x * GID.Pixel_height(image) - 1);
+      when GID.Rotation_90 | GID.Rotation_270 =>
+        buffer:= new Byte_Array(0..padded_line_size_y * GID.Pixel_width(image) - 1);
+    end case;
     if GID.Expect_transparency(image) then
       if background_image_name = Null_Unbounded_String then
         BMP24_Load_with_unicolor_bkg(image, next_frame);
@@ -235,6 +277,11 @@ procedure To_BMP is
         raise;
       end if;
   end Load_raw_image;
+
+  procedure Load_raw_image_0 is new Load_raw_image(GID.Unchanged);
+  procedure Load_raw_image_90 is new Load_raw_image(GID.Rotation_90);
+  procedure Load_raw_image_180 is new Load_raw_image(GID.Rotation_180);
+  procedure Load_raw_image_270 is new Load_raw_image(GID.Rotation_270);
 
   procedure Dump_BMP_24(name: String; i: GID.Image_descriptor) is
     f: Ada.Streams.Stream_IO.File_Type;
@@ -285,10 +332,15 @@ procedure To_BMP is
   begin
     FileHeader.bfType := 16#4D42#; -- 'BM'
     FileHeader.bfOffBits := BITMAPINFOHEADER_Bytes + BITMAPFILEHEADER_Bytes;
-
     FileInfo.biSize       := BITMAPINFOHEADER_Bytes;
-    FileInfo.biWidth      := Unsigned_32(GID.Pixel_width(i));
-    FileInfo.biHeight     := Unsigned_32(GID.Pixel_height(i));
+    case GID.Display_orientation(i) is
+      when GID.Unchanged | GID.Rotation_180 =>
+        FileInfo.biWidth  := Unsigned_32(GID.Pixel_width(i));
+        FileInfo.biHeight := Unsigned_32(GID.Pixel_height(i));
+      when GID.Rotation_90 | GID.Rotation_270 =>
+        FileInfo.biWidth  := Unsigned_32(GID.Pixel_height(i));
+        FileInfo.biHeight := Unsigned_32(GID.Pixel_width(i));
+    end case;
     FileInfo.biBitCount   := 24;
     FileInfo.biSizeImage  := Unsigned_32(img_buf.all'Length);
 
@@ -412,14 +464,32 @@ procedure To_BMP is
     Put_Line(Standard_Error, "         |         | ");
     --
     if as_background then
-      Load_raw_image(i, bkg_buf, next_frame);
+      case GID.Display_orientation(i) is
+        when GID.Unchanged =>
+          Load_raw_image_0(i, bkg_buf, next_frame);
+        when GID.Rotation_90 =>
+          Load_raw_image_90(i, bkg_buf, next_frame);
+        when GID.Rotation_180 =>
+          Load_raw_image_180(i, bkg_buf, next_frame);
+        when GID.Rotation_270 =>
+          Load_raw_image_270(i, bkg_buf, next_frame);
+      end case;
       bkg:= i;
       New_Line(Standard_Error);
       Close(f);
       return;
     end if;
     loop
-      Load_raw_image(i, img_buf, next_frame);
+      case GID.Display_orientation(i) is
+        when GID.Unchanged =>
+          Load_raw_image_0(i, img_buf, next_frame);
+        when GID.Rotation_90 =>
+          Load_raw_image_90(i, img_buf, next_frame);
+        when GID.Rotation_180 =>
+          Load_raw_image_180(i, img_buf, next_frame);
+        when GID.Rotation_270 =>
+          Load_raw_image_270(i, img_buf, next_frame);
+      end case;
       if not test_only then
         Dump_BMP_24(name & Duration'Image(current_frame), i);
       end if;

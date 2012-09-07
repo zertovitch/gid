@@ -40,7 +40,7 @@ package body GID.Headers is
     -- Some cleanup
     Dispose(image.palette);
     image.next_frame:= 0.0;
-    image.display_orientation:= Standard;
+    image.display_orientation:= Unchanged;
     --
     Character'Read(image.stream, c);
     image.first_byte:= Character'Pos(c);
