@@ -24,7 +24,7 @@
 -- !! Col_IDCT output direct to "flat", or something similar to NanoJPEG
 
 with GID.Buffering;
-with Ada.Text_IO, Ada.Exceptions, Ada.IO_Exceptions;
+with Ada.Text_IO, Ada.Integer_Text_IO, Ada.Exceptions, Ada.IO_Exceptions;
 
 package body GID.Decoding_JPG is
 
@@ -343,10 +343,13 @@ package body GID.Decoding_JPG is
 
   procedure Read_EXIF(image: in out Image_descriptor; data_length: Natural) is
     b, orientation_value: U8;
-    x: Natural;
+    x, ifd0_entries: Natural;
     Exif_signature: constant String:= "Exif" & ASCII.NUL & ASCII.NUL;
     signature: String(1..6);
     IFD_tag: U16;
+    endianness: Character;
+    -- 'M' (Motorola) or 'I' (Intel): EXIF chunks may have different endiannesses,
+    -- even though the whole JPEG format has a fixed endianness!
   begin
     if some_trace then
       Put_Line("APP1");
@@ -362,33 +365,62 @@ package body GID.Decoding_JPG is
         signature(i):= Character'Val(b);
       end loop;
       if signature /= Exif_signature then
-        for i in 7..data_length loop
-          Get_Byte(image.buffer, b);
+        for i in 7..data_length loop -- Skip remaining of APP1 data
+          Get_Byte(image.buffer, b); -- since we don't know how to use it.
         end loop;
         if some_trace then
           Put_Line("APP1 is not Exif");
         end if;
         return;
       end if;
+      Get_Byte(image.buffer, b); -- TIFF 6.0 header (1st of 8 bytes)
+      endianness:= Character'Val(b);
       if some_trace then
-        Put_Line("APP1 is Exif");
+        Put_Line("APP1 is Exif; endianness is " & endianness);
       end if;
-      for i in 7..16 loop -- TIFF 6.0 header + IFD0 entries
+      for i in 8..14 loop -- TIFF 6.0 header (2-8 of 8 bytes)
         Get_Byte(image.buffer, b);
       end loop;
+      -- Number of IFD0 entries (2 bytes)
+      ifd0_entries:= 0;
+      Get_Byte(image.buffer, b);
+      ifd0_entries:= Natural(b);
+      Get_Byte(image.buffer, b);
+      if endianness = 'I' then
+        ifd0_entries:= ifd0_entries + 16#100# * Natural(b);
+      else
+        ifd0_entries:= Natural(b) + 16#100# * ifd0_entries;
+      end if;
+      if some_trace then
+        Put_Line("EXIF's IFD0 has" & Natural'Image(ifd0_entries) & " entries.");
+      end if;
       x:= 17;
       while x <= data_length - 12 loop
         Get_Byte(image.buffer, b);
         IFD_tag:= U16(b);
         Get_Byte(image.buffer, b);
-        IFD_tag:= IFD_tag + 16#100# * U16(b);
+        if endianness = 'I' then
+          IFD_tag:= IFD_tag + 16#100# * U16(b);
+        else
+          IFD_tag:= U16(b) + 16#100# * IFD_tag;
+        end if;
+        if some_trace then
+          Put("IFD tag:"); Ada.Integer_Text_IO.Put(Natural(IFD_tag), Base => 16); New_Line;
+        end if;
         for i in 3..8 loop
           Get_Byte(image.buffer, b);
         end loop;
-        Get_Byte(image.buffer, orientation_value);
-        for i in 10..12 loop
+        if endianness = 'I' then
+          Get_Byte(image.buffer, orientation_value);
+          for i in 10..12 loop
+            Get_Byte(image.buffer, b);
+          end loop;
+        else
           Get_Byte(image.buffer, b);
-        end loop;
+          Get_Byte(image.buffer, orientation_value);
+          Get_Byte(image.buffer, b);
+          Get_Byte(image.buffer, b);
+        end if;
         x:= x + 12;
         if IFD_tag = 16#112# then
           case orientation_value is
@@ -405,7 +437,7 @@ package body GID.Decoding_JPG is
           end case;
           if some_trace then
             Put_Line(
-              "IFD tag: Orientation set to: " &
+              "IFD tag 0112: Orientation set to: " &
               Orientation'Image(image.display_orientation)
             );
           end if;
