@@ -105,6 +105,11 @@ which should deliver a decent performance as soon as you set the right
 compiler options (optimization, inlined or macro-expanded generics,
 suppression of all checks, loop unrolling).
 
+*Important note*: the performance of GID is mostly dependant of the code
+you provide in Put_Pixel. If it is much more that inserting a byte into
+a buffer and advancing an index or a pointer, you will get an important
+performance penalty. Remember that Put_Pixel is called... for each pixel.
+
 How to build GID
 ----------------
 - From GPS, press F4 - that's it. The executable is in the /test folder.
