@@ -201,36 +201,36 @@ private
 
   package JPEG_defs is
 
-  type Component is
-    (Y,  -- brightness
-     Cb, -- hue
-     Cr, -- saturation
-     I,  -- ??
-     Q   -- ??
+    type Component is
+      (Y,  -- brightness
+       Cb, -- hue
+       Cr, -- saturation
+       I,  -- ??
+       Q   -- ??
+      );
+
+    type QT is array(0..63) of Natural;
+    type QT_list is array(0..7) of QT;
+
+    type Compo_set is array(Component) of Boolean;
+
+    type Info_per_component_A is record -- B is defined inside the decoder
+      qt_assoc    : Natural;
+      samples_hor : Natural;
+      samples_ver : Natural;
+      up_factor_x : Natural; -- how much we must repeat horizontally
+      up_factor_y : Natural; -- how much we must repeat vertically
+      shift_x     : Natural; -- shift for repeating pixels horizontally
+      shift_y     : Natural; -- shift for repeating pixels vertically
+    end record;
+
+    type Component_info_A is array(Component) of Info_per_component_A;
+
+    type Supported_color_space is (
+      YCbCr,  -- 3-dim color space
+      Y_Grey, -- 1-dim greyscale
+      CMYK    -- 4-dim Cyan, Magenta, Yellow, blacK
     );
-
-  type QT is array(0..63) of Natural;
-  type QT_list is array(0..7) of QT;
-
-  type Compo_set is array(Component) of Boolean;
-
-  type Info_per_component_A is record -- B is defined inside the decoder
-    qt_assoc    : Natural;
-    samples_hor : Natural;
-    samples_ver : Natural;
-    up_factor_x : Natural; -- how much we must repeat horizontally
-    up_factor_y : Natural; -- how much we must repeat vertically
-    shift_x     : Natural; -- shift for repeating pixels horizontally
-    shift_y     : Natural; -- shift for repeating pixels vertically
-  end record;
-
-  type Component_info_A is array(Component) of Info_per_component_A;
-
-  type Supported_color_space is (
-    YCbCr,  -- 3-dim color space
-    Y_Grey, -- 1-dim greyscale
-    CMYK    -- 4-dim Cyan, Magenta, Yellow, blacK
-  );
 
     type AC_DC is (AC, DC);
 
@@ -257,18 +257,21 @@ private
     restart_interval : Natural; -- predictor restarts every... (0: never)
   end record;
 
+  type Endianess_type is (little, big); -- for TIFF images
+
   type Image_descriptor is new Ada.Finalization.Controlled with record
     format             : Image_format_type;
     detailed_format    : Bounded_255.Bounded_String; -- for humans only!
     subformat_id       : Integer:= 0;
     width, height      : Positive;
     display_orientation: Orientation;
+    top_first          : Boolean; -- data orientation in TGA
     bits_per_pixel     : Positive;
     RLE_encoded        : Boolean:= False;
     transparency       : Boolean:= False;
     greyscale          : Boolean:= False;
-    interlaced         : Boolean:= False;
-    flag_1             : Boolean; -- format-specific information
+    interlaced         : Boolean:= False; -- GIF or PNG
+    endianess          : Endianess_type;  -- TIFF
     JPEG_stuff         : JPEG_stuff_type;
     stream             : Stream_Access;
     buffer             : Input_buffer;

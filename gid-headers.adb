@@ -28,12 +28,14 @@ package body GID.Headers is
   )
   is
     use Bounded_255;
-    c, d: Character;
-    FITS_challenge: String(1..5); -- without the initial
-    GIF_challenge : String(1..5); -- without the initial
-    PNG_challenge : String(1..7); -- without the initial
+    c: Character;
+    FITS_challenge : String(1..5); -- without the initial
+    GIF_challenge  : String(1..5); -- without the initial
+    PNG_challenge  : String(1..7); -- without the initial
+    TIFF_challenge : String(1..3); -- without the initial
     PNG_signature: constant String:=
       "PNG" & ASCII.CR & ASCII.LF & ASCII.SUB & ASCII.LF;
+    TIFF_signature : String(1..2);
     procedure Dispose is
       new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
   begin
@@ -67,15 +69,22 @@ package body GID.Headers is
           return;
         end if;
       when 'I' | 'M' =>
-        Character'Read(image.stream, d);
-        if c=d then
+        String'Read(image.stream, TIFF_challenge);
+        if c = TIFF_challenge(1) then
+          -- TIFF begins either with II (Intel) or MM (Motorola) - TIFF 6.0 Specification p.13
           if c = 'I' then
             image.detailed_format:= To_Bounded_String("TIFF, little-endian");
+            image.endianess:= little;
+            TIFF_signature:= '*' & ASCII.NUL; -- 42 (The Answer) on 16 bits
           else
             image.detailed_format:= To_Bounded_String("TIFF, big-endian");
+            image.endianess:= big;
+            TIFF_signature:= ASCII.NUL & '*'; -- 42 (The Answer) on 16 bits
           end if;
-          image.format:= TIFF;
-          return;
+          if TIFF_challenge(2..3) = TIFF_signature then
+            image.format:= TIFF;
+            return;
+          end if;
         end if;
       when Character'Val(16#FF#) =>
         Character'Read(image.stream, c);
@@ -565,7 +574,7 @@ package body GID.Headers is
           "TGA bits per pixels =" & Integer'Image(image.bits_per_pixel)
         );
     end case;
-    image.flag_1:= (tga_image_descriptor and 32) /= 0; -- top first
+    image.top_first:= (tga_image_descriptor and 32) /= 0;
     --  *** Image and color map data
     --  * Image ID
     for i in 1..image_ID_length loop

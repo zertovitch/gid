@@ -11,7 +11,7 @@ package body GID.Decoding_TGA is
 
     procedure Row_start(y: Natural) is
     begin
-      if image.flag_1 then -- top first
+      if image.top_first then
         Set_X_Y(0, image.height-1-y);
       else
         Set_X_Y(0, y);
