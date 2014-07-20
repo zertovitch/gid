@@ -516,6 +516,7 @@ begin
     Blurb;
     return;
   end if;
+  Put_Line(Standard_Error, "To_BMP, using GID version " & GID.version & " dated " & GID.reference);
   begin
     Process(default_bkg_name, True, False);
     -- if success:

@@ -640,6 +640,7 @@ package body GID.Headers is
 
   procedure Load_TIFF_header (image: in out Image_descriptor) is
     first_IFD_offset: U32;
+    --
     -- IFD: Image File Directory. Basically, the image header.
     -- Issue with TIFF: often the image header is stored after the image data.
     -- This would need streams with Set_Index instead of a general stream
@@ -647,12 +648,11 @@ package body GID.Headers is
     -- in a temp buffer. Perhaps we'll do that one day.
   begin
     Read_any_endian(image.stream, first_IFD_offset, image.endianess);
-    -- Ada.Text_IO.put_line(U32'image(first_IFD_offset));
     Raise_exception(
       known_but_unsupported_image_format'Identity,
-      "TIFF is not appropriate for streaming. Use PNG, BMP (lossless) or JPEG instead."
+      "TIFF is not appropriate for streaming. Use PNG, BMP (lossless) or JPEG instead." &
+      "Info: IFD Offset=" & U32'image(first_IFD_offset)
     );
-    raise known_but_unsupported_image_format;
   end Load_TIFF_header;
 
 end;
