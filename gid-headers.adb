@@ -32,9 +32,8 @@ package body GID.Headers is
     FITS_challenge : String(1..5); -- without the initial
     GIF_challenge  : String(1..5); -- without the initial
     PNG_challenge  : String(1..7); -- without the initial
+    PNG_signature: constant String:= "PNG" & ASCII.CR & ASCII.LF & ASCII.SUB & ASCII.LF;
     TIFF_challenge : String(1..3); -- without the initial
-    PNG_signature: constant String:=
-      "PNG" & ASCII.CR & ASCII.LF & ASCII.SUB & ASCII.LF;
     TIFF_signature : String(1..2);
     procedure Dispose is
       new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
@@ -113,6 +112,9 @@ package body GID.Headers is
     raise unknown_image_format;
   end Load_signature;
 
+  -- Define reading of unsigned numbers from a byte stream
+
+  -- Little-endian
   generic
     type Number is mod <>;
   procedure Read_Intel_x86_number(
@@ -124,10 +126,29 @@ package body GID.Headers is
   generic
     type Number is mod <>;
   procedure Big_endian_number(
-    from : in out Input_buffer;
+    from : in     Stream_Access;
     n    :    out Number
   );
     pragma Inline(Big_endian_number);
+
+  generic
+    type Number is mod <>;
+  procedure Big_endian_number_buffered(
+    from : in out Input_buffer;
+    n    :    out Number
+  );
+    pragma Inline(Big_endian_number_buffered);
+
+  generic
+    type Number is mod <>;
+  procedure Read_any_endian_number(
+    from : in     Stream_Access;
+    n    :    out Number;
+    endi : in     Endianess_type
+  );
+    pragma Inline(Read_any_endian_number);
+
+  -- Implementations
 
   procedure Read_Intel_x86_number(
     from : in     Stream_Access;
@@ -146,6 +167,20 @@ package body GID.Headers is
   end Read_Intel_x86_number;
 
   procedure Big_endian_number(
+    from : in     Stream_Access;
+    n    :    out Number
+  )
+  is
+    b: U8;
+  begin
+    n:= 0;
+    for i in 1..Number'Size/8 loop
+      U8'Read(from, b);
+      n:= n * 256 + Number(b);
+    end loop;
+  end Big_endian_number;
+
+  procedure Big_endian_number_buffered(
     from : in out Input_buffer;
     n    :    out Number
   )
@@ -157,11 +192,29 @@ package body GID.Headers is
       Buffering.Get_Byte(from, b);
       n:= n * 256 + Number(b);
     end loop;
-  end Big_endian_number;
+  end Big_endian_number_buffered;
+
+  procedure Read_any_endian_number(
+    from : in     Stream_Access;
+    n    :    out Number;
+    endi : in     Endianess_type
+  )
+  is
+    procedure Read_Intel is new Read_Intel_x86_number(Number);
+    procedure Big_endian is new Big_endian_number(Number);
+  begin
+    case endi is
+      when little => Read_Intel(from, n);
+      when big =>    Big_endian(from, n);
+    end case;
+  end Read_any_endian_number;
+
+  -- Instantiations
 
   procedure Read_Intel is new Read_Intel_x86_number( U16 );
   procedure Read_Intel is new Read_Intel_x86_number( U32 );
-  procedure Big_endian is new Big_endian_number( U32 );
+  procedure Big_endian_buffered is new Big_endian_number_buffered( U32 );
+  procedure Read_any_endian is new Read_any_endian_number( U32 );
 
   ----------------------------------------------------------
   -- Loading of various format's headers (past signature) --
@@ -340,7 +393,7 @@ package body GID.Headers is
         "Expected 'IHDR' chunk as first chunk in PNG stream"
       );
     end if;
-    Big_endian(image.buffer, n);
+    Big_endian_buffered(image.buffer, n);
     if n = 0 then
       Raise_exception(
         error_in_image_data'Identity,
@@ -348,7 +401,7 @@ package body GID.Headers is
       );
     end if;
     image.width:=  Natural(n);
-    Big_endian(image.buffer, n);
+    Big_endian_buffered(image.buffer, n);
     if n = 0 then
       Raise_exception(
         error_in_image_data'Identity,
@@ -439,7 +492,7 @@ package body GID.Headers is
     end if;
     Get_Byte(image.buffer, b);
     image.interlaced:= b = 1; -- Adam7
-    Big_endian(image.buffer, dummy); -- Chunk's CRC
+    Big_endian_buffered(image.buffer, dummy); -- Chunk's CRC
     if palette then
       loop
         Read(image, ch);
@@ -458,7 +511,7 @@ package body GID.Headers is
             end if;
             image.palette:= new Color_Table(0..Integer(ch.length/3)-1);
             Color_tables.Load_palette(image);
-            Big_endian(image.buffer, dummy); -- Chunk's CRC
+            Big_endian_buffered(image.buffer, dummy); -- Chunk's CRC
             exit;
           when others =>
             -- skip chunk data and CRC
@@ -586,7 +639,14 @@ package body GID.Headers is
   end Load_TGA_header;
 
   procedure Load_TIFF_header (image: in out Image_descriptor) is
+    first_IFD_offset: U32;
+    -- IFD: Image File Directory. Basically, the image header.
+    -- Issue with TIFF: often the image header is stored after the image data.
+    -- This would need streams with Set_Index (e.g. a file, not an HTTP stream), or
+    -- to store the full image data in a temp buffer. Perhaps we'll do that.
   begin
+    Read_any_endian(image.stream, first_IFD_offset, image.endianess);
+    -- Ada.Text_IO.put_line(U32'image(first_IFD_offset));
     raise known_but_unsupported_image_format;
   end Load_TIFF_header;
 
