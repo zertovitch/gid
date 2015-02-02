@@ -2,7 +2,7 @@
 -- GID - Generic Image Decoder --
 ---------------------------------
 --
---  Copyright (c) Gautier de Montmollin 2010
+--  Copyright (c) Gautier de Montmollin 2010 .. 2015
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -36,6 +36,28 @@ with Ada.Unchecked_Deallocation;
 
 package body GID is
 
+  --  Internal: a few header items (palette, some large JPEG tables)
+  --  are heap allocated; we need to release them upon finalization
+  --  or descriptor reuse.
+
+  procedure Clear_heap_allocated_memory (Object : in out Image_descriptor) is
+    procedure Dispose is
+      new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
+    procedure Dispose is
+      new Ada.Unchecked_Deallocation(
+        JPEG_defs.VLC_table,
+        JPEG_defs.p_VLC_table
+      );
+  begin
+    -- Deterministic garbage collection
+    Dispose(Object.palette);
+    for ad in JPEG_defs.VLC_defs_type'Range(1) loop
+      for idx in JPEG_defs.VLC_defs_type'Range(2) loop
+        Dispose(Object.JPEG_stuff.vlc_defs(ad, idx));
+      end loop;
+    end loop;
+  end Clear_heap_allocated_memory;
+
   -----------------------
   -- Load_image_header --
   -----------------------
@@ -47,6 +69,7 @@ package body GID is
   )
   is
   begin
+    Clear_heap_allocated_memory(image);
     image.stream:= from'Unchecked_Access;
     Headers.Load_signature(image, try_tga);
     case image.format is
@@ -190,21 +213,8 @@ package body GID is
   end Adjust;
 
   procedure Finalize (Object : in out Image_descriptor) is
-    procedure Dispose is
-      new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
-    procedure Dispose is
-      new Ada.Unchecked_Deallocation(
-        JPEG_defs.VLC_table,
-        JPEG_defs.p_VLC_table
-      );
   begin
-    -- Deterministic garbage collection
-    Dispose(Object.palette);
-    for ad in JPEG_defs.VLC_defs_type'Range(1) loop
-      for idx in JPEG_defs.VLC_defs_type'Range(2) loop
-        Dispose(Object.JPEG_stuff.vlc_defs(ad, idx));
-      end loop;
-    end loop;
+    Clear_heap_allocated_memory(Object);
   end Finalize;
 
 end GID;
