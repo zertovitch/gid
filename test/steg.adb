@@ -120,15 +120,17 @@ procedure Steg is
     f_im, f_dt: Ada.Streams.Stream_IO.File_Type;
     --
     procedure Encode is
-      idx: Natural:= 0;
+      idx: Natural:= img_buf'Last;
+      --  Start with buffer's end (image's bottom), with the hope it is "noisier":
+      --  often there is a blue sky or something like that on the top...
       procedure Encode_byte(b: Unsigned_8) is
       begin
-        img_buf(idx):= (img_buf(idx) and 2#1111_1100#) or (b and 2#0000_0011#);                --  R
-        idx:= idx + 1;
+        img_buf(idx):= (img_buf(idx) and 2#1111_1100#) or (b and 2#0000_0011#);                --  B
+        idx:= idx - 1;
         img_buf(idx):= (img_buf(idx) and 2#1111_1000#) or Shift_Right(b and 2#0001_1100#, 2);  --  G
-        idx:= idx + 1;
-        img_buf(idx):= (img_buf(idx) and 2#1111_1000#) or Shift_Right(b, 5);                   --  B
-        idx:= idx + 1;
+        idx:= idx - 1;
+        img_buf(idx):= (img_buf(idx) and 2#1111_1000#) or Shift_Right(b, 5);                   --  R
+        idx:= idx - 1;
       end;
       b: Unsigned_8;
       data_size: Unsigned_64;
@@ -147,15 +149,15 @@ procedure Steg is
     end Encode;
     --
     procedure Decode is
-      idx: Natural:= 0;
+      idx: Natural:= img_buf'Last;
       procedure Decode_byte(b: out Unsigned_8) is
       begin
-        b:= img_buf(idx) and 2#0000_0011#;                     --  R
-        idx:= idx + 1;
+        b:= img_buf(idx) and 2#0000_0011#;                     --  B
+        idx:= idx - 1;
         b:= b + Shift_Left(img_buf(idx) and 2#0000_0111#, 2);  --  G
-        idx:= idx + 1;
-        b:= b + Shift_Left(img_buf(idx) and 2#0000_0111#, 5);  --  B
-        idx:= idx + 1;
+        idx:= idx - 1;
+        b:= b + Shift_Left(img_buf(idx) and 2#0000_0111#, 5);  --  R
+        idx:= idx - 1;
       end;
       b: Unsigned_8;
       data_size: Unsigned_64:= 0;
