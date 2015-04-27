@@ -482,7 +482,11 @@ package body GID.Decoding_JPG is
             case marker is
               when 0 =>
                 null;
-              when 16#D9# =>
+              when 16#D8# =>  --  SOI here ?
+                null;  
+                --  2015-04-26: occured in one (of many) picture 
+                --  taken by an Olympus VG120,D705.
+              when 16#D9# =>  --  EOI here ?
                 null; -- !! signal end
               when 16#D0# .. 16#D7# =>
                 bufbits:= bufbits + 8;
@@ -490,7 +494,7 @@ package body GID.Decoding_JPG is
               when others =>
                 Raise_exception(
                   error_in_image_data'Identity,
-                  "JPEG: Invalid code (bit buffer)"
+                  "JPEG: Invalid code (bit buffer): " & U8'Image(marker)
                 );
             end case;
           end if;

@@ -116,6 +116,8 @@ procedure Steg is
 
   type Operation is (encoding, decoding);
 
+  Data_too_large: exception;
+
   procedure Process(image_name, data_name: String; op: Operation) is
     f_im, f_dt: Ada.Streams.Stream_IO.File_Type;
     --
@@ -137,6 +139,9 @@ procedure Steg is
     begin
       Open(f_dt, In_File, data_name);
       data_size:= Unsigned_64(Size(f_dt));
+      if data_size + 8 > img_buf'Length / 3 then
+        raise Data_too_large;
+      end if;
       for i in 1..8 loop
         Encode_byte(Unsigned_8(data_size and 16#FF#));
         data_size:= Shift_Right(data_size, 8);
