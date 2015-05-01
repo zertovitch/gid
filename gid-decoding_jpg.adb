@@ -485,7 +485,7 @@ package body GID.Decoding_JPG is
               when 16#D8# =>  --  SOI here ?
                 null;  
                 --  2015-04-26: occured in one (of many) picture 
-                --  taken by an Olympus VG120,D705.
+                --  taken by an Olympus VG120,D705. See test/bcase_1.jpg
               when 16#D9# =>  --  EOI here ?
                 null; -- !! signal end
               when 16#D0# .. 16#D7# =>

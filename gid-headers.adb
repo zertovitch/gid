@@ -12,9 +12,7 @@ with GID.Buffering,
      GID.Decoding_PNG,
      GID.Decoding_PNM;
 
-with Ada.Exceptions, Ada.Strings.Fixed, Ada.Unchecked_Deallocation;
-
-with ada.text_IO; use ada.text_IO;
+with Ada.Exceptions, Ada.Unchecked_Deallocation;
 
 package body GID.Headers is
 
@@ -541,13 +539,13 @@ package body GID.Headers is
   --------------------------------
 
   procedure Load_PNM_header (image: in out Image_descriptor) is
-    use Ada.Strings.Fixed, Ada.Strings, Decoding_PNM;
+    use Decoding_PNM;
     depth_val: Integer;
   begin
     image.width  := Get_Integer(image.stream);
     image.height := Get_Integer(image.stream);
     case image.subformat_id is
-      when 5..6 =>
+      when 2..3 | 5..6 =>
         depth_val := Get_Integer(image.stream);
         if depth_val /= 255 then
           Raise_exception(
@@ -556,7 +554,7 @@ package body GID.Headers is
              "; only 255 is supported"
           );
         end if;
-        image.greyscale:= image.subformat_id = 5;
+        image.greyscale:= image.subformat_id = 2 or image.subformat_id = 5;
         image.bits_per_pixel:= 24;
       when others =>
         Raise_exception(

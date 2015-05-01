@@ -46,6 +46,46 @@ package body GID.Decoding_PNM is
       end case;
     end Output_Pixel;
 
+    ----------
+    --  P2  --
+    ----------
+    
+    procedure Get_RGB_Text_Picture is
+    begin
+      for y in 0..image.height-1 loop
+        Row_start(y);
+        for x in 0..image.width-1 loop
+          pix.color.red   := U8(Get_Integer(image.stream));
+          pix.color.green := U8(Get_Integer(image.stream));
+          pix.color.blue  := U8(Get_Integer(image.stream));
+          Output_Pixel;
+        end loop;
+        Feedback(((y+1)*100)/image.height);
+      end loop;
+    end Get_RGB_Text_Picture;
+    
+    ----------
+    --  P3  --
+    ----------
+    
+    procedure Get_Grey_Text_Picture is
+    begin
+      for y in 0..image.height-1 loop
+        Row_start(y);
+        for x in 0..image.width-1 loop
+          pix.color.red   := U8(Get_Integer(image.stream));
+          pix.color.green := pix.color.red;
+          pix.color.blue  := pix.color.red;
+          Output_Pixel;
+        end loop;
+        Feedback(((y+1)*100)/image.height);
+      end loop;
+    end Get_Grey_Text_Picture;
+
+    ----------
+    --  P5  --
+    ----------
+    
     procedure Get_RGB_Binary_Picture is
     begin
       for y in 0..image.height-1 loop
@@ -59,6 +99,10 @@ package body GID.Decoding_PNM is
         Feedback(((y+1)*100)/image.height);
       end loop;
     end Get_RGB_Binary_Picture;
+
+    ----------
+    --  P6  --
+    ----------
     
     procedure Get_Grey_Binary_Picture is
     begin
@@ -76,9 +120,15 @@ package body GID.Decoding_PNM is
 
   begin
     pix.alpha:= 255; -- opaque is default
-    Attach_Stream(image.buffer, image.stream);
+    if image.subformat_id >= 4 then  --  Binary
+      Attach_Stream(image.buffer, image.stream);
+    end if;
     --
     case image.subformat_id is
+      when 2 =>
+        Get_Grey_Text_Picture;
+      when 3 =>
+        Get_RGB_Text_Picture;
       when 5 =>
         Get_Grey_Binary_Picture;
       when 6 =>
