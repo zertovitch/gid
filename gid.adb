@@ -30,6 +30,7 @@ with GID.Headers,
      GID.Decoding_GIF,
      GID.Decoding_JPG,
      GID.Decoding_PNG,
+     GID.Decoding_PNM,
      GID.Decoding_TGA;
 
 with Ada.Unchecked_Deallocation;
@@ -71,7 +72,12 @@ package body GID is
   begin
     Clear_heap_allocated_memory(image);
     image.stream:= from'Unchecked_Access;
+    --
+    --  Load the very first symbols of the header,
+    --  this identifies the image format.
+    --
     Headers.Load_signature(image, try_tga);
+    --
     case image.format is
       when BMP =>
         Headers.Load_BMP_header(image);
@@ -83,6 +89,8 @@ package body GID is
         Headers.Load_JPEG_header(image);
       when PNG =>
         Headers.Load_PNG_header(image);
+      when PNM =>
+        Headers.Load_PNM_header(image);
       when TGA =>
         Headers.Load_TGA_header(image);
       when TIFF =>
@@ -134,6 +142,9 @@ package body GID is
     procedure PNG_Load is
       new Decoding_PNG.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
 
+    procedure PNM_Load is
+      new Decoding_PNM.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+
     procedure TGA_Load is
       new Decoding_TGA.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
 
@@ -150,6 +161,8 @@ package body GID is
         JPG_Load(image, next_frame);
       when PNG =>
         PNG_Load(image);
+      when PNM =>
+        PNM_Load(image);
       when TGA =>
         TGA_Load(image);
       when others =>

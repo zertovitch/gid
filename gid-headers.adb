@@ -9,9 +9,12 @@
 with GID.Buffering,
      GID.Color_tables,
      GID.Decoding_JPG,
-     GID.Decoding_PNG;
+     GID.Decoding_PNG,
+     GID.Decoding_PNM;
 
-with Ada.Exceptions, Ada.Unchecked_Deallocation;
+with Ada.Exceptions, Ada.Strings.Fixed, Ada.Unchecked_Deallocation;
+
+with ada.text_IO; use ada.text_IO;
 
 package body GID.Headers is
 
@@ -32,7 +35,8 @@ package body GID.Headers is
     FITS_challenge : String(1..5); -- without the initial
     GIF_challenge  : String(1..5); -- without the initial
     PNG_challenge  : String(1..7); -- without the initial
-    PNG_signature: constant String:= "PNG" & ASCII.CR & ASCII.LF & ASCII.SUB & ASCII.LF;
+    PNG_signature  : constant String:= "PNG" & ASCII.CR & ASCII.LF & ASCII.SUB & ASCII.LF;
+    PNM_challenge  : Character;
     TIFF_challenge : String(1..3); -- without the initial
     TIFF_signature : String(1..2);
     procedure Dispose is
@@ -100,6 +104,15 @@ package body GID.Headers is
           image.format:= PNG;
           return;
         end if;
+      when 'P' =>
+        Character'Read(image.stream, PNM_challenge);
+        if PNM_challenge in '1'..'6' then
+          image.detailed_format:= To_Bounded_String("PNM");
+          image.format:= PNM;
+          image.subformat_id:= Integer'Value((1 => PNM_challenge));
+          return;
+        end if;
+
       when others =>
         if try_tga then
           image.detailed_format:= To_Bounded_String("TGA");
@@ -522,6 +535,36 @@ package body GID.Headers is
       end loop;
     end if;
   end Load_PNG_header;
+
+  --------------------------------
+  -- PNM (PBM, PGM, PPM) header --
+  --------------------------------
+
+  procedure Load_PNM_header (image: in out Image_descriptor) is
+    use Ada.Strings.Fixed, Ada.Strings, Decoding_PNM;
+    depth_val: Integer;
+  begin
+    image.width  := Get_Integer(image.stream);
+    image.height := Get_Integer(image.stream);
+    case image.subformat_id is
+      when 5..6 =>
+        depth_val := Get_Integer(image.stream);
+        if depth_val /= 255 then
+          Raise_exception(
+            unsupported_image_subformat'Identity,
+            "Maximum value" & Integer'Image(depth_val) &
+             "; only 255 is supported"
+          );
+        end if;
+        image.greyscale:= image.subformat_id = 5;
+        image.bits_per_pixel:= 24;
+      when others =>
+        Raise_exception(
+          unsupported_image_subformat'Identity,
+          "P" & Integer'Image(image.subformat_id)
+        );
+    end case;
+  end;
 
   ------------------------
   -- TGA (Targa) header --

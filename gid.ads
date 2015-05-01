@@ -16,7 +16,7 @@
 --
 -- Image types currently supported:
 --
---   BMP, GIF, JPEG, PNG, TGA
+--   BMP, GIF, JPEG, PNG, PNM, TGA
 --
 -- Credits:
 --
@@ -139,7 +139,7 @@ package GID is
 
   type Image_format_type is
     ( -- Bitmap formats
-      BMP, FITS, GIF, JPEG, PNG, TGA, TIFF
+      BMP, FITS, GIF, JPEG, PNG, PNM, TGA, TIFF
     );
 
   function Format (image: Image_descriptor) return Image_format_type;
@@ -159,8 +159,8 @@ package GID is
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
 
-  version   : constant String:= "04 preview 2";
-  reference : constant String:= "26-Apr-2015";
+  version   : constant String:= "04 preview 3";
+  reference : constant String:= "1-May-2015";
   web: constant String:= "http://gen-img-dec.sf.net/";
   -- Hopefully the latest version is at that URL...
 
