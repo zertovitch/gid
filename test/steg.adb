@@ -5,7 +5,6 @@
 --
 
 -- To do:
---  - GID support for PPM files !
 --  - encryption
 
 with GID;
