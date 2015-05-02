@@ -101,6 +101,29 @@ package body GID.Decoding_PNM is
     end Get_RGB_Text_Picture;
 
     ----------
+    --  P4  --
+    ----------
+    
+    procedure Get_Mono_Binary_Picture is
+      bbf: U8;  --  Bit buffer 
+    begin
+      for y in 0..image.height-1 loop
+        Row_start(y);
+        for x in 0..image.width-1 loop
+          if x mod 8 = 0 then
+            Get_Byte(image.buffer, bbf);
+          end if;
+          pix.color.red   := 255 * (1-Shift_Right(bbf,7));
+          bbf:= bbf * 2;
+          pix.color.green := pix.color.red;
+          pix.color.blue  := pix.color.red;
+          Output_Pixel;
+        end loop;
+        Feedback(((y+1)*100)/image.height);
+      end loop;
+    end Get_Mono_Binary_Picture;
+
+    ----------
     --  P5  --
     ----------
     
@@ -149,6 +172,8 @@ package body GID.Decoding_PNM is
         Get_Grey_Text_Picture;
       when 3 =>
         Get_RGB_Text_Picture;
+      when 4 =>
+        Get_Mono_Binary_Picture;
       when 5 =>
         Get_Grey_Binary_Picture;
       when 6 =>

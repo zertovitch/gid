@@ -105,7 +105,7 @@ package body GID.Headers is
       when 'P' =>
         Character'Read(image.stream, PNM_challenge);
         if PNM_challenge in '1'..'6' then
-          image.detailed_format:= To_Bounded_String("PNM");
+          image.detailed_format:= To_Bounded_String("PNM (PBM, PGM or PPM)");
           image.format:= PNM;
           image.subformat_id:= Integer'Value((1 => PNM_challenge));
           return;
