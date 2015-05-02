@@ -47,25 +47,25 @@ package body GID.Decoding_PNM is
     end Output_Pixel;
 
     ----------
-    --  P2  --
+    --  P1  --
     ----------
     
-    procedure Get_RGB_Text_Picture is
+    procedure Get_Mono_Text_Picture is
     begin
       for y in 0..image.height-1 loop
         Row_start(y);
         for x in 0..image.width-1 loop
-          pix.color.red   := U8(Get_Integer(image.stream));
-          pix.color.green := U8(Get_Integer(image.stream));
-          pix.color.blue  := U8(Get_Integer(image.stream));
+          pix.color.red   := U8((1-Get_Integer(image.stream, single_char => True)) * 255);
+          pix.color.green := pix.color.red;
+          pix.color.blue  := pix.color.red;
           Output_Pixel;
         end loop;
         Feedback(((y+1)*100)/image.height);
       end loop;
-    end Get_RGB_Text_Picture;
-    
+    end Get_Mono_Text_Picture;
+
     ----------
-    --  P3  --
+    --  P2  --
     ----------
     
     procedure Get_Grey_Text_Picture is
@@ -81,27 +81,27 @@ package body GID.Decoding_PNM is
         Feedback(((y+1)*100)/image.height);
       end loop;
     end Get_Grey_Text_Picture;
-
+    
     ----------
-    --  P5  --
+    --  P3  --
     ----------
     
-    procedure Get_RGB_Binary_Picture is
+    procedure Get_RGB_Text_Picture is
     begin
       for y in 0..image.height-1 loop
         Row_start(y);
         for x in 0..image.width-1 loop
-          Get_Byte(image.buffer, pix.color.red);
-          Get_Byte(image.buffer, pix.color.green);
-          Get_Byte(image.buffer, pix.color.blue);
+          pix.color.red   := U8(Get_Integer(image.stream));
+          pix.color.green := U8(Get_Integer(image.stream));
+          pix.color.blue  := U8(Get_Integer(image.stream));
           Output_Pixel;
         end loop;
         Feedback(((y+1)*100)/image.height);
       end loop;
-    end Get_RGB_Binary_Picture;
+    end Get_RGB_Text_Picture;
 
     ----------
-    --  P6  --
+    --  P5  --
     ----------
     
     procedure Get_Grey_Binary_Picture is
@@ -118,6 +118,24 @@ package body GID.Decoding_PNM is
       end loop;
     end Get_Grey_Binary_Picture;
 
+    ----------
+    --  P6  --
+    ----------
+    
+    procedure Get_RGB_Binary_Picture is
+    begin
+      for y in 0..image.height-1 loop
+        Row_start(y);
+        for x in 0..image.width-1 loop
+          Get_Byte(image.buffer, pix.color.red);
+          Get_Byte(image.buffer, pix.color.green);
+          Get_Byte(image.buffer, pix.color.blue);
+          Output_Pixel;
+        end loop;
+        Feedback(((y+1)*100)/image.height);
+      end loop;
+    end Get_RGB_Binary_Picture;
+
   begin
     pix.alpha:= 255; -- opaque is default
     if image.subformat_id >= 4 then  --  Binary
@@ -125,6 +143,8 @@ package body GID.Decoding_PNM is
     end if;
     --
     case image.subformat_id is
+      when 1 =>
+        Get_Mono_Text_Picture;
       when 2 =>
         Get_Grey_Text_Picture;
       when 3 =>
@@ -137,7 +157,13 @@ package body GID.Decoding_PNM is
     end case;
   end Load;
 
-  function Get_Token(stream: Stream_Access) return String is
+  function Get_Token(
+    stream      : Stream_Access; 
+    needs_EOL   : Boolean:= False;
+    single_char : Boolean:= False
+  ) 
+  return String
+  is
     c: Character;
     res: Unbounded_String;
     procedure Skip_comment is
@@ -159,16 +185,29 @@ package body GID.Decoding_PNM is
       if c > ' ' then
         res:= res & c;
       end if;
+      if single_char then
+        exit when Length(res) = 1;
+      end if;
       Character'Read(stream, c);
       Skip_comment;
-      exit when c <= ' ';
+      if needs_EOL then
+        exit when c = ASCII.LF;
+      else
+        exit when c <= ' ';
+      end if;
     end loop;
     return To_String(res);
   end Get_Token;
 
-  function Get_Integer(stream: Stream_Access) return Integer is
+  function Get_Integer(
+    stream      : Stream_Access; 
+    needs_EOL   : Boolean:= False;
+    single_char : Boolean:= False
+  ) 
+  return Integer
+  is
   begin
-    return Integer'Value(Get_Token(stream));
+    return Integer'Value(Get_Token(stream, needs_EOL, single_char));
   end;
 
 end GID.Decoding_PNM;

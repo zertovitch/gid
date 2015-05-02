@@ -543,10 +543,14 @@ package body GID.Headers is
     depth_val: Integer;
   begin
     image.width  := Get_Integer(image.stream);
-    image.height := Get_Integer(image.stream);
     case image.subformat_id is
+      when 1 | 4 =>
+        image.height := Get_Integer(image.stream, needs_EOL => True);
+        image.greyscale:= True;
+        image.bits_per_pixel:= 3;
       when 2..3 | 5..6 =>
-        depth_val := Get_Integer(image.stream);
+        image.height := Get_Integer(image.stream);
+        depth_val := Get_Integer(image.stream, needs_EOL => True);
         if depth_val /= 255 then
           Raise_exception(
             unsupported_image_subformat'Identity,

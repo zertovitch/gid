@@ -19,7 +19,18 @@ private package GID.Decoding_PNM is
   --
   procedure Load (image: in out Image_descriptor);
 
-  function Get_Token(stream: Stream_Access) return String;
-  function Get_Integer(stream: Stream_Access) return Integer;
+  function Get_Token(
+    stream      : Stream_Access; 
+    needs_EOL   : Boolean:= False;
+    single_char : Boolean:= False
+  ) 
+  return String;
+
+  function Get_Integer(
+    stream      : Stream_Access; 
+    needs_EOL   : Boolean:= False;
+    single_char : Boolean:= False
+  ) 
+  return Integer;
 
 end GID.Decoding_PNM;
