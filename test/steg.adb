@@ -141,6 +141,11 @@ procedure Steg is
       if data_size + 8 > img_buf'Length / 3 then
         raise Data_too_large;
       end if;
+      Put_Line(Standard_Error,
+        "Data size:" & Unsigned_64'Image(data_size) &
+        " using" & Integer'Image(Integer(100.0 * Float(data_size) / Float(img_buf'Length / 3))) &
+        "% of image data"
+      );
       for i in 1..8 loop
         Encode_byte(Unsigned_8(data_size and 16#FF#));
         data_size:= Shift_Right(data_size, 8);
