@@ -12,6 +12,7 @@ with GID;
 with Ada.Calendar;
 with Ada.Characters.Handling;           use Ada.Characters.Handling;
 with Ada.Command_Line;                  use Ada.Command_Line;
+with Ada.Numerics.Elementary_Functions; use Ada.Numerics.Elementary_Functions;
 with Ada.Streams.Stream_IO;             use Ada.Streams.Stream_IO;
 with Ada.Text_IO;                       use Ada.Text_IO;
 with Ada.Unchecked_Deallocation;
@@ -24,10 +25,11 @@ procedure Steg is
   begin
     Put_Line(Standard_Error, "Steg * Minimal steganography tool");
     New_Line(Standard_Error);
-    Put_Line(Standard_Error, "Encoding: converts any image file to a PPM image file,");
-    Put_Line(Standard_Error, "  with inclusion of a hidden data file. The PPM image can then");
-    Put_Line(Standard_Error, "  be converted to a lossless-compressed format like PNG.");
-    Put_Line(Standard_Error, "Decoding: extracts a hidden file from an image.");
+    Put_Line(Standard_Error, "  Encoding: converts any image file to a PPM image file, with");
+    Put_Line(Standard_Error, "            inclusion of a hidden data file. The PPM image can then");
+    Put_Line(Standard_Error, "            be converted to a lossless-compressed format like PNG.");
+    New_Line(Standard_Error);
+    Put_Line(Standard_Error, "  Decoding: extracts a hidden file from an image.");
     New_Line(Standard_Error);
     Put_Line(Standard_Error, "GID version " & GID.version & " dated " & GID.reference);
     Put_Line(Standard_Error, "URL: " & GID.web);
@@ -135,15 +137,24 @@ procedure Steg is
       end;
       b: Unsigned_8;
       data_size: Unsigned_64;
+      needed_size: Unsigned_64;
+      available_size: constant Unsigned_64:= img_buf'Length / 3;  --  1 byte per pixel;
+      factor: Float;
     begin
       Open(f_dt, In_File, data_name);
       data_size:= Unsigned_64(Size(f_dt));
-      if data_size + 8 > img_buf'Length / 3 then
-        raise Data_too_large;
+      needed_size:= data_size + 8;
+      factor:= Float(needed_size) / Float(available_size);
+      if needed_size > available_size then
+        raise Data_too_large with
+          "Needs a" & Integer'Image(Integer(100.0 * factor)) &
+          "% raw size increase, i.e. a" &
+          Integer'Image(1 + Integer(100.0 * Sqrt(factor))) &
+          "% image scaling";
       end if;
       Put_Line(Standard_Error,
         "Data size:" & Unsigned_64'Image(data_size) &
-        " using" & Integer'Image(Integer(100.0 * Float(data_size) / Float(img_buf'Length / 3))) &
+        ", using" & Integer'Image(Integer(100.0 * factor)) &
         "% of image data"
       );
       for i in 1..8 loop
@@ -209,7 +220,7 @@ procedure Steg is
     case op is
       when encoding =>
         Encode;
-        Dump_PPM(image_name, i);
+        Dump_PPM(image_name, i);  --  Output encoded image
       when decoding =>
         Decode;
     end case;
