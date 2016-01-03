@@ -15,7 +15,6 @@ private package GID.Headers is
     try_tga :        Boolean:= False
   );
 
-
   --
   -- Loading of various format's headers (past signature)
   --

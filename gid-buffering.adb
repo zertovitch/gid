@@ -10,7 +10,7 @@ package body GID.Buffering is
   is
     --
     procedure BlockRead(
-      buffer       :    out Byte_Array;
+      buffer       :    out Byte_array;
       actually_read:    out Natural
     )
     is
@@ -33,7 +33,7 @@ package body GID.Buffering is
         begin
           Read(b.stream.all, SE_Buffer, Last_Read);
           for i in buffer'Range loop
-            buffer(i):= U8(SE_Buffer(Stream_Element_Offset(i-buffer'First)+SE_buffer'First));
+            buffer(i):= U8(SE_Buffer(Stream_Element_Offset(i-buffer'First)+SE_Buffer'First));
           end loop;
         end;
       end if;

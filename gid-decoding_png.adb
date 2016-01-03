@@ -50,7 +50,7 @@ package body GID.Decoding_PNG is
   -- Read --
   ----------
 
-  procedure Read (image: in out image_descriptor; ch: out Chunk_head) is
+  procedure Read (image: in out Image_descriptor; ch: out Chunk_head) is
     str4: String(1..4);
     b: U8;
   begin
@@ -69,7 +69,7 @@ package body GID.Decoding_PNG is
       end if;
     exception
       when Constraint_Error =>
-        Raise_exception(
+        Raise_Exception(
           error_in_image_data'Identity,
           "PNG chunk unknown: " &
           Integer'Image(Character'Pos(str4(1))) &
@@ -80,7 +80,6 @@ package body GID.Decoding_PNG is
         );
     end;
   end Read;
-
 
   package CRC32 is
 
@@ -497,7 +496,7 @@ package body GID.Decoding_PNG is
               end if;
             exception
               when Constraint_Error =>
-                Raise_exception(
+                Raise_Exception(
                   error_in_image_data'Identity,
                   "PNG: wrong filter code, row #" &
                   Integer'Image(y) & " code:" & U8'Image(data(i))
@@ -686,7 +685,7 @@ package body GID.Decoding_PNG is
           exit when ch.kind /= IDAT or ch.length > 0;
         end loop;
         if ch.kind /= IDAT then
-          Raise_exception(
+          Raise_Exception(
             error_in_image_data'Identity,
             "PNG additional data chunk must be an IDAT"
           );
@@ -709,7 +708,7 @@ package body GID.Decoding_PNG is
       package UnZ_Glob is
         -- I/O Buffers
         -- > Sliding dictionary for unzipping, and output buffer as well
-        slide: Byte_Array( 0..wsize );
+        slide: Byte_array( 0..wsize );
         slide_index: Integer:= 0; -- Current Position in slide
         Zip_EOF  : constant Boolean:= False;
         crc32val : Unsigned_32;  -- crc calculated from data
@@ -1389,7 +1388,7 @@ package body GID.Decoding_PNG is
               begin
                 UnZ_IO.Read_raw_byte(b);
               exception
-                when Error_in_image_data =>
+                when error_in_image_data =>
                   -- vicious IEND at the wrong place
                   -- basi4a08.png test image (corrupt imho)
                   exit main_chunk_loop;

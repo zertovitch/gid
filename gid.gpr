@@ -34,7 +34,7 @@ project GID is
    package Compiler is
       case Build_Mode is
          when "Debug" =>
-            for Default_Switches ("ada") use ("-gnat95", "-gnatwa", "-gnatVa", "-gnato", "-g", "-fno-inline", "-fstack-check", "-gnatec../debug.pra");
+            for Default_Switches ("ada") use ("-gnat95", "-gnatybru", "-gnatwa", "-gnatVa", "-gnato", "-g", "-fno-inline", "-fstack-check", "-gnatec../debug.pra");
          when "Fast" =>
             for Default_Switches ("ada") use ("-O2", "-gnatpn", "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers", "-ftree-vectorize", "-fipa-cp-clone", "-fgcse-after-reload");
          when "Fast_but_checked" =>

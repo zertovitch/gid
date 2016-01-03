@@ -46,7 +46,7 @@ procedure Mini is
   )
   is
     subtype Primary_color_range is Unsigned_8;
-    image_width : constant Positive:= GID.Pixel_Width(image);
+    image_width : constant Positive:= GID.Pixel_width(image);
     image_height: constant Positive:= GID.Pixel_height(image);
     idx: Natural;
     --

@@ -15,7 +15,7 @@ private package GID.Buffering is
 
 private
 
-  subtype Size_test_a is Byte_Array(1..19);
+  subtype Size_test_a is Byte_array(1..19);
   subtype Size_test_b is Ada.Streams.Stream_Element_Array(1..19);
 
   -- is_mapping_possible: Compile-time test for checking if

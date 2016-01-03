@@ -12,6 +12,7 @@ with GID;
 with Ada.Calendar;
 with Ada.Characters.Handling;           use Ada.Characters.Handling;
 with Ada.Command_Line;                  use Ada.Command_Line;
+with Ada.Exceptions;                    use Ada.Exceptions;
 with Ada.Numerics.Elementary_Functions; use Ada.Numerics.Elementary_Functions;
 with Ada.Streams.Stream_IO;             use Ada.Streams.Stream_IO;
 with Ada.Text_IO;                       use Ada.Text_IO;
@@ -55,7 +56,7 @@ procedure Steg is
   )
   is
     subtype Primary_color_range is Unsigned_8;
-    image_width : constant Positive:= GID.Pixel_Width(image);
+    image_width : constant Positive:= GID.Pixel_width(image);
     image_height: constant Positive:= GID.Pixel_height(image);
     idx: Natural;
     --
@@ -146,11 +147,12 @@ procedure Steg is
       needed_size:= data_size + 8;
       factor:= Float(needed_size) / Float(available_size);
       if needed_size > available_size then
-        raise Data_too_large with
+        Raise_Exception(Data_too_large'Identity,
           "Needs a" & Integer'Image(Integer(100.0 * factor)) &
           "% raw size increase, i.e. a" &
           Integer'Image(1 + Integer(100.0 * Sqrt(factor))) &
-          "% image scaling";
+          "% image scaling"
+        );
       end if;
       Put_Line(Standard_Error,
         "Data size:" & Unsigned_64'Image(data_size) &

@@ -16,14 +16,14 @@ package body GID.Decoding_TGA is
       else
         Set_X_Y(0, y);
       end if;
-    end Row_Start;
+    end Row_start;
 
     -- Run Length Encoding --
     RLE_pixels_remaining: Natural:= 0;
     is_run_packet: Boolean;
 
     type Pixel is record
-      color: RGB_Color;
+      color: RGB_color;
       alpha: U8;
     end record;
 
@@ -33,7 +33,7 @@ package body GID.Decoding_TGA is
       bpp: Positive;
       pal: Boolean;
     procedure Get_pixel;
-    pragma Inline(Get_Pixel);
+    pragma Inline(Get_pixel);
     --
     procedure Get_pixel is
       idx: Natural;
@@ -106,12 +106,12 @@ package body GID.Decoding_TGA is
       end if;
     end RLE_Pixel;
 
-    procedure RLE_pixel_32      is new RLE_pixel(32, False);
-    procedure RLE_pixel_24      is new RLE_pixel(24, False);
-    procedure RLE_pixel_16      is new RLE_pixel(16, False);
-    procedure RLE_pixel_15      is new RLE_pixel(15, False);
-    procedure RLE_pixel_8       is new RLE_pixel(8,  False);
-    procedure RLE_pixel_palette is new RLE_pixel(1,  True); -- 1: dummy
+    procedure RLE_pixel_32      is new RLE_Pixel(32, False);
+    procedure RLE_pixel_24      is new RLE_Pixel(24, False);
+    procedure RLE_pixel_16      is new RLE_Pixel(16, False);
+    procedure RLE_pixel_15      is new RLE_Pixel(15, False);
+    procedure RLE_pixel_8       is new RLE_Pixel(8,  False);
+    procedure RLE_pixel_palette is new RLE_Pixel(1,  True); -- 1: dummy
 
     procedure Output_Pixel is
     pragma Inline(Output_Pixel);
@@ -233,27 +233,27 @@ package body GID.Decoding_TGA is
           case image.bits_per_pixel is
             when 32 =>
               for x in 0..image.width-1 loop
-                RLE_Pixel_32;
+                RLE_pixel_32;
                 Output_Pixel;
               end loop;
             when 24 =>
               for x in 0..image.width-1 loop
-                RLE_Pixel_24;
+                RLE_pixel_24;
                 Output_Pixel;
               end loop;
             when 16 =>
               for x in 0..image.width-1 loop
-                RLE_Pixel_16;
+                RLE_pixel_16;
                 Output_Pixel;
               end loop;
             when 15 =>
               for x in 0..image.width-1 loop
-                RLE_Pixel_15;
+                RLE_pixel_15;
                 Output_Pixel;
               end loop;
             when 8  =>
               for x in 0..image.width-1 loop
-                RLE_Pixel_8;
+                RLE_pixel_8;
                 Output_Pixel;
               end loop;
             when others => null;

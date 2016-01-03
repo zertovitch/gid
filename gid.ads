@@ -25,7 +25,7 @@
 --
 --   More credits in gid_work.xls, sheet "credits".
 --
--- Copyright (c) Gautier de Montmollin 2010 .. 2015
+-- Copyright (c) Gautier de Montmollin 2010 .. 2016
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -160,7 +160,7 @@ package GID is
   --------------------------------------------------------------
 
   version   : constant String:= "04";
-  reference : constant String:= "3-May-2015";
+  reference : constant String:= "3-Jan-2016";  --  Only adapted to -gnatybru style check
   web: constant String:= "http://gen-img-dec.sf.net/";
   -- Hopefully the latest version is at that URL...
 

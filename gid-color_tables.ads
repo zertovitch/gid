@@ -13,6 +13,6 @@ private package GID.Color_tables is
   -- Convert a RGB value packed in 2 bytes
   -- (15 bit, 5 bit each channel) into a RGB_Color
   -- This is for the TGA format.
-  procedure Convert(c, d: in U8; rgb: out RGB_Color);
+  procedure Convert(c, d: in U8; rgb: out RGB_color);
 
 end GID.Color_tables;

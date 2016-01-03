@@ -166,7 +166,7 @@ package body GID.Decoding_GIF is
       -- Local procedure to draw a pixel
       procedure Next_Pixel(code: Natural) is
       pragma Inline(Next_Pixel);
-        c : constant Color_Type:= Color_type(U32(code) and pixel_mask);
+        c : constant Color_type:= Color_type(U32(code) and pixel_mask);
       begin
         -- Actually draw the pixel on screen buffer
         if X < image.width then
@@ -447,7 +447,7 @@ package body GID.Decoding_GIF is
                 image.next_frame + Ada.Calendar.Day_Duration(delay_frame) / 100.0;
               next_frame:= image.next_frame;
               Get_Byte(image.buffer, temp );
-              Transp_color:= Color_Type(temp);
+              Transp_color:= Color_type(temp);
               -- zero sub-block:
               Get_Byte(image.buffer, temp );
             when 16#FE# => -- See: 24. Comment Extension
@@ -519,9 +519,9 @@ package body GID.Decoding_GIF is
     if local_palette then
       -- Get amount of colours in image
       BitsPerPixel := 1 + Natural(Descriptor.Depth and 7);
-      New_num_of_colours:= 2 ** BitsPerPixel;
+      new_num_of_colours:= 2 ** BitsPerPixel;
       -- 21. Local Color Table
-      local.palette:= new Color_table(0..New_num_of_colours-1);
+      local.palette:= new Color_table(0..new_num_of_colours-1);
       Color_tables.Load_palette(local);
       image.buffer:= local.buffer;
     elsif image.palette = null then
@@ -531,12 +531,12 @@ package body GID.Decoding_GIF is
       );
     else
       -- Use global palette
-      New_num_of_colours:= 2 ** image.subformat_id;
+      new_num_of_colours:= 2 ** image.subformat_id;
       -- usually <= 2** image.bits_per_pixel
       -- Just copy main palette
       local.palette:= new Color_table'(image.palette.all);
     end if;
-    Pixel_mask:= U32(New_num_of_colours - 1);
+    pixel_mask:= U32(new_num_of_colours - 1);
 
     if full_trace then
       Ada.Text_IO.Put_Line(

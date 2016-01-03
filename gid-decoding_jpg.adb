@@ -55,7 +55,7 @@ package body GID.Decoding_JPG is
 
   procedure Big_endian is new Big_endian_number( U16 );
 
-  procedure Read( image: in out image_descriptor; sh: out Segment_head) is
+  procedure Read( image: in out Image_descriptor; sh: out Segment_head) is
     b: U8;
     id: constant array(JPEG_marker) of U8:=
     ( SOI      => 16#D8#,
@@ -82,7 +82,7 @@ package body GID.Decoding_JPG is
   begin
     Get_Byte(image.buffer, b);
     if b /= 16#FF# then
-      Raise_exception(
+      Raise_Exception(
         error_in_image_data'Identity,
         "JPEG: expected marker here"
       );
@@ -102,7 +102,7 @@ package body GID.Decoding_JPG is
         return;
       end if;
     end loop;
-    Raise_exception(
+    Raise_Exception(
       error_in_image_data'Identity,
       "JPEG: unknown marker here: FF, " & U8'Image(b)
     );
@@ -125,14 +125,14 @@ package body GID.Decoding_JPG is
         image.detailed_format:= To_Bounded_String("JPEG, Progressive DCT (SOF_2)");
         image.interlaced:= True;
       when others =>
-        Raise_exception(
+        Raise_Exception(
           unsupported_image_subformat'Identity,
           "JPEG: image type not yet supported: " & JPEG_marker'Image(sh.kind)
         );
     end case;
     Get_Byte(image.buffer, bits_pp_primary);
     if bits_pp_primary /= 8 then
-      Raise_exception(
+      Raise_Exception(
         unsupported_image_subformat'Identity,
         "Bits per primary color=" & U8'Image(bits_pp_primary)
       );
@@ -156,7 +156,7 @@ package body GID.Decoding_JPG is
       image.JPEG_stuff.components(compo):= True;
       declare
         stuff: JPEG_stuff_type renames image.JPEG_stuff;
-        info: JPEG_defs.info_per_component_A renames stuff.info(compo);
+        info: JPEG_defs.Info_per_component_A renames stuff.info(compo);
       begin
         -- sampling factors (bit 0-3 vert., 4-7 hor.)
         Get_Byte(image.buffer, b);
@@ -175,7 +175,7 @@ package body GID.Decoding_JPG is
       if image.JPEG_stuff.components(c) then
         declare
           stuff: JPEG_stuff_type renames image.JPEG_stuff;
-          info: JPEG_defs.info_per_component_A renames stuff.info(c);
+          info: JPEG_defs.Info_per_component_A renames stuff.info(c);
         begin
           info.up_factor_x:= stuff.max_samples_hor / info.samples_hor;
           info.up_factor_y:= stuff.max_samples_ver / info.samples_ver;
@@ -185,14 +185,14 @@ package body GID.Decoding_JPG is
       end if;
     end loop;
     if Natural(sh.length) < 6 + 3 * image.subformat_id then
-      Raise_exception(
+      Raise_Exception(
         error_in_image_data'Identity,
         "JPEG: SOF segment too short"
       );
     end if;
     if some_trace then
       Put_Line("Frame has following components:");
-      for c in JPEG_defs.component loop
+      for c in JPEG_defs.Component loop
         Put_Line(
           JPEG_defs.Component'Image(c) & " -> " &
           Boolean'Image(image.JPEG_stuff.components(c))
@@ -207,7 +207,7 @@ package body GID.Decoding_JPG is
     elsif image.JPEG_stuff.components = CMYK_set then
       image.JPEG_stuff.color_space:= CMYK;
     else
-      Raise_exception(
+      Raise_Exception(
         unsupported_image_subformat'Identity,
         "JPEG: only YCbCr, Y_Grey and CMYK color spaces are currently supported"
       );
@@ -221,7 +221,7 @@ package body GID.Decoding_JPG is
       );
     end if;
     if image.JPEG_stuff.color_space = CMYK then
-      Raise_exception(
+      Raise_Exception(
         unsupported_image_subformat'Identity,
         "JPEG: CMYK color space is currently not properly decoded"
       );
@@ -269,14 +269,14 @@ package body GID.Decoding_JPG is
         currcnt:= counts(codelen);
         if currcnt > 0 then
           if remaining < currcnt then
-            Raise_exception(
+            Raise_Exception(
               error_in_image_data'Identity,
               "JPEG: DHT data too short"
             );
           end if;
           remain_vlc:= remain_vlc - currcnt * spread;
           if remain_vlc < 0 then
-            Raise_exception(
+            Raise_Exception(
               error_in_image_data'Identity,
               "JPEG: DHT table too short for data"
             );
@@ -483,8 +483,8 @@ package body GID.Decoding_JPG is
               when 0 =>
                 null;
               when 16#D8# =>  --  SOI here ?
-                null;  
-                --  2015-04-26: occured in one (of many) picture 
+                null;
+                --  2015-04-26: occured in one (of many) picture
                 --  taken by an Olympus VG120,D705. See test/img/bcase_1.jpg
               when 16#D9# =>  --  EOI here ?
                 null; -- !! signal end
@@ -492,7 +492,7 @@ package body GID.Decoding_JPG is
                 bufbits:= bufbits + 8;
                 buf:= buf * 256 + U32(marker);
               when others =>
-                Raise_exception(
+                Raise_Exception(
                   error_in_image_data'Identity,
                   "JPEG: Invalid code (bit buffer): " & U8'Image(marker)
                 );
@@ -554,7 +554,7 @@ package body GID.Decoding_JPG is
       bits : Natural:= Natural(vlc(value).bits);
     begin
       if bits = 0 then
-        Raise_exception(
+        Raise_Exception(
           error_in_image_data'Identity,
           "JPEG: VLC table: bits = 0"
         );
@@ -717,14 +717,14 @@ package body GID.Decoding_JPG is
         Get_VLC(image.JPEG_stuff.vlc_defs(AC, info_B(c).ht_idx_AC).all, code, value);
         exit when code = 0; -- EOB
         if (code and 16#0F#) = 0 and code /= 16#F0# then
-          Raise_exception(
+          Raise_Exception(
             error_in_image_data'Identity,
             "JPEG: error in VLC AC code for de-quantization"
           );
         end if;
         coef:= coef + Integer(Shift_Right(code, 4)) + 1;
         if coef > 63 then
-          Raise_exception(
+          Raise_Exception(
             error_in_image_data'Identity,
             "JPEG: coefficient for de-quantization is > 63"
           );
@@ -797,18 +797,18 @@ package body GID.Decoding_JPG is
           for xmb in flat'Range(2) loop
             exit when x0+xmb >= image.width;
             case color_space is
-              when YCbCR =>
+              when YCbCr =>
                 y_val := flat(Y,  xmb, ymb) * 256;
                 cb_val:= flat(Cb, xmb, ymb) - 128;
                 cr_val:= flat(Cr, xmb, ymb) - 128;
-                Out_pixel_8(
+                Out_Pixel_8(
                   br => U8(Clip((y_val                + 359 * cr_val + 128) / 256)),
                   bg => U8(Clip((y_val -  88 * cb_val - 183 * cr_val + 128) / 256)),
                   bb => U8(Clip((y_val + 454 * cb_val                + 128) / 256))
                 );
               when Y_Grey =>
                 y_val_8:= U8(flat(Y,  xmb, ymb));
-                Out_pixel_8(y_val_8, y_val_8, y_val_8);
+                Out_Pixel_8(y_val_8, y_val_8, y_val_8);
               when CMYK =>
                 -- !! find a working conversion formula.
                 --    perhaps it is more complicated (APP_2
@@ -817,7 +817,7 @@ package body GID.Decoding_JPG is
                 m_val:= flat(Cb, xmb, ymb);
                 y_val:= flat(Cr, xmb, ymb);
                 w_val:= flat(I,  xmb, ymb)-255;
-                Out_pixel_8(
+                Out_Pixel_8(
                   br => U8(255-Clip(c_val+w_val)),
                   bg => U8(255-Clip(m_val+w_val)),
                   bb => U8(255-Clip(y_val+w_val))
@@ -897,7 +897,7 @@ package body GID.Decoding_JPG is
         );
       end if;
       if image.subformat_id /= Natural(components) then
-        Raise_exception(
+        Raise_Exception(
           error_in_image_data'Identity,
           "JPEG: components mismatch in Scan segment"
         );
@@ -906,7 +906,7 @@ package body GID.Decoding_JPG is
         Get_Byte(image.buffer, b);
         compo:= Component'Val(b - 1);
         if not image.JPEG_stuff.components(compo) then
-          Raise_exception(
+          Raise_Exception(
             error_in_image_data'Identity,
             "JPEG: component " & Component'Image(compo) &
             " has not been defined in the header (SOF) segment"
@@ -957,7 +957,7 @@ package body GID.Decoding_JPG is
           if (info_B(c).width < 3 and info_A(c).samples_hor /= ssxmax) or
              (info_B(c).height < 3 and info_A(c).samples_ver /= ssymax)
           then
-            Raise_exception(
+            Raise_Exception(
               error_in_image_data'Identity,
               "JPEG: component " & Component'Image(c) &
               ": sample dimension mismatch"
@@ -967,7 +967,7 @@ package body GID.Decoding_JPG is
       end loop;
       --
       if image.interlaced then
-        Raise_exception(
+        Raise_Exception(
           unsupported_image_subformat'Identity,
           "JPEG: progressive format not yet functional"
         );
@@ -1020,7 +1020,7 @@ package body GID.Decoding_JPG is
                 );
               end if;
               if w not in 16#FFD0# .. 16#FFD7# or (w and 7) /= nextrst then
-                Raise_exception(
+                Raise_Exception(
                   error_in_image_data'Identity,
                   "JPEG: expected RST (restart) marker Nb " & U16'Image(nextrst)
                 );

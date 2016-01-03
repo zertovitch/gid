@@ -13,10 +13,10 @@ package body GID.Decoding_PNM is
     procedure Row_start(y: Natural) is
     begin
       Set_X_Y(0, image.height-1-y);
-    end Row_Start;
+    end Row_start;
 
     type Pixel is record
-      color: RGB_Color;
+      color: RGB_color;
       alpha: U8;
     end record;
 
@@ -49,7 +49,7 @@ package body GID.Decoding_PNM is
     ----------
     --  P1  --
     ----------
-    
+
     procedure Get_Mono_Text_Picture is
     begin
       for y in 0..image.height-1 loop
@@ -67,7 +67,7 @@ package body GID.Decoding_PNM is
     ----------
     --  P2  --
     ----------
-    
+
     procedure Get_Grey_Text_Picture is
     begin
       for y in 0..image.height-1 loop
@@ -81,11 +81,11 @@ package body GID.Decoding_PNM is
         Feedback(((y+1)*100)/image.height);
       end loop;
     end Get_Grey_Text_Picture;
-    
+
     ----------
     --  P3  --
     ----------
-    
+
     procedure Get_RGB_Text_Picture is
     begin
       for y in 0..image.height-1 loop
@@ -103,9 +103,9 @@ package body GID.Decoding_PNM is
     ----------
     --  P4  --
     ----------
-    
+
     procedure Get_Mono_Binary_Picture is
-      bbf: U8;  --  Bit buffer 
+      bbf: U8;  --  Bit buffer
     begin
       for y in 0..image.height-1 loop
         Row_start(y);
@@ -126,7 +126,7 @@ package body GID.Decoding_PNM is
     ----------
     --  P5  --
     ----------
-    
+
     procedure Get_Grey_Binary_Picture is
     begin
       for y in 0..image.height-1 loop
@@ -144,7 +144,7 @@ package body GID.Decoding_PNM is
     ----------
     --  P6  --
     ----------
-    
+
     procedure Get_RGB_Binary_Picture is
     begin
       for y in 0..image.height-1 loop
@@ -183,10 +183,10 @@ package body GID.Decoding_PNM is
   end Load;
 
   function Get_Token(
-    stream      : Stream_Access; 
+    stream      : Stream_Access;
     needs_EOL   : Boolean:= False;
     single_char : Boolean:= False
-  ) 
+  )
   return String
   is
     c: Character;
@@ -225,10 +225,10 @@ package body GID.Decoding_PNM is
   end Get_Token;
 
   function Get_Integer(
-    stream      : Stream_Access; 
+    stream      : Stream_Access;
     needs_EOL   : Boolean:= False;
     single_char : Boolean:= False
-  ) 
+  )
   return Integer
   is
   begin

@@ -62,7 +62,7 @@ procedure To_BMP is
   error: Boolean;
 
   img_buf, bkg_buf: p_Byte_Array:= null;
-  bkg: GID.Image_Descriptor;
+  bkg: GID.Image_descriptor;
 
   generic
     correct_orientation: GID.Orientation;
@@ -81,8 +81,8 @@ procedure To_BMP is
   is
     subtype Primary_color_range is Unsigned_8;
     subtype U16 is Unsigned_16;
-    image_width: constant Positive:= GID.Pixel_Width(image);
-    image_height: constant Positive:= GID.Pixel_Height(image);
+    image_width: constant Positive:= GID.Pixel_width(image);
+    image_height: constant Positive:= GID.Pixel_height(image);
     padded_line_size_x: constant Positive:=
       4 * Integer(Float'Ceiling(Float(image_width) * 3.0 / 4.0));
     padded_line_size_y: constant Positive:=
@@ -426,8 +426,8 @@ procedure To_BMP is
     );
     Put_Line(Standard_Error,
       "  Dimensions in pixels: " &
-      Integer'Image(GID.Pixel_Width(i)) & " x" &
-      Integer'Image(GID.Pixel_Height(i))
+      Integer'Image(GID.Pixel_width(i)) & " x" &
+      Integer'Image(GID.Pixel_height(i))
     );
     Put_Line(Standard_Error,
       "  Display orientation: " &

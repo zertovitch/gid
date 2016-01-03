@@ -266,7 +266,7 @@ package body GID.Headers is
       when 1 | 4 | 8 | 24 =>
         null;
       when others =>
-        Raise_exception(
+        Raise_Exception(
           unsupported_image_subformat'Identity,
           "bit depth =" & U16'Image(w)
         );
@@ -277,7 +277,7 @@ package body GID.Headers is
     -- BI_RLE8 = 1
     -- BI_RLE4 = 2
     if n /= 0 then
-      Raise_exception(
+      Raise_Exception(
         unsupported_image_subformat'Identity,
         "RLE compression"
       );
@@ -289,9 +289,9 @@ package body GID.Headers is
     Read_Intel(image.stream, n); -- Pos= 47, number of palette colors
     if image.bits_per_pixel <= 8 then
       if n = 0 then
-        image.palette:= new Color_Table(0..2**image.bits_per_pixel-1);
+        image.palette:= new Color_table(0..2**image.bits_per_pixel-1);
       else
-        image.palette:= new Color_Table(0..Natural(n)-1);
+        image.palette:= new Color_table(0..Natural(n)-1);
       end if;
     end if;
     Read_Intel(image.stream, dummy); -- Pos= 51, number of important colors
@@ -331,7 +331,7 @@ package body GID.Headers is
     --     richness of the original palette
     U8'Read(image.stream, background);
     U8'Read(image.stream, aspect_ratio_code);
-    Buffering.Attach_stream(image.buffer, image.stream);
+    Buffering.Attach_Stream(image.buffer, image.stream);
     if global_palette then
       image.subformat_id:= 1+(Natural(packed and 16#07#));
       -- palette's bits per pixels, usually <= image's
@@ -343,7 +343,7 @@ package body GID.Headers is
       --       image.subformat_id'img & image.bits_per_pixel'img
       --    );
       --  end if;
-      image.palette:= new Color_Table(0..2**(image.subformat_id)-1);
+      image.palette:= new Color_table(0..2**(image.subformat_id)-1);
       Color_tables.Load_palette(image);
     end if;
   end Load_GIF_header;
@@ -360,7 +360,7 @@ package body GID.Headers is
   begin
     -- We have already passed the SOI (Start of Image) segment marker (FFD8).
     image.JPEG_stuff.restart_interval:= 0;
-    Attach_stream(image.buffer, image.stream);
+    Attach_Stream(image.buffer, image.stream);
     loop
       Read(image, sh);
       case sh.kind is
@@ -396,17 +396,17 @@ package body GID.Headers is
     b, color_type: U8;
     palette: Boolean:= False;
   begin
-    Buffering.Attach_stream(image.buffer, image.stream);
+    Buffering.Attach_Stream(image.buffer, image.stream);
     Read(image, ch);
     if ch.kind /= IHDR then
-      Raise_exception(
+      Raise_Exception(
         error_in_image_data'Identity,
         "Expected 'IHDR' chunk as first chunk in PNG stream"
       );
     end if;
     Big_endian_buffered(image.buffer, n);
     if n = 0 then
-      Raise_exception(
+      Raise_Exception(
         error_in_image_data'Identity,
         "PNG image with zero width"
       );
@@ -414,7 +414,7 @@ package body GID.Headers is
     image.width:=  Natural(n);
     Big_endian_buffered(image.buffer, n);
     if n = 0 then
-      Raise_exception(
+      Raise_Exception(
         error_in_image_data'Identity,
         "PNG image with zero height"
       );
@@ -431,7 +431,7 @@ package body GID.Headers is
           when 1 | 2 | 4 | 8 | 16 =>
             null;
           when others =>
-            Raise_exception(
+            Raise_Exception(
               error_in_image_data'Identity,
               "PNG, type 0 (greyscale): wrong bit-per-channel depth"
             );
@@ -441,7 +441,7 @@ package body GID.Headers is
           when 8 | 16 =>
             image.bits_per_pixel:= 3 * image.bits_per_pixel;
           when others =>
-            Raise_exception(
+            Raise_Exception(
               error_in_image_data'Identity,
               "PNG, type 2 (RGB): wrong bit-per-channel depth"
             );
@@ -452,7 +452,7 @@ package body GID.Headers is
           when 1 | 2 | 4 | 8 =>
             null;
           when others =>
-            Raise_exception(
+            Raise_Exception(
               error_in_image_data'Identity,
               "PNG, type 3: wrong bit-per-channel depth"
             );
@@ -464,7 +464,7 @@ package body GID.Headers is
           when 8 | 16 =>
             image.bits_per_pixel:= 2 * image.bits_per_pixel;
           when others =>
-            Raise_exception(
+            Raise_Exception(
               error_in_image_data'Identity,
               "PNG, type 4 (Greyscale & Alpha): wrong bit-per-channel depth"
             );
@@ -475,20 +475,20 @@ package body GID.Headers is
           when 8 | 16 =>
             image.bits_per_pixel:= 4 * image.bits_per_pixel;
           when others =>
-            Raise_exception(
+            Raise_Exception(
               error_in_image_data'Identity,
               "PNG, type 6 (RGBA): wrong bit-per-channel depth"
             );
         end case;
       when others =>
-        Raise_exception(
+        Raise_Exception(
           error_in_image_data'Identity,
           "Unknown PNG color type"
         );
     end case;
     Get_Byte(image.buffer, b);
     if b /= 0 then
-      Raise_exception(
+      Raise_Exception(
         error_in_image_data'Identity,
         "Unknown PNG compression; ISO/IEC 15948:2003" &
         " knows only 'method 0' (deflate)"
@@ -496,7 +496,7 @@ package body GID.Headers is
     end if;
     Get_Byte(image.buffer, b);
     if b /= 0 then
-      Raise_exception(
+      Raise_Exception(
         error_in_image_data'Identity,
         "Unknown PNG filtering; ISO/IEC 15948:2003 knows only 'method 0'"
       );
@@ -509,18 +509,18 @@ package body GID.Headers is
         Read(image, ch);
         case ch.kind is
           when IEND =>
-            Raise_exception(
+            Raise_Exception(
               error_in_image_data'Identity,
               "PNG: there must be a palette, found IEND"
             );
           when PLTE =>
             if ch.length rem 3 /= 0 then
-              Raise_exception(
+              Raise_Exception(
                 error_in_image_data'Identity,
                 "PNG: palette chunk byte length must be a multiple of 3"
               );
             end if;
-            image.palette:= new Color_Table(0..Integer(ch.length/3)-1);
+            image.palette:= new Color_table(0..Integer(ch.length/3)-1);
             Color_tables.Load_palette(image);
             Big_endian_buffered(image.buffer, dummy); -- Chunk's CRC
             exit;
@@ -552,7 +552,7 @@ package body GID.Headers is
         image.height := Get_Integer(image.stream);
         depth_val := Get_Integer(image.stream, needs_EOL => True);
         if depth_val /= 255 then
-          Raise_exception(
+          Raise_Exception(
             unsupported_image_subformat'Identity,
             "Maximum value" & Integer'Image(depth_val) &
              "; only 255 is supported"
@@ -561,7 +561,7 @@ package body GID.Headers is
         image.greyscale:= image.subformat_id = 2 or image.subformat_id = 5;
         image.bits_per_pixel:= 24;
       when others =>
-        Raise_exception(
+        Raise_Exception(
           unsupported_image_subformat'Identity,
           "P" & Integer'Image(image.subformat_id)
         );
@@ -622,7 +622,7 @@ package body GID.Headers is
     image.RLE_encoded:= (image_type and 8) /= 0;
     --
     if color_map_type /= 0 then
-      image.palette:= new Color_Table(
+      image.palette:= new Color_table(
         Integer(first_entry_index)..
         Integer(first_entry_index)+Integer(color_map_length)-1
       );
@@ -635,7 +635,7 @@ package body GID.Headers is
         when 24 | 32 => -- RGB 3*8 bit | RGBA 4*8 bit
           null;
         when others =>
-          Raise_exception(
+          Raise_Exception(
             error_in_image_data'Identity,
             "TGA color map (palette): wrong bit depth:" &
             Integer'Image(image.subformat_id)
@@ -652,7 +652,7 @@ package body GID.Headers is
       when 3 =>
         image.greyscale:= True;
       when others =>
-        Raise_exception(
+        Raise_Exception(
           unsupported_image_subformat'Identity,
           "TGA type =" & Integer'Image(base_image_type)
         );
@@ -667,7 +667,7 @@ package body GID.Headers is
       when 32 | 24 | 16 | 15 | 8 =>
         null;
       when others =>
-        Raise_exception(
+        Raise_Exception(
           unsupported_image_subformat'Identity,
           "TGA bits per pixels =" & Integer'Image(image.bits_per_pixel)
         );
@@ -693,7 +693,7 @@ package body GID.Headers is
     -- in a temp buffer. Perhaps we'll do that one day.
   begin
     Read_any_endian(image.stream, first_IFD_offset, image.endianess);
-    Raise_exception(
+    Raise_Exception(
       known_but_unsupported_image_format'Identity,
       "TIFF is not appropriate for streaming. Use PNG, BMP (lossless) or JPEG instead." &
       "Info: IFD Offset=" & U32'image(first_IFD_offset)
