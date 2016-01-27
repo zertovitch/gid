@@ -229,13 +229,13 @@ package body GID.Decoding_JPG is
   end Read_SOF;
 
   procedure Read_DHT(image: in out Image_descriptor; data_length: Natural) is
-    remaining: Integer:= data_length; -- data remaining in segment
+    remaining: Integer_M32:= Integer_M32(data_length); -- data remaining in segment
     b: U8;
     ht_idx: Natural;
     kind: AC_DC;
-    counts: array(1..16) of Natural;
-    spread, currcnt, idx: Natural;
-    remain_vlc: Integer;
+    counts: array(1..16) of Integer_M32;
+    idx: Natural;
+    currcnt, spread, remain_vlc: Integer_M32;
   begin
     multi_tables:
     loop
@@ -259,7 +259,7 @@ package body GID.Decoding_JPG is
       for i in counts'range loop
         Get_Byte(image.buffer, b);
         remaining:= remaining - 1;
-        counts(i):= Natural(b);
+        counts(i):= Integer_M32(b);
       end loop;
       remain_vlc:= 65_536;
       spread:= 65_536;

@@ -1178,7 +1178,7 @@ package body GID.Decoding_PNG is
               raise error_in_image_data;
             end if;
             for c in reverse 1..amount loop
-              Ll ( defined ) := current_length;
+              Ll ( defined ) := Natural_M32(current_length);
               defined:= defined + 1;
             end loop;
           end Repeat_length_code;
@@ -1200,7 +1200,7 @@ package body GID.Decoding_PNG is
           -- Read in bit-length-code lengths.
           -- The rest, Ll( Bit_Order( Nb .. 18 ) ), is already = 0
           for J in  0 .. Nb - 1  loop
-            Ll ( bit_order( J ) ) := UnZ_IO.Bit_buffer.Read_and_dump(3);
+            Ll ( bit_order( J ) ) := Natural_M32(UnZ_IO.Bit_buffer.Read_and_dump(3));
           end loop;
 
           -- Build decoding table for trees--single level, 7 bit lookup
@@ -1230,7 +1230,7 @@ package body GID.Decoding_PNG is
             case CTE.n is
               when 0..15 =>       -- length of code in bits (0..15)
                 current_length:= CTE.n;
-                Ll (defined) := current_length;
+                Ll (defined) := Natural_M32(current_length);
                 defined:= defined + 1;
 
               when 16 =>          -- repeat last length 3 to 6 times

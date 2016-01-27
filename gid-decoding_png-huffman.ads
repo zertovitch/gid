@@ -66,7 +66,7 @@ private package GID.Decoding_PNG.Huffman is
     next : p_Table_list;
   end record;
 
-  type Length_array is array(Integer range <>) of Natural;
+  type Length_array is array(Integer range <>) of Natural_M32;
 
   empty : constant Length_array( 1..0 ):= ( others=> 0 );
 

@@ -45,14 +45,12 @@ package body GID.Decoding_PNG.Huffman is
       Ada.Unchecked_Deallocation( Table_list, p_Table_list );
 
     current: p_Table_list;
-    tcount : Natural; -- just a stat. Idea: replace table_list with an array
-    tot_length: Natural;
+    tcount : Natural:= 0; -- just a stat. Idea: replace table_list with an array
+    tot_length: Natural:= 0;
 
   begin
     if full_trace then
       Ada.Text_IO.Put("[HufT_Free... ");
-      tcount:= 0;
-      tot_length:= 0;
     end if;
     while tl /= null loop
       if full_trace then
@@ -129,7 +127,7 @@ package body GID.Decoding_PNG.Huffman is
     tl:= null;
 
     if b'Length > 256 then -- set length of EOB code, if any
-      el := b(256);
+      el := Natural(b(256));
     else
       el := b_max;
     end if;
@@ -141,7 +139,7 @@ package body GID.Decoding_PNG.Huffman is
         -- m := 0; -- GNAT 2005 doesn't like it (warning).
         raise huft_error;
       end if;
-      count( b(k) ):= count( b(k) ) + 1;
+      count( Natural(b(k)) ):= count( Natural(b(k)) ) + 1;
     end loop;
 
     if count(0) = b'Length then
@@ -199,7 +197,7 @@ package body GID.Decoding_PNG.Huffman is
     -- Make table of values in order of bit length
 
     for idx in b'Range loop
-      j := b(idx);
+      j := Natural(b(idx));
       if j /= 0 then
         v( offset(j) ) := idx-b'First;
         offset(j):= offset(j) + 1;
@@ -316,8 +314,8 @@ package body GID.Decoding_PNG.Huffman is
             if no_copy_length_array then
               raise huft_error;
             end if;
-            new_entry.extra_bits := e( el_v_m_s );
-            new_entry.n          := d( el_v_m_s );
+            new_entry.extra_bits := Natural(e( el_v_m_s ));
+            new_entry.n          := Natural(d( el_v_m_s ));
           end if;
           v_idx:= v_idx + 1;
         end if;

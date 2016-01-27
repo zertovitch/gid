@@ -50,6 +50,7 @@
 
 with Ada.Calendar, Ada.Streams, Ada.Strings.Bounded, Ada.Finalization;
 with Interfaces;
+with System;
 
 package GID is
 
@@ -159,8 +160,8 @@ package GID is
   -- Information about this package - e.g. for an "about" box --
   --------------------------------------------------------------
 
-  version   : constant String:= "04";
-  reference : constant String:= "3-Jan-2016";  --  Only adapted to -gnatybru style check
+  version   : constant String:= "05, preview 1";
+  reference : constant String:= "27-Jan-2016";
   web: constant String:= "http://gen-img-dec.sf.net/";
   -- Hopefully the latest version is at that URL...
 
@@ -184,6 +185,19 @@ private
   type Color_table is array (Integer range <>) of RGB_color;
 
   type p_Color_table is access Color_table;
+
+  min_bits: constant:= Integer'Max(32, System.Word_Size);
+  -- 13.3(8): A word is the largest amount of storage that can be
+  -- conveniently and efficiently manipulated by the hardware,
+  -- given the implementation's run-time model.
+
+  type Integer_M32 is range -2**(min_bits-1) .. 2**(min_bits-1) - 1;
+  --  We define an Integer type which is at least 32 bits, but n bits
+  --  on a native n > 32 bits architecture (no performance hit on 64+
+  --  bits architectures).
+
+  subtype Natural_M32 is Integer_M32 range 0..Integer_M32'Last;
+  subtype Positive_M32 is Integer_M32 range 1..Integer_M32'Last;
 
   type Byte_array is array(Integer range <>) of U8;
 
