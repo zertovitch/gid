@@ -133,6 +133,12 @@ package body GID.Decoding_GIF is
 
       procedure Pixel_with_palette(b: U8) is
       pragma Inline(Pixel_with_palette);
+        function Times_257(x: Primary_color_range) return Primary_color_range is
+        pragma Inline(Times_257);
+        begin
+          return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
+          --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
+        end;
       begin
         if transparency and then b = Transp_color then
           Put_Pixel(0,0,0, 0);
@@ -148,11 +154,11 @@ package body GID.Decoding_GIF is
             );
           when 65_536 =>
             Put_Pixel(
-              16#101# * Primary_color_range(local.palette(Integer(b)).red),
-              16#101# * Primary_color_range(local.palette(Integer(b)).green),
-              16#101# * Primary_color_range(local.palette(Integer(b)).blue),
-              -- 16#101# because max intensity FF goes to FFFF
+              Times_257(Primary_color_range(local.palette(Integer(b)).red)),
+              Times_257(Primary_color_range(local.palette(Integer(b)).green)),
+              Times_257(Primary_color_range(local.palette(Integer(b)).blue)),
               65_535
+              -- Times_257 makes max intensity FF go to FFFF
             );
           when others =>
             raise invalid_primary_color_range;

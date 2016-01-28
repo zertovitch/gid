@@ -24,6 +24,12 @@ package body GID.Decoding_PNM is
 
     procedure Output_Pixel is
     pragma Inline(Output_Pixel);
+      function Times_257(x: Primary_color_range) return Primary_color_range is
+      pragma Inline(Times_257);
+      begin
+        return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
+        --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
+      end;
     begin
       case Primary_color_range'Modulus is
         when 256 =>
@@ -35,11 +41,11 @@ package body GID.Decoding_PNM is
           );
         when 65_536 =>
           Put_Pixel(
-            16#101#  * Primary_color_range(pix.color.red),
-            16#101#  * Primary_color_range(pix.color.green),
-            16#101#  * Primary_color_range(pix.color.blue),
-            16#101#  * Primary_color_range(pix.alpha)
-            -- 16#101# because max intensity FF goes to FFFF
+            Times_257(Primary_color_range(pix.color.red)),
+            Times_257(Primary_color_range(pix.color.green)),
+            Times_257(Primary_color_range(pix.color.blue)),
+            Times_257(Primary_color_range(pix.alpha))
+            -- Times_257 makes max intensity FF go to FFFF
           );
         when others =>
           raise invalid_primary_color_range;

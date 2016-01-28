@@ -749,6 +749,12 @@ package body GID.Decoding_JPG is
 
       procedure Out_Pixel_8(br, bg, bb: U8) is
       pragma Inline(Out_Pixel_8);
+        function Times_257(x: Primary_color_range) return Primary_color_range is
+        pragma Inline(Times_257);
+        begin
+          return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
+          --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
+        end;
         ba: constant:= 255;
       begin
         case Primary_color_range'Modulus is
@@ -761,11 +767,11 @@ package body GID.Decoding_JPG is
             );
           when 65_536 =>
             Put_Pixel(
-              16#101# * Primary_color_range(br),
-              16#101# * Primary_color_range(bg),
-              16#101# * Primary_color_range(bb),
-              16#101# * Primary_color_range(ba)
-              -- 16#101# because max intensity FF goes to FFFF
+              Times_257(Primary_color_range(br)),
+              Times_257(Primary_color_range(bg)),
+              Times_257(Primary_color_range(bb)),
+              Times_257(Primary_color_range(ba))
+              -- Times_257 makes max intensity FF go to FFFF
             );
           when others =>
             raise invalid_primary_color_range;
