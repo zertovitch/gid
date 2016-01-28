@@ -6,14 +6,16 @@ package body GID.Decoding_BMP is
     b01, b, br, bg, bb: U8:= 0;
     x, x_max, y: Natural;
     --
+    function Times_257(x: Primary_color_range) return Primary_color_range is
+    pragma Inline(Times_257);
+    begin
+      return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
+      --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
+    end;
+    full_opaque: constant Primary_color_range:= Primary_color_range'Last;
+    --
     procedure Pixel_with_palette is
     pragma Inline(Pixel_with_palette);
-      function Times_257(x: Primary_color_range) return Primary_color_range is
-      pragma Inline(Times_257);
-      begin
-        return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
-        --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
-      end;
     begin
       case Primary_color_range'Modulus is
         when 256 =>
@@ -21,15 +23,15 @@ package body GID.Decoding_BMP is
             Primary_color_range(image.palette(Integer(b)).red),
             Primary_color_range(image.palette(Integer(b)).green),
             Primary_color_range(image.palette(Integer(b)).blue),
-            255
+            full_opaque
           );
         when 65_536 =>
           Put_Pixel(
             Times_257(Primary_color_range(image.palette(Integer(b)).red)),
             Times_257(Primary_color_range(image.palette(Integer(b)).green)),
             Times_257(Primary_color_range(image.palette(Integer(b)).blue)),
-            65_535
             -- Times_257 makes max intensity FF go to FFFF
+            full_opaque
           );
         when others =>
           raise invalid_primary_color_range;
@@ -100,14 +102,15 @@ package body GID.Decoding_BMP is
                   Primary_color_range(br),
                   Primary_color_range(bg),
                   Primary_color_range(bb),
-                  255
+                  full_opaque
                 );
               when 65_536 =>
                 Put_Pixel(
-                  256 * Primary_color_range(br),
-                  256 * Primary_color_range(bg),
-                  256 * Primary_color_range(bb),
-                  65_535
+                  Times_257(Primary_color_range(br)),
+                  Times_257(Primary_color_range(bg)),
+                  Times_257(Primary_color_range(bb)),
+                  -- Times_257 makes max intensity FF go to FFFF
+                  full_opaque
                 );
               when others =>
                 raise invalid_primary_color_range;

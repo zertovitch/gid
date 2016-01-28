@@ -980,7 +980,7 @@ package body GID.Decoding_PNG is
           -- inflate the coded data
           main_loop:
           while not UnZ_Glob.Zip_EOF loop
-            CTE:= Tl.table( UnZ_IO.Bit_buffer.Read(Bl) )'Access;
+            CTE:= Tl.table( UnZ_IO.Bit_buffer.Read(Bl) )'Unchecked_Access;
 
             loop
               E := CTE.extra_bits;
@@ -992,7 +992,7 @@ package body GID.Decoding_PNG is
               -- then it's a literal
               UnZ_IO.Bit_buffer.Dump( CTE.bits );
               E:= E - 16;
-              CTE := CTE.next_table( UnZ_IO.Bit_buffer.Read(E) )'Access;
+              CTE := CTE.next_table( UnZ_IO.Bit_buffer.Read(E) )'Unchecked_Access;
             end loop;
 
             UnZ_IO.Bit_buffer.Dump ( CTE.bits );
@@ -1015,7 +1015,7 @@ package body GID.Decoding_PNG is
                 length:= CTE.n + UnZ_IO.Bit_buffer.Read_and_dump(E);
 
                 -- Decode distance of block to copy:
-                CTE := Td.table( UnZ_IO.Bit_buffer.Read(Bd) )'Access;
+                CTE := Td.table( UnZ_IO.Bit_buffer.Read(Bd) )'Unchecked_Access;
                 loop
                   E := CTE.extra_bits;
                   exit when E <= 16;
@@ -1024,7 +1024,7 @@ package body GID.Decoding_PNG is
                   end if;
                   UnZ_IO.Bit_buffer.Dump( CTE.bits );
                   E:= E - 16;
-                  CTE := CTE.next_table( UnZ_IO.Bit_buffer.Read(E) )'Access;
+                  CTE := CTE.next_table( UnZ_IO.Bit_buffer.Read(E) )'Unchecked_Access;
                 end loop;
                 UnZ_IO.Bit_buffer.Dump( CTE.bits );
 
@@ -1160,7 +1160,7 @@ package body GID.Decoding_PNG is
           Lbits : constant:= 9;
           Dbits : constant:= 6;
 
-          current_length: Natural;
+          current_length: Natural:= 0;
           defined, number_of_lengths: Natural;
 
           Tl,                             -- literal/length code tables
@@ -1230,7 +1230,7 @@ package body GID.Decoding_PNG is
           current_length := 0;
 
           while  defined < number_of_lengths  loop
-            CTE:= Tl.table( UnZ_IO.Bit_buffer.Read(Bl) )'Access;
+            CTE:= Tl.table( UnZ_IO.Bit_buffer.Read(Bl) )'Unchecked_Access;
             UnZ_IO.Bit_buffer.Dump( CTE.bits );
 
             case CTE.n is

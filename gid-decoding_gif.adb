@@ -139,6 +139,7 @@ package body GID.Decoding_GIF is
           return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
           --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
         end;
+        full_opaque: constant Primary_color_range:= Primary_color_range'Last;
       begin
         if transparency and then b = Transp_color then
           Put_Pixel(0,0,0, 0);
@@ -150,15 +151,15 @@ package body GID.Decoding_GIF is
               Primary_color_range(local.palette(Integer(b)).red),
               Primary_color_range(local.palette(Integer(b)).green),
               Primary_color_range(local.palette(Integer(b)).blue),
-              255
+              full_opaque
             );
           when 65_536 =>
             Put_Pixel(
               Times_257(Primary_color_range(local.palette(Integer(b)).red)),
               Times_257(Primary_color_range(local.palette(Integer(b)).green)),
               Times_257(Primary_color_range(local.palette(Integer(b)).blue)),
-              65_535
               -- Times_257 makes max intensity FF go to FFFF
+              full_opaque
             );
           when others =>
             raise invalid_primary_color_range;

@@ -755,7 +755,7 @@ package body GID.Decoding_JPG is
           return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
           --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
         end;
-        ba: constant:= 255;
+        full_opaque: constant Primary_color_range:= Primary_color_range'Last;
       begin
         case Primary_color_range'Modulus is
           when 256 =>
@@ -763,14 +763,14 @@ package body GID.Decoding_JPG is
               Primary_color_range(br),
               Primary_color_range(bg),
               Primary_color_range(bb),
-              Primary_color_range(ba)
+              full_opaque
             );
           when 65_536 =>
             Put_Pixel(
               Times_257(Primary_color_range(br)),
               Times_257(Primary_color_range(bg)),
               Times_257(Primary_color_range(bb)),
-              Times_257(Primary_color_range(ba))
+              full_opaque
               -- Times_257 makes max intensity FF go to FFFF
             );
           when others =>
@@ -886,7 +886,7 @@ package body GID.Decoding_JPG is
     --
     procedure Read_SOS is
       components, b: U8;
-      compo: Component;
+      compo: Component:= Component'First;
       mbx, mby: Natural:= 0;
       mbsizex, mbsizey, mbwidth, mbheight: Natural;
       rstcount: Natural:= image.JPEG_stuff.restart_interval;
