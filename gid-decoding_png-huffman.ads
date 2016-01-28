@@ -52,9 +52,7 @@ private package GID.Decoding_PNG.Huffman is
     next_table : p_HufT_table:= null;
   end record;
 
-  type HufT_table is array( Integer range <> ) of aliased HufT;
-
-  type p_HufT is access all HufT;
+  type HufT_table is array( Integer range <> ) of HufT;
 
   -- Linked list just for destroying Huffman tables
 
