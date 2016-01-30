@@ -968,7 +968,7 @@ package body GID.Decoding_PNG is
 
         procedure Inflate_Codes ( Tl, Td: p_Table_list; Bl, Bd: Integer ) is
           CT     : p_HufT_table;  -- current table
-          CTE_idx: Integer;       -- current table index
+          CT_idx : Integer;       -- current table index
           length : Natural;
           E      : Integer;      -- table entry flag/number of extra bits
           W      : Integer:= UnZ_Glob.slide_index;
@@ -982,27 +982,27 @@ package body GID.Decoding_PNG is
           main_loop:
           while not UnZ_Glob.Zip_EOF loop
             CT:= Tl.table;
-            CTE_idx:= UnZ_IO.Bit_buffer.Read(Bl);
+            CT_idx:= UnZ_IO.Bit_buffer.Read(Bl);
 
             loop
-              E := CT(CTE_idx).extra_bits;
+              E := CT(CT_idx).extra_bits;
               exit when E <= 16;
               if E = invalid then
                 raise error_in_image_data;
               end if;
 
               -- then it's a literal
-              UnZ_IO.Bit_buffer.Dump( CT(CTE_idx).bits );
+              UnZ_IO.Bit_buffer.Dump( CT(CT_idx).bits );
               E:= E - 16;
-              CT:= CT(CTE_idx).next_table;
-              CTE_idx := UnZ_IO.Bit_buffer.Read(E);
+              CT:= CT(CT_idx).next_table;
+              CT_idx := UnZ_IO.Bit_buffer.Read(E);
             end loop;
 
-            UnZ_IO.Bit_buffer.Dump ( CT(CTE_idx).bits );
+            UnZ_IO.Bit_buffer.Dump ( CT(CT_idx).bits );
 
             case E is
               when 16 =>     -- CTE.N is a Litteral
-                UnZ_Glob.slide ( W ) :=  U8( CT(CTE_idx).n );
+                UnZ_Glob.slide ( W ) :=  U8( CT(CT_idx).n );
                 W:= W + 1;
                 UnZ_IO.Flush_if_full(W);
 
@@ -1015,26 +1015,26 @@ package body GID.Decoding_PNG is
               when others => -- We have a length/distance
 
                 -- Get length of block to copy:
-                length:= CT(CTE_idx).n + UnZ_IO.Bit_buffer.Read_and_dump(E);
+                length:= CT(CT_idx).n + UnZ_IO.Bit_buffer.Read_and_dump(E);
 
                 -- Decode distance of block to copy:
                 CT:= Td.table;
-                CTE_idx := UnZ_IO.Bit_buffer.Read(Bd);
+                CT_idx := UnZ_IO.Bit_buffer.Read(Bd);
                 loop
-                  E := CT(CTE_idx).extra_bits;
+                  E := CT(CT_idx).extra_bits;
                   exit when E <= 16;
                   if E = invalid then
                     raise error_in_image_data;
                   end if;
-                  UnZ_IO.Bit_buffer.Dump( CT(CTE_idx).bits );
+                  UnZ_IO.Bit_buffer.Dump( CT(CT_idx).bits );
                   E:= E - 16;
-                  CT:= CT(CTE_idx).next_table;
-                  CTE_idx := UnZ_IO.Bit_buffer.Read(E);
+                  CT:= CT(CT_idx).next_table;
+                  CT_idx := UnZ_IO.Bit_buffer.Read(E);
                 end loop;
-                UnZ_IO.Bit_buffer.Dump( CT(CTE_idx).bits );
+                UnZ_IO.Bit_buffer.Dump( CT(CT_idx).bits );
 
                 UnZ_IO.Copy(
-                  distance => CT(CTE_idx).n + UnZ_IO.Bit_buffer.Read_and_dump(E),
+                  distance => CT(CT_idx).n + UnZ_IO.Bit_buffer.Read_and_dump(E),
                   length   => length,
                   index    => W
                 );
@@ -1171,7 +1171,7 @@ package body GID.Decoding_PNG is
           Tl,                             -- literal/length code tables
             Td : p_Table_list;            -- distance code tables
 
-          CTE_dyn_idx : Integer;  -- current table element
+          CT_dyn_idx : Integer;  -- current table element
 
           Bl, Bd : Integer;                  -- lookup bits for tl/bd
           Nb : Natural;  -- number of bit length codes
@@ -1235,12 +1235,12 @@ package body GID.Decoding_PNG is
           current_length := 0;
 
           while  defined < number_of_lengths  loop
-            CTE_dyn_idx:= UnZ_IO.Bit_buffer.Read(Bl);
-            UnZ_IO.Bit_buffer.Dump( Tl.table(CTE_dyn_idx).bits );
+            CT_dyn_idx:= UnZ_IO.Bit_buffer.Read(Bl);
+            UnZ_IO.Bit_buffer.Dump( Tl.table(CT_dyn_idx).bits );
 
-            case Tl.table(CTE_dyn_idx).n is
+            case Tl.table(CT_dyn_idx).n is
               when 0..15 =>       -- length of code in bits (0..15)
-                current_length:= Tl.table(CTE_dyn_idx).n;
+                current_length:= Tl.table(CT_dyn_idx).n;
                 Ll (defined) := Natural_M32(current_length);
                 defined:= defined + 1;
 
@@ -1259,7 +1259,7 @@ package body GID.Decoding_PNG is
                 if full_trace then
                   Ada.Text_IO.Put_Line(
                     "Illegal length code: " &
-                    Integer'Image(Tl.table(CTE_dyn_idx).n)
+                    Integer'Image(Tl.table(CT_dyn_idx).n)
                   );
                 end if;
 
