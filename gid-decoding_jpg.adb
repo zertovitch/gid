@@ -256,7 +256,7 @@ package body GID.Decoding_JPG is
       if image.JPEG_stuff.vlc_defs(kind, ht_idx) = null then
         image.JPEG_stuff.vlc_defs(kind, ht_idx):= new VLC_table;
       end if;
-      for i in counts'range loop
+      for i in counts'Range loop
         Get_Byte(image.buffer, b);
         remaining:= remaining - 1;
         counts(i):= Integer_M32(b);

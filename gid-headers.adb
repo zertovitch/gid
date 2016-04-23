@@ -696,7 +696,7 @@ package body GID.Headers is
     Raise_Exception(
       known_but_unsupported_image_format'Identity,
       "TIFF is not appropriate for streaming. Use PNG, BMP (lossless) or JPEG instead." &
-      "Info: IFD Offset=" & U32'image(first_IFD_offset)
+      "Info: IFD Offset=" & U32'Image(first_IFD_offset)
     );
   end Load_TIFF_header;
 
