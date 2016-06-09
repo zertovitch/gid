@@ -630,10 +630,14 @@ package body GID.Headers is
       case image.subformat_id is -- = palette's bit depth
         when 8 =>       -- Grey
           null;
-        when 15 | 16 => -- RGB 3*5 bit | RGBA 3*3+1 bit
+        when 15 => -- RGB 3*5 bit
           null;
-        when 24 | 32 => -- RGB 3*8 bit | RGBA 4*8 bit
+        when 16 => -- RGBA 3*5+1 bit
+          image.transparency:= True;
+        when 24 => -- RGB 3*8 bit
           null;
+        when 32 => -- RGBA 4*8 bit
+          image.transparency:= True;
         when others =>
           Raise_Exception(
             error_in_image_data'Identity,
@@ -664,12 +668,15 @@ package body GID.Headers is
 
     -- Make sure we are loading a supported TGA_type
     case image.bits_per_pixel is
-      when 32 | 24 | 16 | 15 | 8 =>
+      when 24 | 15 | 8 =>
         null;
+      when 32 | 16 =>
+        image.transparency:= True;
       when others =>
         Raise_Exception(
           unsupported_image_subformat'Identity,
-          "TGA bits per pixels =" & Integer'Image(image.bits_per_pixel)
+          "TGA bits per pixels =" & Integer'Image(image.bits_per_pixel) &
+          " supported bpp are: 8, 15, 16, 24, 32"
         );
     end case;
     image.top_first:= (tga_image_descriptor and 32) /= 0;
