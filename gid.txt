@@ -41,32 +41,34 @@ Please read the top comments in gid.ads, and further details in gid_work.xls.
 
 Files
 -----
-gid.ads   GID package specification
-gid.adb   GID package body
-gid-*.ad* private packages for decoding specific
-            formats, reading headers,...
+    gid.ads   GID package specification
+    gid.adb   GID package body
+    gid-*.ad* private packages for decoding specific
+                formats, reading headers,...
 
 To summarize, the gid*.ad* files are the whole GID source files. 
 For example, you can have a copy of those in a gid/ subdirectory
 in your project.
 
-gid.gpr             GNAT/GCC project file - to be opened with GPS or used
-                      with the command: gnatmake -P gid
-gid_objectada.prj   ObjectAda (7.2.2+) project file
-
-gid_work.xls        this workbook contains GID's history, a list of open
-                      bugs, technical informations about formats, etc.
-
-test/to_bmp.adb     middle-size command-line demo which converts all image
-                      files given as arguments (also works from a GUI file
-                      explorer with drag & drop) into BMP image files with
-                      the .dib extension. Typically, you put plenty of
-                      images into the test folder and launch "to_bmp *" to
-                      convert them all.
-test/mini.adb       small-size version of to_bmp; writes PPM files.
-
-test/tb*.ad*        wrappers for to_bmp, for obtaining trace-back
-
+    gid.gpr             GNAT/GCC project file - to be opened with GPS or used
+                          with the command: gnatmake -P gid
+    gid_objectada.prj   ObjectAda (7.2.2+) project file
+    
+    gid_work.xls        this workbook contains GID's history, a list of open
+                          bugs, technical informations about formats, etc.
+    
+    test/to_bmp.adb     middle-size command-line demo which converts all image
+                          files given as arguments (also works from a GUI file
+                          explorer with drag & drop) into BMP image files with
+                          the .dib extension. Typically, you put plenty of
+                          images into the test folder and launch "to_bmp *" to
+                          convert them all.
+    test/mini.adb       small-size version of to_bmp; writes PPM files.
+    test/steg.adb       steganography tool (hide an image into a data)
+    test/recurve.adb    image processing demo: recover curves from a chart
+    
+    test/tb*.ad*        wrappers for to_bmp, for obtaining trace-back
+    
 How to use GID in your programs
 -------------------------------
 Hopefully the package specification (in the file gid.ads) is self
