@@ -1,6 +1,10 @@
 --  Recurve  -  recover curves from a chart (in JPEG, PNG, or other image format)
 --
+--  Currently supports only charts on a white background
+--
 --  By David Malinge and Gautier de Montmollin
+--
+--  Started 28-Jun-2016
 
 with GID;
 
@@ -17,11 +21,14 @@ procedure Recurve is
 
   --  Parameters
 
-  thres_grid        : constant:= 0.925;      --  avg intensity below thres_grid => grid line
-  thres_curve       : constant:= 0.75;       --  intensity below thres_curve => curve
-  thres_simil       : constant:= 0.01 ** 2;  --  similarity within curve
-  thres_simil_start : constant:= 0.10 ** 2;  --  similarity when scanning for curves
-  radius: constant:= 40;
+  thres_grid          : constant:= 0.925;      --  avg intensity below thres_grid => grid line
+  thres_curve         : constant:= 0.8;        --  intensity below thres_curve => curve
+  thres_simil_2       : constant:= 0.01 ** 2;  --  similarity within curve
+  thres_simil_start_2 : constant:= 0.10 ** 2;  --  similarity when scanning for curves
+  radius              : constant:= 0.08;       --  in proportion of image width
+  full_disc_radius    : constant:= 0.009;
+  interval_verticals  : constant:= 15;
+  start_verticals     : constant:= 0;          --  > 0 for more vertical initial scans
 
   sep: constant Character:= ';';
 
@@ -86,6 +93,8 @@ procedure Recurve is
     image_height: constant Positive:= GID.Pixel_height(image);
     pos_x, pos_y: Natural;
     --
+    --  Generic parameters to feed GID.Load_image_contents with.
+    --
     procedure Set_X_Y (x, y: Natural) is
     begin
       pos_x:= x;
@@ -107,7 +116,7 @@ procedure Recurve is
       pos_x:= pos_x + 1;
       -- ^ GID requires us to look to next pixel on the right for next time.
     end Put_Pixel;
-
+    --
     stars: Natural:= 0;
     procedure Feedback(percents: Natural) is
       so_far: constant Natural:= percents / 5;
@@ -117,13 +126,15 @@ procedure Recurve is
       end loop;
       stars:= so_far;
     end Feedback;
-
+    --
+    --  Instantiation of GID.Load_image_contents.
+    --
     procedure Load_image is
       new GID.Load_image_contents(
         Primary_color_range, Set_X_Y,
         Put_Pixel, Feedback, GID.fast
       );
-
+    --
   begin
     Dispose(bmp);
     bmp:= new Bitmap(0..image_width-1, 0..image_height-1);
@@ -139,9 +150,9 @@ procedure Recurve is
     done: array(bmp'Range(1), bmp'Range(1)) of Boolean:= (others => (others => False));
     --  color_scanned: array(0..255, 0..255, 0..255) of Boolean:= ... mmmh too big
 
-    type Curve_ys is array(bmp'Range(1)) of Integer;
+    type Curve_ys is array(bmp'Range(1)) of Real;
     type Curve_descr is record
-      ys: Curve_ys:= (others => -1);
+      ys: Curve_ys:= (others => -1.0);
       min_x: Integer:= Integer'Last;
       max_x: Integer:= Integer'First;
       color: RGB;
@@ -153,52 +164,89 @@ procedure Recurve is
     procedure Scan_curve(x0, y0, xd: Integer) is
       curv: Curve_descr renames Curve_Stack(curve_top);
       c: RGB renames curv.color;
-      x: Integer:= x0;
-      y: Integer:= y0;
-      found: Boolean;
-      xt, yt: Integer;  --  test points
       --
-      procedure Mark_point is
+      procedure Mark_point(x, y: Integer) is
       begin
         done(x,y):= True;
-        curv.ys(x):= bmp'Last(2) - y;
+        curv.ys(x):= Real(bmp'Last(2) - y);
         curv.min_x:= Integer'Min(curv.min_x, x);
         curv.max_x:= Integer'Max(curv.max_x, x);
-      end;
+      end Mark_point;
       --
-    begin
-      Mark_point;
-      Scan: loop
-        found:= False;
-        Half_Disc: for r in 1..radius loop
+      x_sum, y_sum: Natural;
+      found: Natural;
+      procedure Test_point(xt, yt: Integer) is
+      begin
+        if xt in bmp'Range(1)
+          and then yt in bmp'Range(2)
+          and then (not done(xt, yt))
+          and then Dist2(bmp(xt,yt), c) < thres_simil_2
+        then
+          x_sum:= x_sum + xt;
+          y_sum:= y_sum + yt;
+          Mark_point(xt, yt);
+          found:= found + 1;
+        end if;
+      end Test_point;
+      --
+      x: Integer:= x0;
+      y: Integer:= y0;
+      --
+      procedure Check_single_radius(r: Positive) is
+      begin
           for xs in 1..r loop
-            for ys in -r..r loop
-              if xs**2 + ys**2 <= r **2 then
-                xt:= x + xs * xd;  --  Choose direction
-                yt:= y + ys;
-                if xt in bmp'Range(1) and then yt in bmp'Range(2) and then
-                  (not done(xt, yt) or grid_ver(xt) or grid_hor(yt)) and then
-                  Dist2(bmp(xt,yt), c) < thres_simil
-                then
-                  x:= xt;
-                  y:= yt;
-                  Mark_point;
-                  found:= True;
-                  exit Half_Disc;
-                end if;
+            for ys in 0..r loop
+              if xs**2 + ys**2 in (r-1)**2 .. r**2 then
+                Test_point(
+                  x + xs * xd,  --  xd = direction, left or right
+                  y - ys        --  Below
+                );
+                Test_point(
+                  x + xs * xd,  --  xd = direction, left or right
+                  y + ys        --  Above
+                );
               end if;
             end loop;
           end loop;
-        end loop Half_Disc;
-        exit when not found;
+      end;
+      --
+      ring_rad: constant Integer:= Integer(radius*Real(bmp'Length(1)));
+      disc_rad: constant Integer:= Integer(full_disc_radius*Real(bmp'Length(1)));
+    begin
+      Mark_point(x,y);
+      Scan: loop
+        found:= 0;
+        x_sum:= 0;
+        y_sum:= 0;
+        for rad in 1 .. disc_rad loop
+          Check_single_radius(rad);
+        end loop;
+        if found > 0 then
+          x:= x_sum / found;
+          y:= y_sum / found;
+        else
+          --  Continue, but stop when one half-ring is successful
+          for rad in disc_rad+1 .. ring_rad loop
+            Check_single_radius(rad);
+            if found > 0 then
+              x:= x_sum / found;
+              y:= y_sum / found;
+              exit;
+            end if;
+          end loop;
+        end if;
+        exit when found = 0;  --  No matching point anywhere in search half-disc.
+        --  At this point, we are ready to scan next pixel of the curve.
+        exit when x not in bmp'Range(1);
       end loop Scan;
-    end;
+    end Scan_curve;
 
     x0: Integer;
     color0: RGB;
     f: File_Type;
     min_min_x: Integer:= Integer'Last;
     max_max_x: Integer:= Integer'First;
+    mid: constant Integer:= bmp'Last(1) / 2;
   begin
     New_Line;
     --
@@ -230,21 +278,31 @@ procedure Recurve is
       end if;
     end loop;
     --
-    --  Main scan for curves, start in the middle
+    --  Main scan for curves, start in a band in the middle
+    --  Why not just a single vertical line ?
+    --  A curve could be hidden by another one just in that place.
     --
-    x0:= bmp'Last(1) / 2;
-    for y in bmp'Range(2) loop
-      color0:= bmp(x0,y);
-      if (not grid_hor(y)) and then Grey(color0) < thres_curve and then not done(x0,y) then
-        if y > 0 and then done(x0,y-1) and then Dist2(bmp(x0,y-1), color0) < thres_simil_start then
-          done(x0,y):= True;  --  Actually the same, fat curve as one pixel above
-        else
-          Put_Line("curve: " & Integer'Image(x0) & Integer'Image(y));
-          curve_top:= curve_top + 1;
-          Curve_Stack(curve_top).color:= color0;
-          Scan_curve(x0, y, -1);
-          Scan_curve(x0, y, +1);
-        end if;
+    for sv in -start_verticals/2 .. start_verticals/2 loop
+      x0:= mid + sv * interval_verticals;
+      if x0 in bmp'Range(1) and then not grid_ver(x0) then
+        for y in bmp'Range(2) loop
+          color0:= bmp(x0,y);
+          if (not grid_hor(y)) and then Grey(color0) < thres_curve and then not done(x0,y) then
+            if y > 0 and then done(x0,y-1) and then Dist2(bmp(x0,y-1), color0) < thres_simil_start_2 then
+              done(x0,y):= True;  --  Actually the same, fat curve as one pixel above
+            --elsif x0 > 0 and then done(x0-1,y) and then Dist2(bmp(x0-1,y), color0) < thres_simil_start_2 then
+            --  done(x0,y):= True;  --  Actually the same curve as one pixel left
+            else
+              Put_Line("curve: " & Integer'Image(x0) & Integer'Image(y));
+              curve_top:= curve_top + 1;
+              Curve_Stack(curve_top).color:= color0;
+              --  Following idea is from a humanitarian star who used to send
+              --  two camera teams in opposite directions in conflict areas:
+              Scan_curve(x0, y, -1);
+              Scan_curve(x0, y, +1);
+            end if;
+          end if;
+        end loop;
       end if;
     end loop;
     --
@@ -271,8 +329,8 @@ procedure Recurve is
       Put(f, Integer'Image(x));
       for i in 1..curve_top loop
         Put(f, sep);
-        if x in Curve_Stack(i).min_x .. Curve_Stack(i).max_x and then Curve_Stack(i).ys(x) >= 0 then
-          Put(f, Integer'Image(Curve_Stack(i).ys(x)));
+        if x in Curve_Stack(i).min_x .. Curve_Stack(i).max_x and then Curve_Stack(i).ys(x) >= 0.0 then
+          Put(f, Real'Image(Curve_Stack(i).ys(x)));
         end if;
       end loop;
       New_Line(f);
