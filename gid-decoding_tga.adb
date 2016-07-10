@@ -120,7 +120,7 @@ package body GID.Decoding_TGA is
       begin
         return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
         --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
-      end;
+      end Times_257;
     begin
       case Primary_color_range'Modulus is
         when 256 =>

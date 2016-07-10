@@ -60,7 +60,7 @@ procedure Recurve is
   function Grey(c: RGB) return Real is
   begin
     return (c.r + c.g + c.b) / 3.0;
-  end;
+  end Grey;
 
   function Dist2(c1,c2: RGB) return Real is
   begin
@@ -68,7 +68,7 @@ procedure Recurve is
       (c1.r - c2.r) ** 2 +
       (c1.g - c2.g) ** 2 +
       (c1.b - c2.b) ** 2;
-  end;
+  end Dist2;
 
   function Img(c: RGB) return String is
   begin
@@ -208,7 +208,7 @@ procedure Recurve is
               end if;
             end loop;
           end loop;
-      end;
+      end Check_single_radius;
       --
       ring_rad: constant Integer:= Integer(radius*Real(bmp'Length(1)));
       disc_rad: constant Integer:= Integer(full_disc_radius*Real(bmp'Length(1)));
@@ -235,9 +235,9 @@ procedure Recurve is
             end if;
           end loop;
         end if;
-        exit when found = 0;  --  No matching point anywhere in search half-disc.
+        exit Scan when found = 0;  --  No matching point anywhere in search half-disc.
         --  At this point, we are ready to scan next pixel of the curve.
-        exit when x not in bmp'Range(1);
+        exit Scan when x not in bmp'Range(1);
       end loop Scan;
     end Scan_curve;
 

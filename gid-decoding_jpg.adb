@@ -297,7 +297,7 @@ package body GID.Decoding_JPG is
         image.JPEG_stuff.vlc_defs(kind, ht_idx)(idx).bits:= 0;
         idx:= idx + 1;
       end loop;
-      exit when remaining <= 0;
+      exit multi_tables when remaining <= 0;
     end loop multi_tables;
   end Read_DHT;
 
@@ -327,7 +327,7 @@ package body GID.Decoding_JPG is
           image.JPEG_stuff.qt_list(qt_idx)(i):= Natural(q8);
         end if;
       end loop;
-      exit when remaining <= 0;
+      exit multi_tables when remaining <= 0;
     end loop multi_tables;
   end Read_DQT;
 
@@ -754,7 +754,7 @@ package body GID.Decoding_JPG is
         begin
           return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
           --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
-        end;
+        end Times_257;
         full_opaque: constant Primary_color_range:= Primary_color_range'Last;
       begin
         case Primary_color_range'Modulus is

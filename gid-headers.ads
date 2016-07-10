@@ -28,4 +28,4 @@ private package GID.Headers is
   procedure Load_TGA_header (image: in out Image_descriptor);
   procedure Load_TIFF_header (image: in out Image_descriptor);
 
-end;
+end GID.Headers;

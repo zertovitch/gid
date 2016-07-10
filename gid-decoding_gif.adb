@@ -138,7 +138,7 @@ package body GID.Decoding_GIF is
         begin
           return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
           --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
-        end;
+        end Times_257;
         full_opaque: constant Primary_color_range:= Primary_color_range'Last;
       begin
         if transparency and then b = Transp_color then

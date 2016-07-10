@@ -135,7 +135,7 @@ procedure Steg is
         idx:= idx - 1;
         img_buf(idx):= (img_buf(idx) and 2#1111_1000#) or Shift_Right(b, 5);                   --  R
         idx:= idx - 1;
-      end;
+      end Encode_byte;
       b: Unsigned_8;
       data_size: Unsigned_64;
       needed_size: Unsigned_64;
@@ -180,7 +180,7 @@ procedure Steg is
         idx:= idx - 1;
         b:= b + Shift_Left(img_buf(idx) and 2#0000_0111#, 5);  --  R
         idx:= idx - 1;
-      end;
+      end Decode_byte;
       b: Unsigned_8;
       data_size: Unsigned_64:= 0;
     begin

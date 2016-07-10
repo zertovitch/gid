@@ -566,7 +566,7 @@ package body GID.Headers is
           "P" & Integer'Image(image.subformat_id)
         );
     end case;
-  end;
+  end Load_PNM_header;
 
   ------------------------
   -- TGA (Targa) header --
@@ -707,4 +707,4 @@ package body GID.Headers is
     );
   end Load_TIFF_header;
 
-end;
+end GID.Headers;

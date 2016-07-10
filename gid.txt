@@ -114,14 +114,15 @@ performance penalty. Remember that Put_Pixel is called... for each pixel.
 
 How to build GID
 ----------------
-- From GPS, press F4 - that's it. The executable is in the /test folder.
-- From ObjectAda, press F7 - that's it. The .exe is in the folder created
-     by ObjectAda upon first project opening.
+- From GPS, press F4. The main test's (to_bmp) executable is built
+     in the /test folder.
+- From ObjectAda's IDE, press F7. to_bmp.exe is in the folder
+     created by ObjectAda upon first project opening.
 - From AdaGIDE, press F3. There will be .o and .ali files at unexpected
      places, so it's better to build first with GPS or the command line
 - From the command line, with GNAT:
-   - default build mode: gnatmake -P gid
-   - other build mode (e.g. Small): gnatmake -P gid -XBuild_Mode=Small
+   - default build mode: gprbuild -P gid
+   - other build mode (e.g. Small): gprbuild -P gid -XBuild_Mode=Small
    
 We assume here you consider GID unpacked "out of the box", with directories.
 
