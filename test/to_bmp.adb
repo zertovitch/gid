@@ -4,8 +4,8 @@
 -- Middle-size test/demo for the GID (Generic Image Decoder) package.
 --
 -- Supports:
--- - Transparency (blends opaque/transparent areas with a background
---     image or a fixed colour)
+-- - Transparency (blends transparent or partially opaque areas with a
+--     background image, gid.gif, or a fixed, predefined colour)
 -- - Display orientation (JPEG EXIF informations from digital cameras)
 --
 -- For a smaller and simpler example, look for mini.adb .

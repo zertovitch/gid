@@ -10,7 +10,7 @@ project GID is
       ("Debug", "Fast_but_checked", "Fast", "Small", "Smallest", "Profiling");
    Build_Mode : Build_Mode_Type := external ("Build_Mode", "Debug");
 
-   for Main use ("to_bmp.adb", "mini.adb", "steg.adb", "recurve.adb", "tb.ads");
+   for Main use ("to_bmp.adb", "mini.adb", "steg.adb", "recurve.adb", "is_opaque.adb", "tb.ads");
    
    case Build_Mode is
       when "Debug" =>
