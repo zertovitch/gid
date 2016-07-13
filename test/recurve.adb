@@ -23,8 +23,8 @@ procedure Recurve is
 
   thres_grid          : constant:= 0.925;      --  avg intensity below thres_grid => grid line
   thres_curve         : constant:= 0.8;        --  intensity below thres_curve => curve
-  thres_simil_2       : constant:= 0.01 ** 2;  --  similarity within curve
-  thres_simil_start_2 : constant:= 0.10 ** 2;  --  similarity when scanning for curves
+  thres_simil_2       : constant:= 0.16 ** 2;  --  similarity within curve
+  thres_simil_start_2 : constant:= 0.40 ** 2;  --  similarity when scanning for curves
   radius              : constant:= 0.08;       --  in proportion of image width
   full_disc_radius    : constant:= 0.009;
   interval_verticals  : constant:= 15;
@@ -143,7 +143,11 @@ procedure Recurve is
 
   bmp: p_Bitmap:= null;
 
-  procedure Detect_curves(name: String) is
+  --------------------------------------------------------------------------------
+  --  Identify curves in an image file; write a .csv file with the data points  --
+  --------------------------------------------------------------------------------
+
+  procedure Detect_curves(file_name: String) is
     grid_hor: array(bmp'Range(1)) of Boolean:= (others => False);
     grid_ver: array(bmp'Range(1)) of Boolean:= (others => False);
     v: Real;
@@ -152,11 +156,36 @@ procedure Recurve is
 
     type Curve_ys is array(bmp'Range(1)) of Real;
     type Curve_descr is record
-      ys: Curve_ys:= (others => -1.0);
+      ys: Curve_ys:= (others => -1.0);  --  Convention: undefined y-value is < 0
       min_x: Integer:= Integer'Last;
       max_x: Integer:= Integer'First;
       color: RGB;
     end record;
+
+    procedure Interpolate(c: in out Curve_descr) is
+      --  We will interpolate between (x1, c.ys(x1)) and (x2, c.ys(x2)).
+      --
+      --  y1  none  [...] y2
+      --
+      --  x1  x1+1  [...] x2
+      y1, y2: Real;
+    begin
+      for x1 in c.min_x .. c.max_x loop
+        y1:= c.ys(x1);
+        if y1 >= 0.0 and then x1+1 <= c.max_x and then c.ys(x1+1) < 0.0 then
+          for x2 in x1+2 .. c.max_x loop
+            y2:= c.ys(x2);
+            if y2 >= 0.0 then
+              --  Linear interpolation is happening here.
+              for x in x1+1 .. x2-1 loop
+                c.ys(x):= Real((x-x1) / (x2-x1)) * (y2-y1) + y1;
+              end loop;
+              exit;
+            end if;
+          end loop;
+        end if;
+      end loop;
+    end Interpolate;
 
     Curve_Stack: array(1..bmp'Length(2)) of Curve_descr;
     curve_top: Natural:= 0;
@@ -222,6 +251,7 @@ procedure Recurve is
           Check_single_radius(rad);
         end loop;
         if found > 0 then
+          --  Next (x,y) point will be the average of near matching points found
           x:= x_sum / found;
           y:= y_sum / found;
         else
@@ -229,6 +259,7 @@ procedure Recurve is
           for rad in disc_rad+1 .. ring_rad loop
             Check_single_radius(rad);
             if found > 0 then
+              --  Next (x,y) point will be the average of near matching points found
               x:= x_sum / found;
               y:= y_sum / found;
               exit;
@@ -306,14 +337,17 @@ procedure Recurve is
       end if;
     end loop;
     --
-    --  Output curves
+    --  Finalization
     --
     for i in 1..curve_top loop
       min_min_x:= Integer'Min(min_min_x, Curve_Stack(i).min_x);
       max_max_x:= Integer'Max(max_max_x, Curve_Stack(i).max_x);
+      Interpolate(Curve_Stack(i));
     end loop;
     --
-    Create(f, Out_File, name & ".csv");
+    --  Output curves
+    --
+    Create(f, Out_File, file_name & ".csv");
     Put_Line(f, "Recurve output");
     Put(f, "Color");
     for i in 1..curve_top loop
@@ -338,31 +372,31 @@ procedure Recurve is
     Close(f);
   end Detect_curves;
 
-  procedure Process(name: String) is
+  procedure Process(file_name: String) is
     use Ada.Streams.Stream_IO;
     f: Ada.Streams.Stream_IO.File_Type;
     i: GID.Image_descriptor;
-    up_name: constant String:= To_Upper(name);
+    up_name: constant String:= To_Upper(file_name);
     --
     next_frame: Ada.Calendar.Day_Duration:= 0.0;
   begin
     --
     -- Load the image in its original format
     --
-    Open(f, In_File, name);
-    Put_Line(Standard_Error, "Processing " & name & "...");
+    Open(f, In_File, file_name);
+    Put_Line(Standard_Error, "Processing " & file_name & "...");
     --
     GID.Load_image_header(
       i,
       Stream(f).all,
       try_tga =>
-        name'Length >= 4 and then
+        file_name'Length >= 4 and then
         up_name(up_name'Last-3..up_name'Last) = ".TGA"
     );
     Put_Line(Standard_Error, ".........v.........v");
     --
     Load_raw_image(i, bmp, next_frame);
-    Detect_curves(name);
+    Detect_curves(file_name);
     New_Line(Standard_Error);
     Close(f);
   end Process;
