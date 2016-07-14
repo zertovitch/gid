@@ -178,7 +178,7 @@ procedure Recurve is
             if y2 >= 0.0 then
               --  Linear interpolation is happening here.
               for x in x1+1 .. x2-1 loop
-                c.ys(x):= Real((x-x1) / (x2-x1)) * (y2-y1) + y1;
+                c.ys(x):= (Real(x-x1) / Real(x2-x1)) * (y2-y1) + y1;
               end loop;
               exit;
             end if;
