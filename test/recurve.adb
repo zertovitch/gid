@@ -148,10 +148,10 @@ procedure Recurve is
   --------------------------------------------------------------------------------
 
   procedure Detect_curves(file_name: String) is
-    grid_hor: array(bmp'Range(1)) of Boolean:= (others => False);
+    grid_hor: array(bmp'Range(2)) of Boolean:= (others => False);
     grid_ver: array(bmp'Range(1)) of Boolean:= (others => False);
     v: Real;
-    done: array(bmp'Range(1), bmp'Range(1)) of Boolean:= (others => (others => False));
+    done: array(bmp'Range(1), bmp'Range(2)) of Boolean:= (others => (others => False));
     --  color_scanned: array(0..255, 0..255, 0..255) of Boolean:= ... mmmh too big
 
     type Curve_ys is array(bmp'Range(1)) of Real;
