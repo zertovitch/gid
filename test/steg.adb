@@ -150,10 +150,10 @@ procedure Steg is
       factor:= Float(needed_size) / Float(available_size);
       if needed_size > available_size then
         Raise_Exception(Data_too_large'Identity,
-          "Needs a" & Integer'Image(Integer(100.0 * factor)) &
-          "% raw size increase, i.e. a" &
+          "Needs a" & Integer'Image(1 + Integer(100.0 * factor)) &
+          "% raw size scaling, i.e. a" &
           Integer'Image(1 + Integer(100.0 * Sqrt(factor))) &
-          "% image scaling"
+          "% image scaling in both dimensions"
         );
       end if;
       Put_Line(Standard_Error,
