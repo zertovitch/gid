@@ -101,7 +101,7 @@ procedure Steg is
 
   procedure Dump_PPM(name: String; i: GID.Image_descriptor) is
     f: Ada.Streams.Stream_IO.File_Type;
-    ppm_name: String:= name & ".ppm";
+    ppm_name: constant String:= name & ".ppm";
   begin
     Create(f, Out_File, ppm_name);
     Put_Line(Standard_Error, "Creating PPM image, name = " & ppm_name & " ...");
