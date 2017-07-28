@@ -37,7 +37,8 @@ different subformats.
 
 Licensing, warranty, copyright, supported formats, authors, credits, history
 ----------------------------------------------------------------------------
-Please read the top comments in gid.ads, and further details in gid_work.xls.
+Please read the top comments in gid.ads, and further details (especially,
+credits) in gid_work.xls.
 
 Files
 -----

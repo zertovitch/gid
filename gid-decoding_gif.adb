@@ -1,5 +1,7 @@
--- A GIF stream is made of several "blocks".
--- The image itself is contained in an Image Descriptor block.
+--  GIF Decoder by André van Splunter
+--
+--  A GIF stream is made of several "blocks".
+--  The image itself is contained in an Image Descriptor block.
 --
 with GID.Buffering, GID.Color_tables;
 
@@ -239,10 +241,13 @@ package body GID.Decoding_GIF is
         end if;
       end Next_Pixel;
 
-      -- The string table
+      --  The string table
       Prefix : array ( 0..4096 ) of Natural:= (others => 0);
       Suffix : array ( 0..4096 ) of Natural:= (others => 0);
-      Stack  : array ( 0..1024 ) of Natural;
+      --  Top of Stack was 1024 until files from
+      --    https://www.kaggle.com/c/carvana-image-masking-challenge
+      --  broke it (July 2017)...
+      Stack  : array ( 0..2048 ) of Natural;
 
       -- Special codes (specific to GIF's flavour of LZW)
       ClearCode : constant Natural:= 2 ** CurrSize; -- Reset code
