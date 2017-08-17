@@ -114,7 +114,7 @@ package body GID.Decoding_JPG is
   -- SOF - Start Of Frame (the real header)
   procedure Read_SOF(image: in out Image_descriptor; sh: Segment_head) is
     use Bounded_255;
-    b, bits_pp_primary: U8;
+    b, bits_pp_primary, id_base: U8;
     w, h: U16;
     compo: JPEG_defs.Component;
   begin
@@ -142,23 +142,32 @@ package body GID.Decoding_JPG is
     Big_endian(image.buffer, w);
     image.width:= Natural(w);
     image.height:= Natural(h);
-    -- number of components:
+    --  Number of components:
     Get_Byte(image.buffer, b);
     image.subformat_id:= Integer(b);
     --
     image.JPEG_stuff.max_samples_hor:= 0;
     image.JPEG_stuff.max_samples_ver:= 0;
-    -- for each component: 3 bytes
+    id_base := 1;
+    --  For each component: 3 bytes information: ID, sampling factors, quantization table number
     for i in 1..image.subformat_id loop
-      -- component id (1 = Y, 2 = Cb, 3 = Cr, 4 = I, 5 = Q)
+      --  Component ID (1 = Y, 2 = Cb, 3 = Cr, 4 = I, 5 = Q)
       Get_Byte(image.buffer, b);
-      compo:= JPEG_defs.Component'Val(b - 1);
+      if b = 0 then
+        --  Workaround for a bug in some encoders, for instance Intel(R) JPEG Library,
+        --  version [2.0.18.50] as in some Photoshop versions : IDs are numbered 0, 1, 2.
+        id_base := 0;
+      end if;
+      if b - id_base > Component'Pos(Component'Last) then
+        Raise_Exception(error_in_image_data'Identity, "SOF: invalid component ID: " & U8'Image(b));
+      end if;
+      compo:= JPEG_defs.Component'Val(b - id_base);
       image.JPEG_stuff.components(compo):= True;
       declare
         stuff: JPEG_stuff_type renames image.JPEG_stuff;
         info: JPEG_defs.Info_per_component_A renames stuff.info(compo);
       begin
-        -- sampling factors (bit 0-3 vert., 4-7 hor.)
+        --  Sampling factors (bit 0-3 vert., 4-7 hor.)
         Get_Byte(image.buffer, b);
         info.samples_ver:= Natural(b mod 16);
         info.samples_hor:= Natural(b  /  16);
@@ -166,7 +175,7 @@ package body GID.Decoding_JPG is
           Integer'Max(stuff.max_samples_hor, info.samples_hor);
         stuff.max_samples_ver:=
           Integer'Max(stuff.max_samples_ver, info.samples_ver);
-        -- quantization table number
+        --  Quantization table number
         Get_Byte(image.buffer, b);
         info.qt_assoc:= Natural(b);
       end;
@@ -885,7 +894,7 @@ package body GID.Decoding_JPG is
     -- Start Of Scan (and image data which follow)
     --
     procedure Read_SOS is
-      components, b: U8;
+      components, b, id_base: U8;
       compo: Component:= Component'First;
       mbx, mby: Natural:= 0;
       mbsizex, mbsizey, mbwidth, mbheight: Natural;
@@ -908,9 +917,17 @@ package body GID.Decoding_JPG is
           "JPEG: components mismatch in Scan segment"
         );
       end if;
+      id_base := 1;
       for i in 1..components loop
         Get_Byte(image.buffer, b);
-        compo:= Component'Val(b - 1);
+        if b = 0 then
+          --  Workaround for bugged encoder (see above)
+          id_base := 0;
+        end if;
+        if b - id_base > Component'Pos(Component'Last) then
+          Raise_Exception(error_in_image_data'Identity, "Scan: invalid ID: " & U8'Image(b));
+        end if;
+        compo:= Component'Val(b - id_base);
         if not image.JPEG_stuff.components(compo) then
           Raise_Exception(
             error_in_image_data'Identity,
