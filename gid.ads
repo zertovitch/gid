@@ -25,7 +25,7 @@
 --
 --   More credits in gid_work.xls, sheet "credits".
 --
--- Copyright (c) Gautier de Montmollin 2010 .. 2016
+-- Copyright (c) Gautier de Montmollin 2010 .. 2017
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -156,14 +156,14 @@ package GID is
   function Has_palette (image: Image_descriptor) return Boolean;
   function Expect_transparency (image: Image_descriptor) return Boolean;
 
-  --------------------------------------------------------------
-  -- Information about this package - e.g. for an "about" box --
-  --------------------------------------------------------------
+  ----------------------------------------------------------------
+  --  Information about this package - e.g. for an "about" box  --
+  ----------------------------------------------------------------
 
-  version   : constant String:= "06";
-  reference : constant String:= "10-Nov-2016";
+  version   : constant String:= "07";
+  reference : constant String:= "16-Nov-2017";
   web: constant String:= "http://gen-img-dec.sf.net/";
-  -- Hopefully the latest version is at that URL...
+  --  Hopefully the latest version is at that URL..^
 
 private
 
