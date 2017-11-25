@@ -1,6 +1,6 @@
--- This is a GNAT, GCC or GNAT Programming Studio (GPS) project file
--- for the Generic Image Decoder ( http://sf.net/projects/gen-img-dec/ )
--- Build me with "gprbuild -P gid.gpr", or open me with GPS
+--  This is a GNAT, GCC or GNAT Programming Studio (GPS) project file
+--  for the Generic Image Decoder ( http://sf.net/projects/gen-img-dec/ )
+--  Build me with "gprbuild -p -P gid.gpr", or open me with GPS
 --
 project GID is
 
@@ -38,7 +38,7 @@ project GID is
               "-gnatwa", 
               --  "-gnateV",  --  Validity check for parameters, GNAT > 4.6, redundant with -gnatVim ?
               "-gnatVa", 
-              "-gnato", "-g", "-fno-inline", "-fstack-check", "-gnatec../debug.pra");
+              "-gnato", "-g", "-fno-inline", "-fstack-check", "-gnatec=" & project'Project_Dir & "debug.pra");
          when "Fast" =>
             for Default_Switches ("ada") use ("-O2", "-gnatpn", "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers", "-ftree-vectorize", "-fipa-cp-clone", "-fgcse-after-reload");
          when "Fast_but_checked" =>
@@ -56,16 +56,10 @@ project GID is
       case Build_Mode is
          when "Debug" =>
             for Default_Switches ("ada") use ("-g");
-         when "Fast" =>
-            for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections");
-         when "Fast_but_checked" =>
-            for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections");
-         when "Small" =>
-            for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections");
-         when "Smallest" =>
-            for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections");
+         when "Fast" | "Fast_but_checked" | "Small" | "Smallest" =>
+            for Default_Switches ("ada") use ("-g", "-s", "-Wl,--gc-sections");
          when "Profiling" =>
-            for Default_Switches ("ada") use ("-pg");
+            for Default_Switches ("ada") use ("-g", "-pg");
       end case;
    end Linker;
 
@@ -73,16 +67,13 @@ project GID is
       case Build_Mode is
          when "Debug" =>
             for Default_Switches ("ada") use ("-E");
-         when "Fast" =>
-         when "Fast_but_checked" =>
-         when "Small" =>
-         when "Smallest" =>
+         when "Fast" | "Fast_but_checked" | "Small" | "Smallest" =>
          when "Profiling" =>
       end case;
    end Binder;
 
    package Builder is
-      for Default_Switches ("ada") use ("-j2", "-C");
+      for Default_Switches ("ada") use ("-j0");  --   "If -j0 is used, then the maximum number of simultaneous compilation jobs is the number of core processors on the platform."
    end Builder;
 
    package Ide is
