@@ -81,7 +81,6 @@ package body GID.Decoding_GIF is
     function Read_Byte return U8 is
     pragma Inline(Read_Byte);
       b: U8;
-      use Ada.Streams;
     begin
       if block_read >= block_size then
         Get_Byte(image.buffer, b);

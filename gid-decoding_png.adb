@@ -854,7 +854,6 @@ package body GID.Decoding_PNG is
         byte_mem: Byte_array(1..8);
 
         procedure Flush ( x: Natural ) is
-          use Ada.Streams;
         begin
           if full_trace then
             Ada.Text_IO.Put("[Flush..." & Integer'Image(x));

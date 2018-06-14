@@ -354,7 +354,7 @@ package body GID.Headers is
 
   procedure Load_JPEG_header (image: in out Image_descriptor) is
     -- http://en.wikipedia.org/wiki/JPEG
-    use GID.Decoding_JPG, GID.Buffering, Bounded_255;
+    use GID.Decoding_JPG, GID.Buffering;
     sh: Segment_head;
     b: U8;
   begin
