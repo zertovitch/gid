@@ -20,12 +20,12 @@
 --
 -- Credits:
 --
---   - André van Splunter: GIF's LZW decoder
+--   - André van Splunter: GIF's LZW decoder in Ada
 --   - Martin J. Fiedler: most of the JPEG decoder (from NanoJPEG)
 --
 --   More credits in gid_work.xls, sheet "credits".
 --
--- Copyright (c) Gautier de Montmollin 2010 .. 2017
+-- Copyright (c) Gautier de Montmollin 2010 .. 2018
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -160,8 +160,8 @@ package GID is
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String:= "07";
-  reference : constant String:= "16-Nov-2017";
+  version   : constant String:= "008";
+  reference : constant String:= "28-Jun-2018";
   web: constant String:= "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..^
 

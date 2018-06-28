@@ -11,22 +11,22 @@ Animations are supported.
 
 Some features:
 
-- Standalone (no dependency on other libraires, bindings,...)
-- Unconditionally portable code: OS-, CPU-, compiler- independent code.
-- Multi-platform, but native code
-- Task safe
-- Endian-neutral
-- Free, open-source
-- pure Ada 95 (compiled by Ada 95, Ada 2005, and later compilers)
+  - Standalone (no dependency on other libraires, bindings,...)
+  - Unconditionally portable code: OS-, CPU-, compiler- independent code.
+  - Multi-platform, but native code
+  - Task safe
+  - Endian-neutral
+  - Free, open-source
+  - pure Ada 95 (compiled by Ada 95, Ada 2005, and later compilers)
 
-Some possible applications:
+Some existing or possible applications:
 
-- image processing (interactive or not)
-- image analysis, text recognition
-- a drawing program
-- a web browser
-- use of images as data for simulations
-- thumbnail generation for a file manager
+  - image processing (interactive or not)
+  - image analysis, text recognition
+  - a drawing program
+  - a web browser
+  - use of images as data for simulations
+  - thumbnail generation for a file manager
 
 Through the genericity and the use of the Inline pragma at multiple
 nesting levels (see it like macros inside macros), the package is
@@ -53,22 +53,32 @@ in your project.
 
     gid.gpr             GNAT/GCC project file - to be opened with GPS or used
                           with the command: gnatmake -P gid
+
     gid_objectada.prj   ObjectAda (7.2.2+) project file
     
     gid_work.xls        this workbook contains GID's history, a list of open
                           bugs, technical informations about formats, etc.
     
-    test/to_bmp.adb     middle-size command-line demo which converts all image
-                          files given as arguments (also works from a GUI file
-                          explorer with drag & drop) into BMP image files with
-                          the .dib extension. Typically, you put plenty of
-                          images into the test folder and launch "to_bmp *" to
+    test/mini.adb       small-size command-line demo, recommended for beginning.
+                          Decodes images of any supported type and writes PPM
+                          (Portable PixMap) files. File names are given as
+                          arguments (also works from a GUI file explorer
+                          with drag & drop). Typically, you put plenty of
+                          images into the test folder and launch "mini *" to
                           convert them all.
-    test/mini.adb       small-size version of to_bmp; writes PPM files.
-    test/steg.adb       steganography tool (hide an image into a data)
-    test/recurve.adb    image processing demo: recover curves from a chart
+
+    test/to_bmp.adb     middle-size command-line demo which converts all image
+                          files given as argument into BMP image files with
+                          the .dib extension. Contrary to mini.adb, it
+                          handles transparency (GIF, PNG, TGA), orientation
+                          (JPEG) and animation (GIF) as well, but of course
+                          it is more difficult to understand than mini.adb.
+
+    test/steg.adb       steganography tool: hides an image into a data.
+
+    test/recurve.adb    image processing demo: recovers curves from a chart.
     
-    test/tb*.ad*        wrappers for to_bmp, for obtaining trace-back
+    test/tb*.ad*        wrappers for to_bmp, for obtaining trace-back with GNAT
     
 How to use GID in your programs
 -------------------------------
