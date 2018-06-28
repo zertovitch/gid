@@ -1,6 +1,12 @@
 --  This is a GNAT, GCC or GNAT Programming Studio (GPS) project file
---  for the Generic Image Decoder ( http://sf.net/projects/gen-img-dec/ )
---  Build me with "gprbuild -p -P gid.gpr", or open me with GPS
+--  for the Generic Image Decoder project:
+--
+--      home page:     http://gen-img-dec.sf.net/
+--      project page:  http://sf.net/projects/gen-img-dec/
+--      mirror:        https://github.com/svn2github/gid
+--
+--  Build me with "gprbuild -p -P gid", or "gnatmake -p -P gid",
+--  or open me with GPS.
 --
 project GID is
 
