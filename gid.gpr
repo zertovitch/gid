@@ -16,7 +16,7 @@ project GID is
       ("Debug", "Fast_but_checked", "Fast", "Small", "Smallest", "Profiling");
    Build_Mode : Build_Mode_Type := external ("Build_Mode", "Debug");
 
-   for Main use ("to_bmp.adb", "mini.adb", "steg.adb", "recurve.adb", "is_opaque.adb", "tb.ads");
+   for Main use ("to_bmp.adb", "mini.adb", "steg.adb", "recurve.adb", "is_opaque.adb");
    
    case Build_Mode is
       when "Debug" =>
@@ -70,16 +70,19 @@ project GID is
    end Linker;
 
    package Binder is
+      --  -Es: Store tracebacks in exception occurrences, and enable symbolic tracebacks
       case Build_Mode is
          when "Debug" =>
-            for Default_Switches ("ada") use ("-E");
+            for Default_Switches ("ada") use ("-Es");
          when "Fast" | "Fast_but_checked" | "Small" | "Smallest" =>
          when "Profiling" =>
       end case;
    end Binder;
 
    package Builder is
-      for Default_Switches ("ada") use ("-j0");  --   "If -j0 is used, then the maximum number of simultaneous compilation jobs is the number of core processors on the platform."
+      --   "If -j0 is used, then the maximum number of simultaneous compilation
+      --    jobs is the number of core processors on the platform."
+      for Default_Switches ("ada") use ("-j0");
    end Builder;
 
    package Ide is

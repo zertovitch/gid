@@ -51,8 +51,9 @@ To summarize, the gid*.ad* files are the whole GID source files.
 For example, you can have a copy of those in a gid/ subdirectory
 in your project.
 
-    gid.gpr             GNAT/GCC project file - to be opened with GPS or used
-                          with the command: gnatmake -P gid
+    gid.gpr             AdaCore GNAT/GCC project file - to be opened with
+                          GNAT Programming Studio (GPS) or used with the
+                          command: gnatmake -p -P gid
 
     gid_objectada.prj   ObjectAda (7.2.2+) project file
     
@@ -77,9 +78,8 @@ in your project.
     test/steg.adb       steganography tool: hides an image into a data.
 
     test/recurve.adb    image processing demo: recovers curves from a chart.
-    
-    test/tb*.ad*        wrappers for to_bmp, for obtaining trace-back with GNAT
-    
+
+
 How to use GID in your programs
 -------------------------------
 Hopefully the package specification (in the file gid.ads) is self
