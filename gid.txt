@@ -1,5 +1,5 @@
 GID - the Generic Image Decoder
--------------------------------
+===============================
 
 The Generic Image Decoder (GID) is an Ada package for decoding a
 broad variety of image formats, from any data stream, to any kind
@@ -36,12 +36,15 @@ pieces of code with almost the same contents corresponding to
 different subformats.
 
 Licensing, warranty, copyright, supported formats, authors, credits, history
-----------------------------------------------------------------------------
-Please read the top comments in gid.ads, and further details (especially,
-credits) in gid_work.xls.
+============================================================================
+
+There is NO WARRANTY in the GID software.
+GID is licensed under the MIT License.
+You find the full license and copyright notice in gid.ads.
+Further details (especially, credits and history) can be found in gid_work.xls.
 
 Files
------
+=====
     gid.ads   GID package specification
     gid.adb   GID package body
     gid-*.ad* private packages for decoding specific
@@ -81,7 +84,7 @@ in your project.
 
 
 How to use GID in your programs
--------------------------------
+===============================
 Hopefully the package specification (in the file gid.ads) is self
 explanatory enough. There are three steps needed:
 
@@ -124,7 +127,7 @@ a buffer and advancing an index or a pointer, you will get an important
 performance penalty. Remember that Put_Pixel is called... for each pixel.
 
 How to build GID
-----------------
+================
 - From GPS, press F4. The main test's (to_bmp) executable is built
      in the /test folder.
 - From ObjectAda's IDE, press F7. to_bmp.exe is in the folder
@@ -138,7 +141,7 @@ How to build GID
 We assume here you consider GID unpacked "out of the box", with directories.
 
 Memory requirements and usage
------------------------------
+=============================
 GID uses only memory for decoding purposes (e.g. decompression
 structures, color tables) and doesn't store the image itself.
 As a result, memory will be reserved for at most only one copy of
@@ -162,11 +165,11 @@ be also part of the descriptor record, with a maximal size for
 palette (2**16, for the TGA format).
 
 Where to find the latest version
---------------------------------
+================================
 Please check the "web" constant in gid.ads.
      
 Note on the construction of GID.
---------------------------------
+================================
 All image formats decoded by GID have similarities in their structure.
 
 - Most streams begin with a signature, followed by a header
