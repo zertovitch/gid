@@ -50,9 +50,9 @@ project GID is
          when "Fast_but_checked" =>
             for Default_Switches ("ada") use ("-O2", "-gnato",  "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers", "-ftree-vectorize", "-fipa-cp-clone", "-fgcse-after-reload");
          when "Small" =>
-            for Default_Switches ("ada") use ("-Os", "-gnatpn", "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0", "-mpreferred-stack-boundary=2");
+            for Default_Switches ("ada") use ("-Os", "-gnatpn",                "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0");
          when "Smallest" =>
-            for Default_Switches ("ada") use ("-Os", "-gnatp", "-fno-inline",  "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0", "-mpreferred-stack-boundary=2");
+            for Default_Switches ("ada") use ("-Os", "-gnatp", "-fno-inline",  "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0");
          when "Profiling" =>
             for Default_Switches ("ada") use ("-O3", "-gnatp", "-fno-inline", "-funroll-loops", "-fpeel-loops", "-funswitch-loops", "-ftracer", "-fweb", "-frename-registers", "-g", "-pg");
       end case;

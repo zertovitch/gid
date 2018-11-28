@@ -50,11 +50,13 @@ package body GID is
         JPEG_defs.p_VLC_table
       );
   begin
-    -- Deterministic garbage collection
-    Dispose(Object.palette);
+    --  Deterministic garbage collection of heap allocated objects.
+    --  -> Palette
+    Dispose (Object.palette);
+    --  -> JPEG tables
     for ad in JPEG_defs.VLC_defs_type'Range(1) loop
       for idx in JPEG_defs.VLC_defs_type'Range(2) loop
-        Dispose(Object.JPEG_stuff.vlc_defs(ad, idx));
+        Dispose (Object.JPEG_stuff.vlc_defs (ad, idx));
       end loop;
     end loop;
   end Clear_heap_allocated_memory;
@@ -70,7 +72,7 @@ package body GID is
   )
   is
   begin
-    Clear_heap_allocated_memory(image);
+    Clear_heap_allocated_memory (image);
     image.stream:= from'Unchecked_Access;
     --
     --  Load the very first symbols of the header,
@@ -220,14 +222,27 @@ package body GID is
   end Expect_transparency;
 
   procedure Adjust (Object : in out Image_descriptor) is
+    use JPEG_defs;
   begin
-    -- Clone the palette
-    Object.palette:= new Color_table'(Object.palette.all);
+    --  Clone heap allocated objects, if any.
+    --  -> Palette
+    if Object.palette /= null then
+      Object.palette := new Color_table'(Object.palette.all);
+    end if;
+    --  -> JPEG tables
+    for ad in JPEG_defs.VLC_defs_type'Range(1) loop
+      for idx in JPEG_defs.VLC_defs_type'Range(2) loop
+        if Object.JPEG_stuff.vlc_defs (ad, idx) /= null then
+          Object.JPEG_stuff.vlc_defs (ad, idx) :=
+            new VLC_table'(Object.JPEG_stuff.vlc_defs (ad, idx).all);
+        end if;
+      end loop;
+    end loop;
   end Adjust;
 
   procedure Finalize (Object : in out Image_descriptor) is
   begin
-    Clear_heap_allocated_memory(Object);
+    Clear_heap_allocated_memory (Object);
   end Finalize;
 
 end GID;

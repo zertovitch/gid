@@ -160,8 +160,8 @@ package GID is
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String:= "008";
-  reference : constant String:= "28-Jun-2018";
+  version   : constant String:= "009 preview 1";
+  reference : constant String:= ">= 28-Nov-2018";
   web: constant String:= "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..^
 
