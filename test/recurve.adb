@@ -26,7 +26,7 @@ procedure Recurve is
   thres_simil_2       : constant:= 0.16 ** 2;  --  similarity within curve
   thres_simil_start_2 : constant:= 0.40 ** 2;  --  similarity when scanning for curves
   radius              : constant:= 0.08;       --  in proportion of image width
-  full_disc_radius    : constant:= 0.009;
+  full_disc_radius    : constant:= 0.004;
   interval_verticals  : constant:= 15;
   start_verticals     : constant:= 0;          --  > 0 for more vertical initial scans
 
@@ -197,7 +197,6 @@ procedure Recurve is
       procedure Mark_point(x, y: Integer) is
       begin
         done(x,y):= True;
-        curv.ys(x):= Real(bmp'Last(2) - y);
         curv.min_x:= Integer'Min(curv.min_x, x);
         curv.max_x:= Integer'Max(curv.max_x, x);
       end Mark_point;
@@ -244,6 +243,11 @@ procedure Recurve is
     begin
       Mark_point(x,y);
       Scan: loop
+        --  We register (x, y) into the curve information.
+        --  It is either the starting point, or the average
+        --  matching point of previous iteration.
+        curv.ys(x):= Real(bmp'Last(2) - y);
+        --  Now, try to find the next point of the curve in the direction xd.
         found:= 0;
         x_sum:= 0;
         y_sum:= 0;
