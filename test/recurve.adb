@@ -21,14 +21,15 @@ procedure Recurve is
 
   --  Parameters
 
-  thres_grid          : constant:= 0.925;      --  avg intensity below thres_grid => grid line
-  thres_curve         : constant:= 0.8;        --  intensity below thres_curve => curve
-  thres_simil_2       : constant:= 0.16 ** 2;  --  similarity within curve
-  thres_simil_start_2 : constant:= 0.40 ** 2;  --  similarity when scanning for curves
-  radius              : constant:= 0.08;       --  in proportion of image width
-  full_disc_radius    : constant:= 0.004;
-  interval_verticals  : constant:= 15;
-  start_verticals     : constant:= 0;          --  > 0 for more vertical initial scans
+  thres_grid           : constant := 0.925;      --  avg intensity below thres_grid => grid line
+  thres_curve          : constant := 0.8;        --  intensity below thres_curve => curve
+  thres_simil_2        : constant := 0.16 ** 2;  --  similarity within curve
+  thres_simil_start_2  : constant := 0.40 ** 2;  --  similarity when scanning for curves
+  radius               : constant := 0.08;       --  in proportion of image width
+  full_disc_radius     : constant := 0.003;
+  full_disc_radius_pix : constant := 3;
+  interval_verticals   : constant := 15;
+  start_verticals      : constant := 0;          --  > 0 for more vertical initial scans
 
   sep: constant Character:= ';';
 
@@ -222,56 +223,57 @@ procedure Recurve is
       --
       procedure Check_single_radius(r: Positive) is
       begin
-          for xs in 1..r loop
-            for ys in 0..r loop
-              if xs**2 + ys**2 in (r-1)**2 .. r**2 then
-                Test_point(
-                  x + xs * xd,  --  xd = direction, left or right
-                  y - ys        --  Below
-                );
-                Test_point(
-                  x + xs * xd,  --  xd = direction, left or right
-                  y + ys        --  Above
-                );
-              end if;
-            end loop;
+        for xs in 1..r loop
+          for ys in 0..r loop
+            if xs**2 + ys**2 in (r-1)**2 .. r**2 then
+              Test_point(
+                x + xs * xd,  --  xd = direction, left or right
+                y - ys        --  Below
+              );
+              Test_point(
+                x + xs * xd,  --  xd = direction, left or right
+                y + ys        --  Above
+              );
+            end if;
           end loop;
+        end loop;
       end Check_single_radius;
       --
       ring_rad: constant Integer:= Integer(radius*Real(bmp'Length(1)));
-      disc_rad: constant Integer:= Integer(full_disc_radius*Real(bmp'Length(1)));
+      disc_rad: constant Integer:= 
+        Integer'Max (
+          full_disc_radius_pix,
+          Integer (full_disc_radius * Real(bmp'Length(1)))
+        );
+      y_subpixel : Real := Real (y);
     begin
-      Mark_point(x,y);
+      Mark_point (x,y);
       Scan: loop
         --  We register (x, y) into the curve information.
         --  It is either the starting point, or the average
         --  matching point of previous iteration.
-        curv.ys(x):= Real(bmp'Last(2) - y);
+        curv.ys (x):= Real(bmp'Last(2)) - y_subpixel;
         --  Now, try to find the next point of the curve in the direction xd.
-        found:= 0;
-        x_sum:= 0;
-        y_sum:= 0;
+        found := 0;
+        x_sum := 0;
+        y_sum := 0;
+        --  Explore a half-disc
         for rad in 1 .. disc_rad loop
-          Check_single_radius(rad);
+          Check_single_radius (rad);
         end loop;
-        if found > 0 then
-          --  Next (x,y) point will be the average of near matching points found
-          x:= x_sum / found;
-          y:= y_sum / found;
-        else
-          --  Continue, but stop when one half-ring is successful
+        if found = 0 then
+          --  Continue searching, but stop when one half-ring is successful
           for rad in disc_rad+1 .. ring_rad loop
-            Check_single_radius(rad);
-            if found > 0 then
-              --  Next (x,y) point will be the average of near matching points found
-              x:= x_sum / found;
-              y:= y_sum / found;
-              exit;
-            end if;
+            Check_single_radius (rad);
+            exit when found > 0;
           end loop;
         end if;
         exit Scan when found = 0;  --  No matching point anywhere in search half-disc.
-        --  At this point, we are ready to scan next pixel of the curve.
+        --  Next (x,y) point will be the average of near matching points found
+        x := x_sum / found;
+        y := y_sum / found;
+        y_subpixel := Real (y_sum) / Real (found);  --  Non-rounded average y value.
+        --  At this point, we are ready to scan next pixel (x, y) of the curve.
         exit Scan when x not in bmp'Range(1);
       end loop Scan;
     end Scan_curve;
