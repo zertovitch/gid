@@ -241,4 +241,15 @@ package body GID.Decoding_PNM is
     return Integer'Value(Get_Token(stream, needs_EOL, single_char));
   end Get_Integer;
 
+  function Get_Positive(
+    stream      : Stream_Access;
+    needs_EOL   : Boolean:= False;
+    single_char : Boolean:= False
+  )
+  return Positive
+  is
+  begin
+    return Positive'Value(Get_Token(stream, needs_EOL, single_char));
+  end Get_Positive;
+
 end GID.Decoding_PNM;

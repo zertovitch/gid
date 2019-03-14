@@ -542,14 +542,14 @@ package body GID.Headers is
     use Decoding_PNM;
     depth_val: Integer;
   begin
-    image.width  := Get_Integer(image.stream);
+    image.width  := Get_Positive(image.stream);
     case image.subformat_id is
       when 1 | 4 =>
-        image.height := Get_Integer(image.stream, needs_EOL => True);
+        image.height := Get_Positive(image.stream, needs_EOL => True);
         image.greyscale:= True;
         image.bits_per_pixel:= 3;
       when 2..3 | 5..6 =>
-        image.height := Get_Integer(image.stream);
+        image.height := Get_Positive(image.stream);
         depth_val := Get_Integer(image.stream, needs_EOL => True);
         if depth_val /= 255 then
           Raise_Exception(
@@ -566,6 +566,9 @@ package body GID.Headers is
           "P" & Integer'Image(image.subformat_id)
         );
     end case;
+  exception
+    when Constraint_Error =>
+      raise error_in_image_data with "Invalid numeric value in PNM header";
   end Load_PNM_header;
 
   ------------------------
