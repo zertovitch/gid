@@ -253,10 +253,10 @@ package body GID.Headers is
     Read_Intel(image.stream, dummy);
     --   Pos= 19. Bitmap width, in pixels.  Four bytes
     Read_Intel(image.stream, n);
-    image.width:=  Natural(n);
+    image.width:=  Positive_32 (n);
     --   Pos= 23. Bitmap height, in pixels.  Four bytes
     Read_Intel(image.stream, n);
-    image.height:= Natural(n);
+    image.height:= Positive_32 (n);
     --   Pos= 27, skip two bytes.  Data is number of Bitmap planes.
     Read_Intel(image.stream, dummy16); -- perform the skip
     --   Pos= 29, Number of bits per pixel
@@ -310,14 +310,20 @@ package body GID.Headers is
 
   procedure Load_GIF_header (image: in out Image_descriptor) is
     -- GIF - logical screen descriptor
-    screen_width, screen_height          : U16;
+    screen_width, screen_height           : U16;
     packed, background, aspect_ratio_code : U8;
     global_palette: Boolean;
   begin
     Read_Intel(image.stream, screen_width);
     Read_Intel(image.stream, screen_height);
-    image.width:= Natural(screen_width);
-    image.height:= Natural(screen_height);
+    if screen_width = 0 then
+      raise error_in_image_data with "GIF image: zero width";
+    end if;
+    if screen_height = 0 then
+      raise error_in_image_data with "GIF image: zero height";
+    end if;
+    image.width:= Positive_32 (screen_width);
+    image.height:= Positive_32 (screen_height);
     image.transparency:= True; -- cannot exclude transparency at this level.
     U8'Read(image.stream, packed);
     --  Global Color Table Flag       1 Bit
@@ -411,7 +417,10 @@ package body GID.Headers is
         "PNG image with zero width"
       );
     end if;
-    image.width:=  Natural(n);
+    if n > U32 (Positive_32'Last) then
+      raise error_in_image_data with "PNG image: width value too large:" & U32'Image (n);
+    end if;
+    image.width:=  Positive_32 (n);
     Big_endian_buffered(image.buffer, n);
     if n = 0 then
       Raise_Exception(
@@ -419,8 +428,14 @@ package body GID.Headers is
         "PNG image with zero height"
       );
     end if;
-    image.height:= Natural(n);
+    if n > U32 (Positive_32'Last) then
+      raise error_in_image_data with "PNG image: height value too large:" & U32'Image (n);
+    end if;
+    image.height:= Positive_32 (n);
     Get_Byte(image.buffer, b);
+    if b = 0 then
+      raise error_in_image_data with "PNG image: zero bit-per-pixel";
+    end if;
     image.bits_per_pixel:= Integer(b);
     Get_Byte(image.buffer, color_type);
     image.subformat_id:= Integer(color_type);
@@ -542,14 +557,14 @@ package body GID.Headers is
     use Decoding_PNM;
     depth_val: Integer;
   begin
-    image.width  := Get_Positive(image.stream);
+    image.width := Get_Positive_32 (image.stream);
     case image.subformat_id is
       when 1 | 4 =>
-        image.height := Get_Positive(image.stream, needs_EOL => True);
+        image.height := Get_Positive_32 (image.stream, needs_EOL => True);
         image.greyscale:= True;
         image.bits_per_pixel:= 3;
       when 2..3 | 5..6 =>
-        image.height := Get_Positive(image.stream);
+        image.height := Get_Positive_32 (image.stream);
         depth_val := Get_Integer(image.stream, needs_EOL => True);
         if depth_val /= 255 then
           Raise_Exception(

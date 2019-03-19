@@ -177,15 +177,15 @@ package body GID.Decoding_GIF is
         c : constant Color_type:= Color_type(U32(code) and pixel_mask);
       begin
         -- Actually draw the pixel on screen buffer
-        if X < image.width then
+        if X < Integer (image.width) then
           if interlaced and mode = nice then
-            for i in reverse 0..Span loop
-              if Y+i < image.height then
-                Set_X_Y(X, image.height - (Y+i) - 1);
+            for i in reverse 0 .. Span loop
+              if Y+i < Integer (image.height) then
+                Set_X_Y(X, Integer (image.height) - (Y+i) - 1);
                 Pixel_with_palette(c);
               end if;
             end loop;
-          elsif Y < image.height then
+          elsif Y < Integer (image.height) then
             Pixel_with_palette(c);
           end if;
         end if;
@@ -225,16 +225,16 @@ package body GID.Decoding_GIF is
               when 4 =>
                 Y:= Y + 2;
             end case;
-            if mode = fast and then Y < image.height then
-              Set_X_Y(X, image.height - Y - 1);
+            if mode = fast and then Y < Integer (image.height) then
+              Set_X_Y(X, Integer (image.height) - Y - 1);
             end if;
           else -- not interlaced
             Y:= Y + 1;
-            if Y < image.height then
-              Set_X_Y(X, image.height - Y - 1);
+            if Y < Integer (image.height) then
+              Set_X_Y(X, Integer (image.height) - Y - 1);
             end if;
             if Y mod 32 = 0 then
-              Feedback((Y*100)/image.height);
+              Feedback((Y*100) / Integer (image.height));
             end if;
           end if;
         end if;
@@ -580,7 +580,7 @@ package body GID.Decoding_GIF is
     -- Start at top left of image
     X := Natural(Descriptor.ImageLeft);
     Y := Natural(Descriptor.ImageTop);
-    Set_X_Y(X, image.height - Y - 1);
+    Set_X_Y(X, Integer (image.height) - Y - 1);
     --
     if new_num_of_colours < 256 then
       -- "Rare" formats -> no need of best speed

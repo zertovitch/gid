@@ -172,15 +172,15 @@ package body GID.Decoding_PNG is
 
       use GID.Buffering;
 
-      subtype Mem_row_bytes_array is Byte_array(0..image.width*8);
+      subtype Mem_row_bytes_array is Byte_array (0 .. Integer (image.width) * 8);
       --
       mem_row_bytes: array(0..1) of Mem_row_bytes_array;
       -- We need to memorize two image rows, for un-filtering
       curr_row: Natural:= 1;
       -- either current is 1 and old is 0, or the reverse
 
-      subtype X_range is Integer range -1..image.width-1;
-      subtype Y_range is Integer range  0..image.height-1;
+      subtype X_range is Integer range -1 .. Integer (image.width)  - 1;
+      subtype Y_range is Integer range  0 .. Integer (image.height) - 1;
       -- X position -1 is for the row's filter methode code
 
       x: X_range:= X_range'First;
@@ -432,7 +432,7 @@ package body GID.Decoding_PNG is
               y:= y + 1;
               curr_row:= 1-curr_row; -- swap row index for filtering
               if not interlaced then
-                Feedback((y*100)/image.height);
+                Feedback((y*100) / Integer (image.height));
               end if;
             elsif interlaced then -- last row has beed displayed
               while pass < 7 loop
@@ -442,23 +442,23 @@ package body GID.Decoding_PNG is
                   when 1 =>
                     null;
                   when 2 =>
-                    xm:= (image.width+3)/8 - 1;
-                    ym:= (image.height+7)/8 - 1;
+                    xm:= (Integer (image.width)  + 3)/8 - 1;
+                    ym:= (Integer (image.height) + 7)/8 - 1;
                   when 3 =>
-                    xm:= (image.width+3)/4 - 1;
-                    ym:= (image.height+3)/8 - 1;
+                    xm:= (Integer (image.width)  + 3)/4 - 1;
+                    ym:= (Integer (image.height) + 3)/8 - 1;
                   when 4 =>
-                    xm:= (image.width+1)/4 - 1;
-                    ym:= (image.height+3)/4 - 1;
+                    xm:= (Integer (image.width)  + 1)/4 - 1;
+                    ym:= (Integer (image.height) + 3)/4 - 1;
                   when 5 =>
-                    xm:= (image.width+1)/2 - 1;
-                    ym:= (image.height+1)/4 - 1;
+                    xm:= (Integer (image.width)  + 1)/2 - 1;
+                    ym:= (Integer (image.height) + 1)/4 - 1;
                   when 6 =>
-                    xm:= (image.width  )/2 - 1;
-                    ym:= (image.height+1)/2 - 1;
+                    xm:= (Integer (image.width)     )/2 - 1;
+                    ym:= (Integer (image.height) + 1)/2 - 1;
                   when 7 =>
-                    xm:= image.width - 1;
-                    ym:= image.height/2 - 1;
+                    xm:= Integer (image.width)      - 1;
+                    ym:= Integer (image.height) / 2 - 1;
                 end case;
                 if xm >=0 and xm <= X_range'Last and ym in Y_range then
                   -- This pass is not empty (otherwise, we will continue
@@ -1365,8 +1365,8 @@ package body GID.Decoding_PNG is
         raise Program_Error;
       end if;
       if interlaced then
-        x_max:= (image.width+7)/8 - 1;
-        y_max:= (image.height+7)/8 - 1;
+        x_max:= (Integer (image.width)  + 7)/8 - 1;
+        y_max:= (Integer (image.height) + 7)/8 - 1;
       else
         x_max:= X_range'Last;
         y_max:= Y_range'Last;

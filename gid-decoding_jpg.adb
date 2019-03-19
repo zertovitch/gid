@@ -140,8 +140,14 @@ package body GID.Decoding_JPG is
     image.bits_per_pixel:= 3 * Positive(bits_pp_primary);
     Big_endian(image.buffer, h);
     Big_endian(image.buffer, w);
-    image.width:= Natural(w);
-    image.height:= Natural(h);
+    if w = 0 then
+      raise error_in_image_data with "JPEG: zero image width";
+    end if;
+    if h = 0 then
+      raise error_in_image_data with "JPEG: zero image height";
+    end if;
+    image.width  := Positive_32 (w);
+    image.height := Positive_32 (h);
     --  Number of components:
     Get_Byte(image.buffer, b);
     image.subformat_id:= Integer(b);
@@ -807,10 +813,10 @@ package body GID.Decoding_JPG is
         y_val_8: U8;
       begin
         for ymb in flat'Range(3) loop
-          exit when y0+ymb >= image.height;
-          Set_X_Y(x0, image.height-1-(y0+ymb));
+          exit when y0+ymb >= Integer (image.height);
+          Set_X_Y(x0, Integer (image.height) - 1 - (y0+ymb));
           for xmb in flat'Range(2) loop
-            exit when x0+xmb >= image.width;
+            exit when x0+xmb >= Integer (image.width);
             case color_space is
               when YCbCr =>
                 y_val := flat(Y,  xmb, ymb) * 256;
@@ -949,9 +955,9 @@ package body GID.Decoding_JPG is
       --
       mbsizex:= ssxmax * 8; -- pixels in a row of a macro-block
       mbsizey:= ssymax * 8; -- pixels in a column of a macro-block
-      mbwidth := (image.width + mbsizex - 1) / mbsizex;
+      mbwidth  := (Integer (image.width)  + mbsizex - 1) / mbsizex;
       -- width in macro-blocks
-      mbheight:= (image.height + mbsizey - 1) / mbsizey;
+      mbheight := (Integer (image.height) + mbsizey - 1) / mbsizey;
       -- height in macro-blocks
       if some_trace then
         Put_Line(" mbsizex = " & Integer'Image(mbsizex));
@@ -961,8 +967,8 @@ package body GID.Decoding_JPG is
       end if;
       for c in Component loop
         if image.JPEG_stuff.components(c) then
-          info_B(c).width := (image.width  * info_A(c).samples_hor + ssxmax - 1) / ssxmax;
-          info_B(c).height:= (image.height * info_A(c).samples_ver + ssymax - 1) / ssymax;
+          info_B(c).width := (Integer (image.width)  * info_A(c).samples_hor + ssxmax - 1) / ssxmax;
+          info_B(c).height:= (Integer (image.height) * info_A(c).samples_ver + ssymax - 1) / ssymax;
           info_B(c).stride:= (mbwidth * mbsizex * info_A(c).samples_hor) / ssxmax;
           if some_trace then
             Put_Line("  Details for component " & Component'Image(c));

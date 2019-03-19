@@ -106,7 +106,7 @@ package body GID is
 
   function Pixel_width (image: Image_descriptor) return Positive is
   begin
-    return image.width;
+    return Positive (image.width);
   end Pixel_width;
 
   ------------------
@@ -115,7 +115,7 @@ package body GID is
 
   function Pixel_height (image: Image_descriptor) return Positive is
   begin
-    return image.height;
+    return Positive (image.height);
   end Pixel_height;
 
   function Display_orientation (image: Image_descriptor) return Orientation is

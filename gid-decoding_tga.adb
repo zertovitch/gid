@@ -12,7 +12,7 @@ package body GID.Decoding_TGA is
     procedure Row_start(y: Natural) is
     begin
       if image.top_first then
-        Set_X_Y(0, image.height-1-y);
+        Set_X_Y(0, Integer (image.height) - 1 - y);
       else
         Set_X_Y(0, y);
       end if;
@@ -143,81 +143,81 @@ package body GID.Decoding_TGA is
       end case;
     end Output_Pixel;
 
-    procedure Get_RGBA is -- 32 bits
+    procedure Get_RGBA is -- 32 bits : R, G, B, A use 8 bits each.
       procedure Get_pixel_32 is new Get_pixel(32, False);
     begin
-      for y in 0..image.height-1 loop
+      for y in 0 .. Integer (image.height) - 1 loop
         Row_start(y);
-        for x in 0..image.width-1 loop
+        for x in 0 .. Integer (image.width) - 1 loop
           Get_pixel_32;
           Output_Pixel;
         end loop;
-        Feedback(((y+1)*100)/image.height);
+        Feedback(((y+1)*100) / Integer (image.height));
       end loop;
     end Get_RGBA;
 
-    procedure Get_RGB is -- 24 bits
+    procedure Get_RGB is -- 24 bits : R, G, B use 8 bits each.
       procedure Get_pixel_24 is new Get_pixel(24, False);
     begin
-      for y in 0..image.height-1 loop
+      for y in 0 .. Integer (image.height) - 1 loop
         Row_start(y);
-        for x in 0..image.width-1 loop
+        for x in 0 .. Integer (image.width) - 1 loop
           Get_pixel_24;
           Output_Pixel;
         end loop;
-        Feedback(((y+1)*100)/image.height);
+        Feedback(((y+1)*100) / Integer (image.height));
       end loop;
     end Get_RGB;
 
     procedure Get_16 is -- 16 bits
       procedure Get_pixel_16 is new Get_pixel(16, False);
     begin
-      for y in 0..image.height-1 loop
+      for y in 0 .. Integer (image.height) - 1 loop
         Row_start(y);
-        for x in 0..image.width-1 loop
+        for x in 0 .. Integer (image.width) - 1 loop
           Get_pixel_16;
           Output_Pixel;
         end loop;
-        Feedback(((y+1)*100)/image.height);
+        Feedback(((y+1)*100) / Integer (image.height));
       end loop;
     end Get_16;
 
     procedure Get_15 is -- 15 bits
       procedure Get_pixel_15 is new Get_pixel(15, False);
     begin
-      for y in 0..image.height-1 loop
+      for y in 0 .. Integer (image.height) - 1 loop
         Row_start(y);
-        for x in 0..image.width-1 loop
+        for x in 0 .. Integer (image.width) - 1 loop
           Get_pixel_15;
           Output_Pixel;
         end loop;
-        Feedback(((y+1)*100)/image.height);
+        Feedback(((y+1)*100) / Integer (image.height));
       end loop;
     end Get_15;
 
     procedure Get_Gray is
       procedure Get_pixel_8  is new Get_pixel(8, False);
     begin
-      for y in 0..image.height-1 loop
+      for y in 0 .. Integer (image.height) - 1 loop
         Row_start(y);
-        for x in 0..image.width-1 loop
+        for x in 0 .. Integer (image.width) - 1 loop
           Get_pixel_8;
           Output_Pixel;
         end loop;
-        Feedback(((y+1)*100)/image.height);
+        Feedback(((y+1)*100) / Integer (image.height));
       end loop;
     end Get_Gray;
 
     procedure Get_with_palette is
       procedure Get_pixel_palette  is new Get_pixel(1, True); -- 1: dummy
     begin
-      for y in 0..image.height-1 loop
+      for y in 0 .. Integer (image.height) - 1 loop
         Row_start(y);
-        for x in 0..image.width-1 loop
+        for x in 0 .. Integer (image.width) - 1 loop
           Get_pixel_palette;
           Output_Pixel;
         end loop;
-        Feedback(((y+1)*100)/image.height);
+        Feedback(((y+1)*100) / Integer (image.height));
       end loop;
     end Get_with_palette;
 
@@ -228,10 +228,10 @@ package body GID.Decoding_TGA is
     if image.RLE_encoded then
       -- One format check per row
       RLE_pixels_remaining:= 0;
-      for y in 0..image.height-1 loop
+      for y in 0 .. Integer (image.height) - 1 loop
         Row_start(y);
         if image.palette /= null then
-          for x in 0..image.width-1 loop
+          for x in 0 .. Integer (image.width) - 1 loop
             RLE_pixel_palette;
             Output_Pixel;
           end loop;
@@ -265,7 +265,7 @@ package body GID.Decoding_TGA is
             when others => null;
           end case;
         end if;
-        Feedback(((y+1)*100)/image.height);
+        Feedback(((y+1)*100) / Integer (image.height));
       end loop;
     elsif image.palette /= null then
       Get_with_palette;

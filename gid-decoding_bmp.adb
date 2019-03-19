@@ -41,16 +41,16 @@ package body GID.Decoding_BMP is
     pair: Boolean;
     bit: Natural range 0..7;
     --
-    line_bits: constant Float:= Float(image.width * image.bits_per_pixel);
+    line_bits: constant Float:= Float(image.width * Positive_32 (image.bits_per_pixel));
     padded_line_size: constant Positive:= 4 * Integer(Float'Ceiling(line_bits / 32.0));
     unpadded_line_size: constant Positive:= Integer(Float'Ceiling(line_bits / 8.0));
     -- (in bytes)
   begin
     Attach_Stream(image.buffer, image.stream);
     y:= 0;
-    while y <= image.height-1 loop
+    while y <= Integer (image.height) - 1 loop
       x:= 0;
-      x_max:= image.width-1;
+      x_max:= Integer (image.width) - 1;
       case image.bits_per_pixel is
         when 1 => -- B/W
           bit:= 0;
@@ -124,7 +124,7 @@ package body GID.Decoding_BMP is
         Get_Byte(image.buffer, b);
       end loop;
       y:= y + 1;
-      Feedback((y*100)/image.height);
+      Feedback((y*100) / Integer (image.height));
     end loop;
   end Load;
 

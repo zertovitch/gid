@@ -33,11 +33,11 @@ private package GID.Decoding_PNM is
   )
   return Integer;
 
-  function Get_Positive(
+  function Get_Positive_32(
     stream      : Stream_Access;
     needs_EOL   : Boolean:= False;
     single_char : Boolean:= False
   )
-  return Positive;
+  return Positive_32;
 
 end GID.Decoding_PNM;

@@ -160,8 +160,8 @@ package GID is
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String:= "009 preview 1";
-  reference : constant String:= ">= 28-Nov-2018";
+  version   : constant String:= "009 preview 2";
+  reference : constant String:= ">= 19-Mar-2019";
   web: constant String:= "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..^
 
@@ -273,11 +273,13 @@ private
 
   type Endianess_type is (little, big); -- for TIFF images
 
+  subtype Positive_32 is Interfaces.Integer_32 range 1 .. Interfaces.Integer_32'Last;
+
   type Image_descriptor is new Ada.Finalization.Controlled with record
     format             : Image_format_type;
     detailed_format    : Bounded_255.Bounded_String; -- for humans only!
     subformat_id       : Integer:= 0;
-    width, height      : Positive;
+    width, height      : Positive_32;
     display_orientation: Orientation;
     top_first          : Boolean; -- data orientation in TGA
     bits_per_pixel     : Positive;
