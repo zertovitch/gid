@@ -25,7 +25,7 @@
 --
 --   More credits in gid_work.xls, sheet "credits".
 --
--- Copyright (c) Gautier de Montmollin 2010 .. 2018
+-- Copyright (c) Gautier de Montmollin 2010 .. 2019
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal

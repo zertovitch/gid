@@ -17,7 +17,7 @@ Some features:
   - Task safe
   - Endian-neutral
   - Free, open-source
-  - pure Ada 95 (compiled by Ada 95, Ada 2005, and later compilers)
+  - pure Ada 2005 (compiled by Ada 2005, and compilers for later versions)
 
 Some existing or possible applications:
 
