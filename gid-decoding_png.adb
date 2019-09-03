@@ -16,7 +16,7 @@
 --
 with GID.Buffering, GID.Decoding_PNG.Huffman;
 
-with Ada.Text_IO, Ada.Exceptions;
+with Ada.Text_IO;
 
 package body GID.Decoding_PNG is
 
@@ -44,8 +44,6 @@ package body GID.Decoding_PNG is
 
   procedure Big_endian is new Big_endian_number( U32 );
 
-  use Ada.Exceptions;
-
   ----------
   -- Read --
   ----------
@@ -69,15 +67,13 @@ package body GID.Decoding_PNG is
       end if;
     exception
       when Constraint_Error =>
-        Raise_Exception(
-          error_in_image_data'Identity,
+        raise error_in_image_data with
           "PNG chunk unknown: " &
           Integer'Image(Character'Pos(str4(1))) &
           Integer'Image(Character'Pos(str4(2))) &
           Integer'Image(Character'Pos(str4(3))) &
           Integer'Image(Character'Pos(str4(4))) &
-          " (" & str4 & ')'
-        );
+          " (" & str4 & ')';
     end;
   end Read;
 
@@ -502,11 +498,9 @@ package body GID.Decoding_PNG is
               end if;
             exception
               when Constraint_Error =>
-                Raise_Exception(
-                  error_in_image_data'Identity,
+                raise error_in_image_data with
                   "PNG: wrong filter code, row #" &
-                  Integer'Image(y) & " code:" & U8'Image(data(i))
-                );
+                  Integer'Image(y) & " code:" & U8'Image(data(i));
             end;
             if interlaced then
               case pass is
@@ -691,10 +685,7 @@ package body GID.Decoding_PNG is
           exit when ch.kind /= IDAT or ch.length > 0;
         end loop;
         if ch.kind /= IDAT then
-          Raise_Exception(
-            error_in_image_data'Identity,
-            "PNG additional data chunk must be an IDAT"
-          );
+          raise error_in_image_data with "PNG additional data chunk must be an IDAT";
         end if;
       end Jump_IDAT;
 
@@ -1408,12 +1399,11 @@ package body GID.Decoding_PNG is
             -- z_crc : zlib Check value
             --  if z_crc /= U32(UnZ_Glob.crc32val) then
             --    ada.text_io.put(z_crc 'img &  UnZ_Glob.crc32val'img);
-            --    Raise_exception(
-            --      error_in_image_data'Identity,
-            --      "PNG: deflate stream corrupt"
-            --    );
+            --    raise
+            --      error_in_image_data with
+            --      "PNG: deflate stream corrupt";
             --  end if;
-            --  ** Mystery: this check fail even with images which decompress perfectly
+            --  ** Mystery: this check fails even with images which decompress perfectly
             --  ** Is CRC init value different between zip and zlib ? Is it Adler32 ?
             Big_endian(image.buffer, dummy); -- chunk's CRC
             -- last IDAT chunk's CRC (then, on compressed data)

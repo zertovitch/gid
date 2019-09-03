@@ -12,7 +12,6 @@ with GID;
 with Ada.Calendar;
 with Ada.Characters.Handling;           use Ada.Characters.Handling;
 with Ada.Command_Line;                  use Ada.Command_Line;
-with Ada.Exceptions;                    use Ada.Exceptions;
 with Ada.Numerics.Elementary_Functions; use Ada.Numerics.Elementary_Functions;
 with Ada.Streams.Stream_IO;             use Ada.Streams.Stream_IO;
 with Ada.Text_IO;                       use Ada.Text_IO;
@@ -149,12 +148,11 @@ procedure Steg is
       needed_size:= data_size + 8;
       factor:= Float(needed_size) / Float(available_size);
       if needed_size > available_size then
-        Raise_Exception(Data_too_large'Identity,
+        raise Data_too_large with
           "Needs a" & Integer'Image(1 + Integer(100.0 * factor)) &
           "% raw size scaling, i.e. a" &
           Integer'Image(1 + Integer(100.0 * Sqrt(factor))) &
-          "% image scaling in both dimensions"
-        );
+          "% image scaling in both dimensions";
       end if;
       Put_Line(Standard_Error,
         "Data size:" & Unsigned_64'Image(data_size) &

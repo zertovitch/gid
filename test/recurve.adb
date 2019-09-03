@@ -240,7 +240,7 @@ procedure Recurve is
       end Check_single_radius;
       --
       ring_rad: constant Integer:= Integer(radius*Real(bmp'Length(1)));
-      disc_rad: constant Integer:= 
+      disc_rad: constant Integer:=
         Integer'Max (
           full_disc_radius_pix,
           Integer (full_disc_radius * Real(bmp'Length(1)))

@@ -160,8 +160,8 @@ package GID is
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String:= "009 preview 2";
-  reference : constant String:= ">= 19-Mar-2019";
+  version   : constant String:= "009";
+  reference : constant String:= "03-Sep-2019";
   web: constant String:= "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..^
 
@@ -296,8 +296,8 @@ private
     next_frame         : Ada.Calendar.Day_Duration;
   end record;
 
-  procedure Adjust (Object : in out Image_descriptor);
-  procedure Finalize (Object : in out Image_descriptor);
+  overriding procedure Adjust (Object : in out Image_descriptor);
+  overriding procedure Finalize (Object : in out Image_descriptor);
 
   to_be_done: exception;
   -- this exception should not happen, even with malformed files

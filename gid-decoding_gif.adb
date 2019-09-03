@@ -5,7 +5,7 @@
 --
 with GID.Buffering, GID.Color_tables;
 
-with Ada.Exceptions, Ada.Text_IO;
+with Ada.Text_IO;
 
 package body GID.Decoding_GIF is
 
@@ -48,7 +48,7 @@ package body GID.Decoding_GIF is
     -- With GIF, each frame is a local image with an eventual
     -- palette, different dimensions, etc. ...
 
-    use GID.Buffering, Ada.Exceptions;
+    use GID.Buffering;
 
     type GIFDescriptor is record
       ImageLeft,
@@ -443,10 +443,7 @@ package body GID.Decoding_GIF is
               end if;
               Get_Byte(image.buffer, temp );
               if temp /= 4 then
-                Raise_Exception(
-                  error_in_image_data'Identity,
-                  "GIF: error in Graphic Control Extension"
-                );
+                raise error_in_image_data with "GIF: error in Graphic Control Extension";
               end if;
               Get_Byte(image.buffer, temp );
               --  Reserved                      3 Bits
@@ -503,11 +500,9 @@ package body GID.Decoding_GIF is
             Ada.Text_IO.Put_Line(" - Wrong separator, skip and hope for the better...");
           end if;
         when others =>
-          Raise_Exception(
-            error_in_image_data'Identity,
+          raise error_in_image_data with
             "Unknown GIF separator: [" & separator &
-            "] code:" & Integer'Image(Character'Pos(separator))
-          );
+            "] code:" & Integer'Image(Character'Pos(separator));
       end case;
     end loop;
 
@@ -544,10 +539,7 @@ package body GID.Decoding_GIF is
       Color_tables.Load_palette(local);
       image.buffer:= local.buffer;
     elsif image.palette = null then
-      Raise_Exception(
-        error_in_image_data'Identity,
-        "GIF: neither local, nor global palette"
-      );
+      raise error_in_image_data with "GIF: neither local, nor global palette";
     else
       -- Use global palette
       new_num_of_colours:= 2 ** image.subformat_id;
@@ -569,11 +561,9 @@ package body GID.Decoding_GIF is
     -- Get initial code size
     Get_Byte(image.buffer, temp );
     if Natural(temp) not in Code_size_range then
-      Raise_Exception(
-        error_in_image_data'Identity,
+      raise error_in_image_data with
         "GIF: wrong LZW code size (must be in 2..12), is" &
-        U8'Image(temp)
-      );
+        U8'Image(temp);
     end if;
     CurrSize := Natural(temp);
 

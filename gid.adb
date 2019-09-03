@@ -2,7 +2,7 @@
 -- GID - Generic Image Decoder --
 ---------------------------------
 --
---  Copyright (c) Gautier de Montmollin 2010 .. 2015
+--  Copyright (c) Gautier de Montmollin 2010 .. 2019
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -221,7 +221,7 @@ package body GID is
     return image.transparency;
   end Expect_transparency;
 
-  procedure Adjust (Object : in out Image_descriptor) is
+  overriding procedure Adjust (Object : in out Image_descriptor) is
     use JPEG_defs;
   begin
     --  Clone heap allocated objects, if any.
@@ -240,7 +240,7 @@ package body GID is
     end loop;
   end Adjust;
 
-  procedure Finalize (Object : in out Image_descriptor) is
+  overriding procedure Finalize (Object : in out Image_descriptor) is
   begin
     Clear_heap_allocated_memory (Object);
   end Finalize;
