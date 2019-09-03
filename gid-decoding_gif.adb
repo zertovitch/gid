@@ -163,7 +163,7 @@ package body GID.Decoding_GIF is
               full_opaque
             );
           when others =>
-            raise invalid_primary_color_range;
+            raise invalid_primary_color_range with "GIF: color range not supported";
         end case;
       end Pixel_with_palette;
 
@@ -501,7 +501,7 @@ package body GID.Decoding_GIF is
           end if;
         when others =>
           raise error_in_image_data with
-            "Unknown GIF separator: [" & separator &
+            "GIF: unknown separator: [" & separator &
             "] code:" & Integer'Image(Character'Pos(separator));
       end case;
     end loop;

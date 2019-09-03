@@ -125,7 +125,7 @@ package body GID.Decoding_JPG is
     Get_Byte(image.buffer, bits_pp_primary);
     if bits_pp_primary /= 8 then
       raise unsupported_image_subformat with
-        "Bits per primary color=" & U8'Image(bits_pp_primary);
+        "JPEG: bits per primary color=" & U8'Image(bits_pp_primary) & " (not supported)";
     end if;
     image.bits_per_pixel:= 3 * Positive(bits_pp_primary);
     Big_endian(image.buffer, h);
@@ -155,7 +155,7 @@ package body GID.Decoding_JPG is
         id_base := 0;
       end if;
       if b - id_base > Component'Pos(Component'Last) then
-        raise error_in_image_data with "SOF: invalid component ID: " & U8'Image(b);
+        raise error_in_image_data with "JPEG: SOF: invalid component ID: " & U8'Image(b);
       end if;
       compo:= JPEG_defs.Component'Val(b - id_base);
       image.JPEG_stuff.components(compo):= True;
@@ -755,7 +755,7 @@ package body GID.Decoding_JPG is
               -- Times_257 makes max intensity FF go to FFFF
             );
           when others =>
-            raise invalid_primary_color_range;
+            raise invalid_primary_color_range with "JPEG: color range not supported";
         end case;
       end Out_Pixel_8;
 
@@ -894,7 +894,7 @@ package body GID.Decoding_JPG is
           id_base := 0;
         end if;
         if b - id_base > Component'Pos(Component'Last) then
-          raise error_in_image_data with "Scan: invalid ID: " & U8'Image(b);
+          raise error_in_image_data with "JPEG: Scan: invalid ID: " & U8'Image(b);
         end if;
         compo:= Component'Val(b - id_base);
         if not image.JPEG_stuff.components(compo) then

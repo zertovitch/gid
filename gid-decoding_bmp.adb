@@ -34,7 +34,7 @@ package body GID.Decoding_BMP is
             full_opaque
           );
         when others =>
-          raise invalid_primary_color_range;
+          raise invalid_primary_color_range with "BMP: color range not supported";
       end case;
     end Pixel_with_palette;
     --
@@ -113,7 +113,7 @@ package body GID.Decoding_BMP is
                   full_opaque
                 );
               when others =>
-                raise invalid_primary_color_range;
+                raise invalid_primary_color_range with "BMP: color range not supported";
             end case;
             x:= x + 1;
           end loop;

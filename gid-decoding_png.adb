@@ -348,7 +348,7 @@ package body GID.Decoding_PNG is
                 -- Times_257 makes max intensity FF go to FFFF
               );
             when others =>
-              raise invalid_primary_color_range;
+              raise invalid_primary_color_range with "PNG: color range not supported";
           end case;
         end Out_Pixel_8;
 
@@ -384,7 +384,7 @@ package body GID.Decoding_PNG is
                 Primary_color_range(ba)
               );
             when others =>
-              raise invalid_primary_color_range;
+              raise invalid_primary_color_range with "PNG: color range not supported";
           end case;
         end Out_Pixel_16;
 
@@ -685,7 +685,7 @@ package body GID.Decoding_PNG is
           exit when ch.kind /= IDAT or ch.length > 0;
         end loop;
         if ch.kind /= IDAT then
-          raise error_in_image_data with "PNG additional data chunk must be an IDAT";
+          raise error_in_image_data with "PNG: additional data chunk must be an IDAT";
         end if;
       end Jump_IDAT;
 
@@ -978,7 +978,7 @@ package body GID.Decoding_PNG is
               E := CT(CT_idx).extra_bits;
               exit when E <= 16;
               if E = invalid then
-                raise error_in_image_data;
+                raise error_in_image_data with "PNG: invalid code in Deflate compression";
               end if;
 
               -- then it's a literal
@@ -1014,7 +1014,8 @@ package body GID.Decoding_PNG is
                   E := CT(CT_idx).extra_bits;
                   exit when E <= 16;
                   if E = invalid then
-                    raise error_in_image_data;
+                    raise error_in_image_data
+                      with "PNG: invalid code in Deflate compression (LZ distance)";
                   end if;
                   UnZ_IO.Bit_buffer.Dump( CT(CT_idx).bits );
                   E:= E - 16;
@@ -1052,7 +1053,7 @@ package body GID.Decoding_PNG is
            (not UnZ_IO.Bit_buffer.Read_and_dump_U32(16))
            and 16#ffff#)
           then
-            raise error_in_image_data;
+            raise error_in_image_data with "PNG: invalid check code in Deflate stored block";
           end if;
           while N > 0  and then not UnZ_Glob.Zip_EOF loop
             -- Read and output the non-compressed data
@@ -1135,7 +1136,8 @@ package body GID.Decoding_PNG is
           exception
             when huft_out_of_memory | huft_error =>
               HufT_free( Tl );
-              raise error_in_image_data;
+              raise error_in_image_data
+                with "PNG: error in Deflate compression (Huffman #1)";
           end;
 
           Inflate_Codes ( Tl, Td, Bl, Bd );
@@ -1176,7 +1178,8 @@ package body GID.Decoding_PNG is
           procedure Repeat_length_code( amount: Natural ) is
           begin
             if defined + amount > number_of_lengths then
-              raise error_in_image_data;
+              raise error_in_image_data
+                with "PNG: invalid data in Deflate dynamic compression structure (#1)";
             end if;
             for c in reverse 1..amount loop
               Ll ( defined ) := Natural_M32(current_length);
@@ -1195,7 +1198,8 @@ package body GID.Decoding_PNG is
           Nb :=   4 + UnZ_IO.Bit_buffer.Read_and_dump(4);
 
           if Nl > 288 or else Nd > 32 then
-            raise error_in_image_data;
+            raise error_in_image_data
+                with "PNG: invalid data in Deflate dynamic compression structure (#2)";
           end if;
 
           -- Read in bit-length-code lengths.
@@ -1212,11 +1216,13 @@ package body GID.Decoding_PNG is
             );
             if huft_incomplete then
               HufT_free(Tl);
-              raise error_in_image_data;
+              raise error_in_image_data
+                with "PNG: error in Deflate compression (Huffman #2)";
             end if;
           exception
             when others =>
-              raise error_in_image_data;
+              raise error_in_image_data
+                with "PNG: error in Deflate compression (Huffman #3)";
           end;
 
           -- Read in literal and distance code lengths
@@ -1268,11 +1274,13 @@ package body GID.Decoding_PNG is
             );
             if huft_incomplete then
               HufT_free(Tl);
-              raise error_in_image_data;
+              raise error_in_image_data
+                with "PNG: error in Deflate compression (Huffman #4)";
             end if;
           exception
             when others =>
-              raise error_in_image_data;
+              raise error_in_image_data
+                with "PNG: error in Deflate compression (Huffman #5)";
           end;
 
           -- Build the decoding tables for distance codes
@@ -1291,7 +1299,8 @@ package body GID.Decoding_PNG is
           exception
             when huft_out_of_memory | huft_error =>
               HufT_free(Tl);
-              raise error_in_image_data;
+              raise error_in_image_data
+                with "PNG: error in Deflate compression (Huffman #6)";
           end;
 
           -- Decompress until an end-of-block code
@@ -1312,7 +1321,9 @@ package body GID.Decoding_PNG is
             when 0 =>      Inflate_stored_block;
             when 1 =>      Inflate_fixed_block;
             when 2 =>      Inflate_dynamic_block;
-            when others => raise error_in_image_data; -- Bad block type (3)
+            when others =>
+              raise error_in_image_data with
+                "PNG: error in Deflate compression: bad block type (3)";
           end case;
         end Inflate_Block;
 

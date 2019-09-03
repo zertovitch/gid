@@ -48,7 +48,7 @@ package body GID.Decoding_PNM is
             -- Times_257 makes max intensity FF go to FFFF
           );
         when others =>
-          raise invalid_primary_color_range;
+          raise invalid_primary_color_range with "PNM: color range not supported";
       end case;
     end Output_Pixel;
 

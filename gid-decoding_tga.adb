@@ -139,7 +139,7 @@ package body GID.Decoding_TGA is
             -- Times_257 makes max intensity FF go to FFFF
           );
         when others =>
-          raise invalid_primary_color_range;
+          raise invalid_primary_color_range with "TGA: color range not supported";
       end case;
     end Output_Pixel;
 
