@@ -1,10 +1,10 @@
 --
--- Minimal steganography tool
+--  Minimal steganography tool.
 --
--- This demo is derived from mini.adb.
+--  This demo is derived from mini.adb.
 --
 
--- To do:
+--  To do:
 --  - encryption
 
 with GID;
@@ -47,7 +47,7 @@ procedure Steg is
 
   img_buf: p_Byte_Array:= null;
 
-  -- Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
+  --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
   procedure Load_raw_image(
     image : in out GID.Image_descriptor;
     buffer: in out p_Byte_Array;
@@ -73,7 +73,7 @@ procedure Steg is
     begin
       buffer(idx..idx+2):= (red, green, blue);
       idx:= idx + 3;
-      -- ^ GID requires us to look to next pixel on the right for next time.
+      --  ^ GID requires us to look to next pixel on the right for next time.
     end Put_Pixel;
 
     stars: Natural:= 0;
@@ -104,16 +104,16 @@ procedure Steg is
   begin
     Create(f, Out_File, ppm_name);
     Put_Line(Standard_Error, "Creating PPM image, name = " & ppm_name & " ...");
-    -- PPM Header:
+    --  PPM Header:
     String'Write(
       Stream(f),
       "P6 " &
       Integer'Image(GID.Pixel_width(i)) &
       Integer'Image(GID.Pixel_height(i)) & " 255" & ASCII.LF
     );
-    -- PPM raw BGR image:
+    --  PPM raw BGR image:
     Byte_Array'Write(Stream(f), img_buf.all);
-    -- ^ slow on some Ada systems, see to_bmp to have a faster version
+    --  ^ slow on some Ada systems, see to_bmp to have a faster version
     Close(f);
   end Dump_PPM;
 
@@ -202,7 +202,7 @@ procedure Steg is
     next_frame: Ada.Calendar.Day_Duration;
   begin
     --
-    -- Load the image in its original format
+    --  Load the image in its original format
     --
     Open(f_im, In_File, image_name);
     Put_Line(Standard_Error, "Processing " & image_name & "...");

@@ -30,7 +30,7 @@ package body GID.Decoding_BMP is
             Times_257(Primary_color_range(image.palette(Integer(b)).red)),
             Times_257(Primary_color_range(image.palette(Integer(b)).green)),
             Times_257(Primary_color_range(image.palette(Integer(b)).blue)),
-            -- Times_257 makes max intensity FF go to FFFF
+            --  Times_257 makes max intensity FF go to FFFF
             full_opaque
           );
         when others =>
@@ -44,7 +44,7 @@ package body GID.Decoding_BMP is
     line_bits: constant Float:= Float(image.width * Positive_32 (image.bits_per_pixel));
     padded_line_size: constant Positive:= 4 * Integer(Float'Ceiling(line_bits / 32.0));
     unpadded_line_size: constant Positive:= Integer(Float'Ceiling(line_bits / 8.0));
-    -- (in bytes)
+    --  (in bytes)
   begin
     Attach_Stream(image.buffer, image.stream);
     y:= 0;
@@ -109,7 +109,7 @@ package body GID.Decoding_BMP is
                   Times_257(Primary_color_range(br)),
                   Times_257(Primary_color_range(bg)),
                   Times_257(Primary_color_range(bb)),
-                  -- Times_257 makes max intensity FF go to FFFF
+                  --  Times_257 makes max intensity FF go to FFFF
                   full_opaque
                 );
               when others =>

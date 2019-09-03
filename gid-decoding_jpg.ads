@@ -58,7 +58,7 @@ private package GID.Decoding_JPG is
 
   procedure Read(image: in out Image_descriptor; sh: out Segment_head);
 
-  -- SOF - Start Of Frame (the real header)
+  --  SOF - Start Of Frame (the real header)
   procedure Read_SOF(image: in out Image_descriptor; sh: Segment_head);
 
   procedure Read_DHT(image: in out Image_descriptor; data_length: Natural);
@@ -79,7 +79,7 @@ private package GID.Decoding_JPG is
       alpha            : Primary_color_range
     );
     with procedure Feedback (percents: Natural);
-    -- mode: Display_mode; -- nice -> progressive nicely displayed
+    --  mode: Display_mode; -- nice -> progressive nicely displayed
   --
   procedure Load (
     image     : in out Image_descriptor;

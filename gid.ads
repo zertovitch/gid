@@ -2,30 +2,30 @@
 -- GID - Generic Image Decoder --
 ---------------------------------
 --
--- Purpose:
+--  Purpose:
 --
---   The Generic Image Decoder is a package for decoding a broad
---   variety of image formats, from any data stream, to any kind
---   of medium, be it an in-memory bitmap, a GUI object,
---   some other stream, arrays of floating-point initial data
---   for scientific calculations, a browser element, a device,...
---   Animations are supported.
+--     The Generic Image Decoder is a package for decoding a broad
+--     variety of image formats, from any data stream, to any kind
+--     of medium, be it an in-memory bitmap, a GUI object,
+--     some other stream, arrays of floating-point initial data
+--     for scientific calculations, a browser element, a device,...
+--     Animations are supported.
 --
---   The code is unconditionally portable, independent of the
---   choice of operating system, processor, endianess and compiler.
+--     The code is unconditionally portable, independent of the
+--     choice of operating system, processor, endianess and compiler.
 --
--- Image types currently supported:
+--  Image types currently supported:
 --
---   BMP, GIF, JPEG, PNG, PNM, TGA
+--     BMP, GIF, JPEG, PNG, PNM, TGA
 --
--- Credits:
+--  Credits:
 --
---   - André van Splunter: GIF's LZW decoder in Ada
---   - Martin J. Fiedler: most of the JPEG decoder (from NanoJPEG)
+--     - André van Splunter: GIF's LZW decoder in Ada
+--     - Martin J. Fiedler: most of the JPEG decoder (from NanoJPEG)
 --
---   More credits in gid_work.xls, sheet "credits".
+--     More credits in gid_work.xls, sheet "credits".
 --
--- Copyright (c) Gautier de Montmollin 2010 .. 2019
+--  Copyright (c) Gautier de Montmollin 2010 .. 2019
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -45,8 +45,8 @@
 --  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 --  THE SOFTWARE.
 --
--- NB: this is the MIT License, as found 2-May-2010 on the site
--- http://www.opensource.org/licenses/mit-license.php
+--  NB: this is the MIT License, as found 2-May-2010 on the site
+--  http://www.opensource.org/licenses/mit-license.php
 
 with Ada.Calendar, Ada.Streams, Ada.Strings.Bounded, Ada.Finalization;
 with Interfaces;
@@ -66,9 +66,9 @@ package GID is
     try_tga :        Boolean:= False
   );
 
-  -- try_tga: if no known signature is found, assume it might be
-  -- the TGA format (which hasn't a signature) and try to load an
-  -- image of this format
+  --  try_tga: if no known signature is found, assume it might be
+  --  the TGA format (which hasn't a signature) and try to load an
+  --  image of this format
 
   unknown_image_format,
   known_but_unsupported_image_format,
@@ -85,7 +85,7 @@ package GID is
   function Pixel_width (image: Image_descriptor) return Positive;
   function Pixel_height (image: Image_descriptor) return Positive;
 
-  -- "Unchanged" orientation has origin at top left
+  --  "Unchanged" orientation has origin at top left
 
   type Orientation is (
     Unchanged,
@@ -100,28 +100,28 @@ package GID is
   --------------------------------------------------------------------
 
   type Display_mode is (fast, nice);
-  -- For bitmap pictures, the result is exactly the same, but
-  -- interlaced images' larger pixels are drawn in full during decoding.
+  --  For bitmap pictures, the result is exactly the same, but
+  --  interlaced images' larger pixels are drawn in full during decoding.
 
   generic
     type Primary_color_range is mod <>;
-    -- Coding of primary colors (red, green or blue)
-    --   and of opacity (also known as alpha channel), on the target "device".
-    -- Currently, only 8-bit and 16-bit are admitted.
-    --    8-bit coding is usual: TrueColor, PC graphics, etc.;
-    --   16-bit coding is seen in some high-end apps/devices/formats.
+    --  Coding of primary colors (red, green or blue)
+    --     and of opacity (also known as alpha channel), on the target "device".
+    --  Currently, only 8-bit and 16-bit are admitted.
+    --      8-bit coding is usual: TrueColor, PC graphics, etc.;
+    --     16-bit coding is seen in some high-end apps/devices/formats.
     --
     with procedure Set_X_Y (x, y: Natural);
-    -- After Set_X_Y, next pixel is meant to be displayed at position (x,y)
+    --  After Set_X_Y, next pixel is meant to be displayed at position (x,y)
     with procedure Put_Pixel (
       red, green, blue : Primary_color_range;
       alpha            : Primary_color_range
     );
-    -- When Put_Pixel is called twice without a Set_X_Y inbetween,
-    -- the pixel must be displayed on the next X position after the last one.
-    -- [ Rationale: if the image lands into an array with contiguous pixels
-    --   on the X axis, this approach allows full address calculation to be
-    --   made only at the beginning of each row, which is much faster ]
+    --  When Put_Pixel is called twice without a Set_X_Y inbetween,
+    --  the pixel must be displayed on the next X position after the last one.
+    --  [ Rationale: if the image lands into an array with contiguous pixels
+    --    on the X axis, this approach allows full address calculation to be
+    --    made only at the beginning of each row, which is much faster ]
     --
     with procedure Feedback (percents: Natural);
     --
@@ -130,8 +130,8 @@ package GID is
   procedure Load_image_contents (
     image     : in out Image_descriptor;
     next_frame:    out Ada.Calendar.Day_Duration
-      -- ^ animation: real time lapse foreseen between the first image
-      -- and the image right after this one; 0.0 if no next frame
+      --  ^ animation: real time lapse foreseen between the first image
+      --  and the image right after this one; 0.0 if no next frame
   );
 
   -------------------------------------------------------------------
@@ -145,9 +145,9 @@ package GID is
 
   function Format (image: Image_descriptor) return Image_format_type;
   function Detailed_format (image: Image_descriptor) return String;
-  -- example: "GIF89a, interlaced"
+  --  example: "GIF89a, interlaced"
   function Subformat (image: Image_descriptor) return Integer;
-  -- example the 'color type' in PNG
+  --  example the 'color type' in PNG
 
   function Bits_per_pixel (image: Image_descriptor) return Positive;
   function RLE_encoded (image: Image_descriptor) return Boolean;
@@ -187,9 +187,9 @@ private
   type p_Color_table is access Color_table;
 
   min_bits: constant:= Integer'Max(32, System.Word_Size);
-  -- 13.3(8): A word is the largest amount of storage that can be
-  -- conveniently and efficiently manipulated by the hardware,
-  -- given the implementation's run-time model.
+  --  13.3(8): A word is the largest amount of storage that can be
+  --  conveniently and efficiently manipulated by the hardware,
+  --  given the implementation's run-time model.
 
   type Integer_M32 is range -2**(min_bits-1) .. 2**(min_bits-1) - 1;
   --  We define an Integer type which is at least 32 bits, but n bits
@@ -208,10 +208,10 @@ private
     MaxInBufIdx: Natural := 0; --  Count of valid chars in input buffer
     InputEoF   : Boolean;      --  End of file indicator
   end record;
-  -- Initial values ensure call to Fill_Buffer on first Get_Byte
+  --  Initial values ensure call to Fill_Buffer on first Get_Byte
 
-  -- JPEG may store data _before_ any image header (SOF), then we have
-  -- to make the image descriptor store that information, alas...
+  --  JPEG may store data _before_ any image header (SOF), then we have
+  --  to make the image descriptor store that information, alas...
 
   package JPEG_defs is
 
@@ -300,13 +300,13 @@ private
   overriding procedure Finalize (Object : in out Image_descriptor);
 
   to_be_done: exception;
-  -- this exception should not happen, even with malformed files
-  -- its role is to pop up when a feature is set as implemented
-  -- but one aspect (e.g. palette) was forgotten.
+  --  this exception should not happen, even with malformed files
+  --  its role is to pop up when a feature is set as implemented
+  --  but one aspect (e.g. palette) was forgotten.
 
   --
-  -- Primitive tracing using Ada.Text_IO, for debugging,
-  -- or explaining internals.
+  --  Primitive tracing using Ada.Text_IO, for debugging,
+  --  or explaining internals.
   --
   type Trace_type is (
     none,   -- No trace at all, no use of console from the library

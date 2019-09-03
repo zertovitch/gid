@@ -1,18 +1,18 @@
--- A PNG stream is made of several "chunks" (see type PNG_Chunk_tag).
--- The image itself is contained in the IDAT chunk(s).
+--  A PNG stream is made of several "chunks" (see type PNG_Chunk_tag).
+--  The image itself is contained in the IDAT chunk(s).
 --
--- Steps for decoding an image (step numbers are from the ISO standard):
+--  Steps for decoding an image (step numbers are from the ISO standard):
 --
--- 10: Inflate deflated data; at each output buffer (slide),
---       process with step 9.
---  9: Read filter code (row begin), or unfilter bytes, go with step 8
---  8: Display pixels these bytes represent;
---       eventually, locate the interlaced image current point
+--  10: Inflate deflated data; at each output buffer (slide),
+--        process with step 9.
+--   9: Read filter code (row begin), or unfilter bytes, go with step 8
+--   8: Display pixels these bytes represent;
+--        eventually, locate the interlaced image current point
 --
--- Reference: Portable Network Graphics (PNG) Specification (Second Edition)
--- ISO/IEC 15948:2003 (E)
--- W3C Recommendation 10 November 2003
--- http://www.w3.org/TR/PNG/
+--  Reference: Portable Network Graphics (PNG) Specification (Second Edition)
+--  ISO/IEC 15948:2003 (E)
+--  W3C Recommendation 10 November 2003
+--  http://www.w3.org/TR/PNG/
 --
 with GID.Buffering, GID.Decoding_PNG.Huffman;
 
@@ -93,7 +93,7 @@ package body GID.Decoding_PNG is
     CRC32_Table : array( Unsigned_32'(0)..255 ) of Unsigned_32;
 
     procedure Prepare_table is
-      -- CRC-32 algorithm, ISO-3309
+      --  CRC-32 algorithm, ISO-3309
       Seed: constant:= 16#EDB88320#;
       l: Unsigned_32;
     begin
@@ -152,15 +152,15 @@ package body GID.Decoding_PNG is
     ----------------------
 
     generic
-      -- These values are invariant through the whole picture,
-      -- so we can make them generic parameters. As a result, all
-      -- "if", "case", etc. using them at the center of the decoding
-      -- are optimized out at compile-time.
+      --  These values are invariant through the whole picture,
+      --  so we can make them generic parameters. As a result, all
+      --  "if", "case", etc. using them at the center of the decoding
+      --  are optimized out at compile-time.
       interlaced        : Boolean;
       bits_per_pixel    : Positive;
       bytes_to_unfilter : Positive;
-        -- ^ amount of bytes to unfilter at a time
-        -- = Integer'Max(1, bits_per_pixel / 8);
+        --  ^ amount of bytes to unfilter at a time
+        --  = Integer'Max(1, bits_per_pixel / 8);
       subformat_id      : Natural;
     procedure Load_specialized;
     --
@@ -171,13 +171,13 @@ package body GID.Decoding_PNG is
       subtype Mem_row_bytes_array is Byte_array (0 .. Integer (image.width) * 8);
       --
       mem_row_bytes: array(0..1) of Mem_row_bytes_array;
-      -- We need to memorize two image rows, for un-filtering
+      --  We need to memorize two image rows, for un-filtering
       curr_row: Natural:= 1;
-      -- either current is 1 and old is 0, or the reverse
+      --  either current is 1 and old is 0, or the reverse
 
       subtype X_range is Integer range -1 .. Integer (image.width)  - 1;
       subtype Y_range is Integer range  0 .. Integer (image.height) - 1;
-      -- X position -1 is for the row's filter methode code
+      --  X position -1 is for the row's filter methode code
 
       x: X_range:= X_range'First;
       y: Y_range:= Y_range'First;
@@ -190,7 +190,7 @@ package body GID.Decoding_PNG is
       --------------------------
       -- ** 9: Unfiltering ** --
       --------------------------
-      -- http://www.w3.org/TR/PNG/#9Filters
+      --  http://www.w3.org/TR/PNG/#9Filters
 
       type Filter_method_0 is (None, Sub, Up, Average, Paeth);
 
@@ -202,10 +202,10 @@ package body GID.Decoding_PNG is
       )
       is
       pragma Inline(Unfilter_bytes);
-        -- Byte positions (f is the byte to be unfiltered):
+        --  Byte positions (f is the byte to be unfiltered):
         --
-        -- c b
-        -- a f
+        --  c b
+        --  a f
         a,b,c, p,pa,pb,pc,pr: Integer;
         j: Integer:= 0;
       begin
@@ -219,15 +219,15 @@ package body GID.Decoding_PNG is
           );
         end if;
         --
-        -- !! find a way to have f99n0g04.png decoded correctly...
-        --    seems a filter issue.
+        --  !! find a way to have f99n0g04.png decoded correctly...
+        --     seems a filter issue.
         --
         case current_filter is
           when None    =>
-            -- Recon(x) = Filt(x)
+            --  Recon(x) = Filt(x)
             u:= f;
           when Sub     =>
-            -- Recon(x) = Filt(x) + Recon(a)
+            --  Recon(x) = Filt(x) + Recon(a)
             if x > 0 then
               for i in f'Range loop
                 u(u'First+j):= f(i) + mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j);
@@ -237,7 +237,7 @@ package body GID.Decoding_PNG is
               u:= f;
             end if;
           when Up      =>
-            -- Recon(x) = Filt(x) + Recon(b)
+            --  Recon(x) = Filt(x) + Recon(b)
             if y > 0 then
               for i in f'Range loop
                 u(u'First+j):= f(i) + mem_row_bytes(1-curr_row)(x*bytes_to_unfilter+j);
@@ -247,7 +247,7 @@ package body GID.Decoding_PNG is
               u:= f;
             end if;
           when Average =>
-            -- Recon(x) = Filt(x) + floor((Recon(a) + Recon(b)) / 2)
+            --  Recon(x) = Filt(x) + floor((Recon(a) + Recon(b)) / 2)
             for i in f'Range loop
               if x > 0 then
                 a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
@@ -263,7 +263,7 @@ package body GID.Decoding_PNG is
               j:= j + 1;
             end loop;
           when Paeth   =>
-            -- Recon(x) = Filt(x) + PaethPredictor(Recon(a), Recon(b), Recon(c))
+            --  Recon(x) = Filt(x) + PaethPredictor(Recon(a), Recon(b), Recon(c))
             for i in f'Range loop
               if x > 0 then
                 a:= Integer(mem_row_bytes(curr_row)((x-1)*bytes_to_unfilter+j));
@@ -310,18 +310,18 @@ package body GID.Decoding_PNG is
       ----------------------------------------------
       -- ** 8: Interlacing and pass extraction ** --
       ----------------------------------------------
-      -- http://www.w3.org/TR/PNG/#8Interlace
+      --  http://www.w3.org/TR/PNG/#8Interlace
 
-      -- Output bytes from decompression
+      --  Output bytes from decompression
       --
       procedure Output_uncompressed(
         data  : in     Byte_array;
         reject:    out Natural
-        -- amount of bytes to be resent here next time,
-        -- in order to have a full multi-byte pixel
+        --  amount of bytes to be resent here next time,
+        --  in order to have a full multi-byte pixel
       )
       is
-        -- Display of pixels coded on 8 bits per channel in the PNG stream
+        --  Display of pixels coded on 8 bits per channel in the PNG stream
         procedure Out_Pixel_8(br, bg, bb, ba: U8) is
         pragma Inline(Out_Pixel_8);
           function Times_257(x: Primary_color_range) return Primary_color_range is
@@ -345,7 +345,7 @@ package body GID.Decoding_PNG is
                 Times_257(Primary_color_range(bg)),
                 Times_257(Primary_color_range(bb)),
                 Times_257(Primary_color_range(ba))
-                -- Times_257 makes max intensity FF go to FFFF
+                --  Times_257 makes max intensity FF go to FFFF
               );
             when others =>
               raise invalid_primary_color_range with "PNG: color range not supported";
@@ -364,7 +364,7 @@ package body GID.Decoding_PNG is
           );
         end Out_Pixel_Palette;
 
-        -- Display of pixels coded on 16 bits per channel in the PNG stream
+        --  Display of pixels coded on 16 bits per channel in the PNG stream
         procedure Out_Pixel_16(br, bg, bb, ba: U16) is
         pragma Inline(Out_Pixel_16);
         begin
@@ -395,7 +395,7 @@ package body GID.Decoding_PNG is
           if x < x_max then
             x:= x + 1;
             if interlaced then
-              -- Position of pixels depending on pass:
+              --  Position of pixels depending on pass:
               --
               --   1 6 4 6 2 6 4 6
               --   7 7 7 7 7 7 7 7
@@ -457,8 +457,8 @@ package body GID.Decoding_PNG is
                     ym:= Integer (image.height) / 2 - 1;
                 end case;
                 if xm >=0 and xm <= X_range'Last and ym in Y_range then
-                  -- This pass is not empty (otherwise, we will continue
-                  -- to the next one, if any).
+                  --  This pass is not empty (otherwise, we will continue
+                  --  to the next one, if any).
                   x_max:= xm;
                   y_max:= ym;
                   exit;
@@ -476,9 +476,9 @@ package body GID.Decoding_PNG is
         if some_trace then
           Ada.Text_IO.Put("[UO]");
         end if;
-        -- Depending on the row size, bpp, etc., we can have
-        -- several rows, or less than one, being displayed
-        -- with the present uncompressed data batch.
+        --  Depending on the row size, bpp, etc., we can have
+        --  several rows, or less than one, being displayed
+        --  with the present uncompressed data batch.
         --
         i:= data'First;
         if i > data'Last then
@@ -486,7 +486,7 @@ package body GID.Decoding_PNG is
           return; -- data is empty, do nothing
         end if;
         --
-        -- Main loop over data
+        --  Main loop over data
         --
         loop
           if x = X_range'First then -- pseudo-column for filter method
@@ -515,12 +515,12 @@ package body GID.Decoding_PNG is
             i:= i + 1;
           else -- normal pixel
             --
-            -- We quit the loop if all data has been used (except for an
-            -- eventual incomplete pixel)
+            --  We quit the loop if all data has been used (except for an
+            --  eventual incomplete pixel)
             exit when i > data'Last - (bytes_to_unfilter - 1);
-            -- NB, for per-channel bpp < 8:
-            -- 7.2 Scanlines - some low-order bits of the
-            -- last byte of a scanline may go unused.
+            --  NB, for per-channel bpp < 8:
+            --  7.2 Scanlines - some low-order bits of the
+            --  last byte of a scanline may go unused.
             case subformat_id is
               when 0 =>
                 -----------------------
@@ -534,13 +534,13 @@ package body GID.Decoding_PNG is
                       b: U8;
                       shift: Integer:= 8 - bits_per_pixel;
                       max: constant U8:= U8(Shift_Left(Unsigned_32'(1), bits_per_pixel)-1);
-                      -- Scaling factor to obtain the correct color value on a 0..255 range.
-                      -- The division is exact in all cases (bpp=8,4,2,1),
-                      -- since 255 = 3 * 5 * 17 and max = 255, 15, 3 or 1.
-                      -- This factor ensures: 0 -> 0, max -> 255
+                      --  Scaling factor to obtain the correct color value on a 0..255 range.
+                      --  The division is exact in all cases (bpp=8,4,2,1),
+                      --  since 255 = 3 * 5 * 17 and max = 255, 15, 3 or 1.
+                      --  This factor ensures: 0 -> 0, max -> 255
                       factor: constant U8:= 255 / max;
                     begin
-                      -- loop through the number of pixels in this byte:
+                      --  loop through the number of pixels in this byte:
                       for k in reverse 1..8/bits_per_pixel loop
                         b:= (max and U8(Shift_Right(Unsigned_8(uf(0)), shift))) * factor;
                         shift:= shift - bits_per_pixel;
@@ -550,14 +550,14 @@ package body GID.Decoding_PNG is
                       end loop;
                     end;
                   when 8 =>
-                    -- NB: with bpp as generic param, this case could be merged
-                    -- into the general 1,2,4[,8] case without loss of performance
-                    -- if the compiler is smart enough to simplify the code, given
-                    -- the value of bits_per_pixel.
-                    -- But we let it here for two reasons:
-                    --   1) a compiler might be not smart enough
-                    --   2) it is a very simple case, perhaps helpful for
-                    --      understanding the algorithm.
+                    --  NB: with bpp as generic param, this case could be merged
+                    --  into the general 1,2,4[,8] case without loss of performance
+                    --  if the compiler is smart enough to simplify the code, given
+                    --  the value of bits_per_pixel.
+                    --  But we let it here for two reasons:
+                    --    1) a compiler might be not smart enough
+                    --    2) it is a very simple case, perhaps helpful for
+                    --       understanding the algorithm.
                     Unfilter_bytes(data(i..i), uf(0..0));
                     i:= i + 1;
                     Out_Pixel_8(uf(0), uf(0), uf(0), 255);
@@ -602,7 +602,7 @@ package body GID.Decoding_PNG is
                       shift: Integer:= 8 - bits_per_pixel;
                       max: constant U8:= U8(Shift_Left(Unsigned_32'(1), bits_per_pixel)-1);
                     begin
-                      -- loop through the number of pixels in this byte:
+                      --  loop through the number of pixels in this byte:
                       for k in reverse 1..8/bits_per_pixel loop
                         Out_Pixel_Palette(max and U8(Shift_Right(Unsigned_8(uf(0)), shift)));
                         shift:= shift - bits_per_pixel;
@@ -611,8 +611,8 @@ package body GID.Decoding_PNG is
                       end loop;
                     end;
                   when 8 =>
-                    -- Same remark for this case (8bpp) as
-                    -- within Image Type 0 / Greyscale above
+                    --  Same remark for this case (8bpp) as
+                    --  within Image Type 0 / Greyscale above
                     Out_Pixel_Palette(uf(0));
                   when others =>
                     null;
@@ -662,7 +662,7 @@ package body GID.Decoding_PNG is
           end if;
           Inc_XY;
         end loop;
-        -- i is between data'Last-(bytes_to_unfilter-2) and data'Last+1
+        --  i is between data'Last-(bytes_to_unfilter-2) and data'Last+1
         reject:= (data'Last + 1) - i;
         if reject > 0 then
           if some_trace then
@@ -673,13 +673,13 @@ package body GID.Decoding_PNG is
 
       ch: Chunk_head;
 
-      -- Out of some intelligent design, there might be an IDAT chunk
-      -- boundary anywhere inside the zlib compressed block...
+      --  Out of some intelligent design, there might be an IDAT chunk
+      --  boundary anywhere inside the zlib compressed block...
       procedure Jump_IDAT is
         dummy: U32;
       begin
         Big_endian(image.buffer, dummy); -- ending chunk's CRC
-        -- New chunk begins here.
+        --  New chunk begins here.
         loop
           Read(image, ch);
           exit when ch.kind /= IDAT or ch.length > 0;
@@ -693,7 +693,7 @@ package body GID.Decoding_PNG is
       -- ** 10: Decompression **                                         --
       -- Excerpt and simplification from UnZip.Decompress (Inflate only) --
       ---------------------------------------------------------------------
-      -- http://www.w3.org/TR/PNG/#10Compression
+      --  http://www.w3.org/TR/PNG/#10Compression
 
       --  Size of sliding dictionary and circular output buffer
       wsize: constant:= 16#10000#;
@@ -703,8 +703,8 @@ package body GID.Decoding_PNG is
       --------------------------------------
 
       package UnZ_Glob is
-        -- I/O Buffers
-        -- > Sliding dictionary for unzipping, and output buffer as well
+        --  I/O Buffers
+        --  > Sliding dictionary for unzipping, and output buffer as well
         slide: Byte_array( 0..wsize );
         slide_index: Integer:= 0; -- Current Position in slide
         Zip_EOF  : constant Boolean:= False;
@@ -720,12 +720,12 @@ package body GID.Decoding_PNG is
 
         package Bit_buffer is
           procedure Init;
-          -- Read at least n bits into the bit buffer, returns the n first bits
+          --  Read at least n bits into the bit buffer, returns the n first bits
           function Read ( n: Natural ) return Integer;
             pragma Inline(Read);
           function Read_U32 ( n: Natural ) return Unsigned_32;
             pragma Inline(Read_U32);
-          -- Dump n bits no longer needed from the bit buffer
+          --  Dump n bits no longer needed from the bit buffer
           procedure Dump ( n: Natural );
             pragma Inline(Dump);
           procedure Dump_to_byte_boundary;
@@ -767,12 +767,11 @@ package body GID.Decoding_PNG is
         procedure Read_raw_byte ( bt : out U8 ) is
         begin
           if ch.length = 0 then
-            -- We hit the end of a PNG 'IDAT' chunk, so we go to the next one
-            -- - in petto, it's strange design, but well...
-            -- This "feature" has taken some time (and nerves) to be addressed.
-            -- Incidentally, I have reprogrammed the whole Huffman
-            -- decoding, and looked at many other wrong places to solve
-            -- the mystery.
+            --  We hit the end of a PNG 'IDAT' chunk, so we go to the next one
+            --  - in petto, it's strange design, but well...
+            --  This "feature" has taken some time (and nerves) to be addressed.
+            --  Incidentally, to solve the mystery, I have reprogrammed the
+            --  whole Huffman decoding, and looked at many other wrong places!
             Jump_IDAT;
           end if;
           Buffering.Get_Byte(image.buffer, bt);
@@ -841,7 +840,7 @@ package body GID.Decoding_PNG is
         end Bit_buffer;
 
         old_bytes: Natural:= 0;
-        -- how many bytes to be resent from last Inflate output
+        --  how many bytes to be resent from last Inflate output
         byte_mem: Byte_array(1..8);
 
         procedure Flush ( x: Natural ) is
@@ -856,8 +855,8 @@ package body GID.Decoding_PNG is
                 byte_mem(1..old_bytes) & UnZ_Glob.slide(0..x-1);
             begin
               Output_uncompressed(app, old_bytes);
-              -- In extreme cases (x very small), we might have some of
-              -- the rejected bytes from byte_mem.
+              --  In extreme cases (x very small), we might have some of
+              --  the rejected bytes from byte_mem.
               if old_bytes > 0 then
                 byte_mem(1..old_bytes):= app(app'Last-(old_bytes-1)..app'Last);
               end if;
@@ -885,7 +884,7 @@ package body GID.Decoding_PNG is
         -- Reproduction of sequences in the output slide. --
         ----------------------------------------------------
 
-        -- Internal:
+        --  Internal:
 
         procedure Adjust_to_Slide(
             source         : in out Integer;
@@ -896,27 +895,27 @@ package body GID.Decoding_PNG is
           pragma Inline(Adjust_to_Slide);
         begin
           source:= source mod wsize;
-          -- source and index are now in 0..WSize-1
+          --  source and index are now in 0..WSize-1
           if  source > index then
             part:= wsize-source;
           else
             part:= wsize-index;
           end if;
-          -- NB: part is in 1..WSize (part cannot be 0)
+          --  NB: part is in 1..WSize (part cannot be 0)
           if part > remain then
             part:= remain;
           end if;
-          -- Now part <= remain
+          --  Now part <= remain
           remain:= remain - part;
-          -- NB: remain cannot be < 0
+          --  NB: remain cannot be < 0
         end Adjust_to_Slide;
 
         procedure Copy_range(source, index: in out Natural; amount: Positive) is
           pragma Inline(Copy_range);
         begin
           if abs (index - source) < amount then
-            -- if source >= index, the effect of copy is
-            -- just like the non-overlapping case
+            --  if source >= index, the effect of copy is
+            --  just like the non-overlapping case
             for count in reverse 1..amount loop
               UnZ_Glob.slide(index):= UnZ_Glob.slide(source);
               index := index  + 1;
@@ -930,7 +929,7 @@ package body GID.Decoding_PNG is
           end if;
         end Copy_range;
 
-        -- The copying routines:
+        --  The copying routines:
 
         procedure Copy(
             distance, length:        Natural;
@@ -962,13 +961,13 @@ package body GID.Decoding_PNG is
           length : Natural;
           E      : Integer;      -- table entry flag/number of extra bits
           W      : Integer:= UnZ_Glob.slide_index;
-          -- more local variable for slide index
+          --  more local variable for slide index
         begin
           if full_trace then
             Ada.Text_IO.Put_Line("Begin Inflate_codes");
           end if;
 
-          -- inflate the coded data
+          --  inflate the coded data
           main_loop:
           while not UnZ_Glob.Zip_EOF loop
             CT:= Tl.table;
@@ -981,7 +980,7 @@ package body GID.Decoding_PNG is
                 raise error_in_image_data with "PNG: invalid code in Deflate compression";
               end if;
 
-              -- then it's a literal
+              --  then it's a literal
               UnZ_IO.Bit_buffer.Dump( CT(CT_idx).bits );
               E:= E - 16;
               CT:= CT(CT_idx).next_table;
@@ -1004,10 +1003,10 @@ package body GID.Decoding_PNG is
 
               when others => -- We have a length/distance
 
-                -- Get length of block to copy:
+                --  Get length of block to copy:
                 length:= CT(CT_idx).n + UnZ_IO.Bit_buffer.Read_and_dump(E);
 
-                -- Decode distance of block to copy:
+                --  Decode distance of block to copy:
                 CT:= Td.table;
                 CT_idx := UnZ_IO.Bit_buffer.Read(Bd);
                 loop
@@ -1047,7 +1046,7 @@ package body GID.Decoding_PNG is
           end if;
           UnZ_IO.Bit_buffer.Dump_to_byte_boundary;
 
-          -- Get the block length and its complement
+          --  Get the block length and its complement
           N:= UnZ_IO.Bit_buffer.Read_and_dump( 16 );
           if  N /= Integer(
            (not UnZ_IO.Bit_buffer.Read_and_dump_U32(16))
@@ -1056,7 +1055,7 @@ package body GID.Decoding_PNG is
             raise error_in_image_data with "PNG: invalid check code in Deflate stored block";
           end if;
           while N > 0  and then not UnZ_Glob.Zip_EOF loop
-            -- Read and output the non-compressed data
+            --  Read and output the non-compressed data
             N:= N - 1;
             UnZ_Glob.slide ( UnZ_Glob.slide_index ) :=
               U8( UnZ_IO.Bit_buffer.Read_and_dump(8) );
@@ -1068,26 +1067,26 @@ package body GID.Decoding_PNG is
           end if;
         end Inflate_stored_block;
 
-        -- Copy lengths for literal codes 257..285
+        --  Copy lengths for literal codes 257..285
 
         copy_lengths_literal : Length_array( 0..30 ) :=
              (  3,  4,  5,  6,  7,  8,  9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
                35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0 );
 
-        -- Extra bits for literal codes 257..285
+        --  Extra bits for literal codes 257..285
 
         extra_bits_literal : Length_array( 0..30 ) :=
                ( 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
                  3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, invalid, invalid );
 
-        -- Copy offsets for distance codes 0..29 (30..31: deflate_e)
+        --  Copy offsets for distance codes 0..29 (30..31: deflate_e)
 
         copy_offset_distance : constant Length_array( 0..31 ) :=
              ( 1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193,
                257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145,
                8193, 12289, 16385, 24577, 32769, 49153 );
 
-        -- Extra bits for distance codes
+        --  Extra bits for distance codes
 
         extra_bits_distance : constant Length_array( 0..31 ) :=
              ( 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6,
@@ -1101,7 +1100,7 @@ package body GID.Decoding_PNG is
           Bl, Bd : Integer;          -- lookup bits for tl/bd
           huft_incomplete : Boolean;
 
-          -- length list for HufT_build (literal table)
+          --  length list for HufT_build (literal table)
           L: constant Length_array( 0..287 ):=
             ( 0..143=> 8, 144..255=> 9, 256..279=> 7, 280..287=> 8);
 
@@ -1110,14 +1109,14 @@ package body GID.Decoding_PNG is
             Ada.Text_IO.Put_Line("Begin Inflate_fixed_block");
           end if;
 
-          -- make a complete, but wrong code set
+          --  make a complete, but wrong code set
           Bl := 7;
           HufT_build(
             L, 257, copy_lengths_literal, extra_bits_literal,
             Tl, Bl, huft_incomplete
           );
 
-          -- Make an incomplete code set
+          --  Make an incomplete code set
           Bd := 5;
           begin
             HufT_build(
@@ -1170,7 +1169,7 @@ package body GID.Decoding_PNG is
           Nl : Natural;  -- number of literal length codes
           Nd : Natural;  -- number of distance codes
 
-          -- literal/length and distance code lengths
+          --  literal/length and distance code lengths
           Ll: Length_array( 0 .. 288+32-1 ):= (others=> 0);
 
           huft_incomplete : Boolean;
@@ -1192,7 +1191,7 @@ package body GID.Decoding_PNG is
             Ada.Text_IO.Put_Line("Begin Inflate_dynamic_block");
           end if;
 
-          -- Read in table lengths
+          --  Read in table lengths
           Nl := 257 + UnZ_IO.Bit_buffer.Read_and_dump(5);
           Nd :=   1 + UnZ_IO.Bit_buffer.Read_and_dump(5);
           Nb :=   4 + UnZ_IO.Bit_buffer.Read_and_dump(4);
@@ -1202,13 +1201,13 @@ package body GID.Decoding_PNG is
                 with "PNG: invalid data in Deflate dynamic compression structure (#2)";
           end if;
 
-          -- Read in bit-length-code lengths.
-          -- The rest, Ll( Bit_Order( Nb .. 18 ) ), is already = 0
+          --  Read in bit-length-code lengths.
+          --  The rest, Ll( Bit_Order( Nb .. 18 ) ), is already = 0
           for J in  0 .. Nb - 1  loop
             Ll ( bit_order( J ) ) := Natural_M32(UnZ_IO.Bit_buffer.Read_and_dump(3));
           end loop;
 
-          -- Build decoding table for trees--single level, 7 bit lookup
+          --  Build decoding table for trees--single level, 7 bit lookup
           Bl := 7;
           begin
             HufT_build (
@@ -1225,7 +1224,7 @@ package body GID.Decoding_PNG is
                 with "PNG: error in Deflate compression (Huffman #3)";
           end;
 
-          -- Read in literal and distance code lengths
+          --  Read in literal and distance code lengths
           number_of_lengths := Nl + Nd;
           defined := 0;
           current_length := 0;
@@ -1264,7 +1263,7 @@ package body GID.Decoding_PNG is
 
           HufT_free ( Tl );        -- free decoding table for trees
 
-          -- Build the decoding tables for literal/length codes
+          --  Build the decoding tables for literal/length codes
           Bl := Lbits;
           begin
             HufT_build (
@@ -1283,7 +1282,7 @@ package body GID.Decoding_PNG is
                 with "PNG: error in Deflate compression (Huffman #5)";
           end;
 
-          -- Build the decoding tables for distance codes
+          --  Build the decoding tables for distance codes
           Bd := Dbits;
           begin
             HufT_build (
@@ -1303,7 +1302,7 @@ package body GID.Decoding_PNG is
                 with "PNG: error in Deflate compression (Huffman #6)";
           end;
 
-          -- Decompress until an end-of-block code
+          --  Decompress until an end-of-block code
 
           Inflate_Codes ( Tl, Td, Bl, Bd );
           HufT_free ( Tl );
@@ -1360,8 +1359,8 @@ package body GID.Decoding_PNG is
 
     begin -- Load_specialized
       --
-      -- For optimization reasons, bytes_to_unfilter is passed as a
-      -- generic parameter but should be always as below right to "/=" :
+      --  For optimization reasons, bytes_to_unfilter is passed as a
+      --  generic parameter but should be always as below right to "/=" :
       --
       if bytes_to_unfilter /= Integer'Max(1, bits_per_pixel / 8) then
         raise Program_Error;
@@ -1384,16 +1383,16 @@ package body GID.Decoding_PNG is
             exit main_chunk_loop;
           when IDAT => -- 11.2.4 IDAT Image data
             --
-            -- NB: the compressed data may hold on several IDAT chunks.
-            -- It means that right in the middle of compressed data, you
-            -- can have a chunk crc, and a new IDAT header!...
+            --  NB: the compressed data may hold on several IDAT chunks.
+            --  It means that right in the middle of compressed data, you
+            --  can have a chunk crc, and a new IDAT header!...
             --
             UnZ_IO.Read_raw_byte(b); -- zlib compression method/flags code
             UnZ_IO.Read_raw_byte(b); -- Additional flags/check bits
             --
             UnZ_IO.Init_Buffers;
-            -- ^ we indicate that we have a byte reserve of chunk's length,
-            --   minus both zlib header bytes.
+            --  ^ we indicate that we have a byte reserve of chunk's length,
+            --    minus both zlib header bytes.
             UnZ_Meth.Inflate;
             z_crc:= 0;
             for i in 1..4 loop
@@ -1401,13 +1400,13 @@ package body GID.Decoding_PNG is
                 UnZ_IO.Read_raw_byte(b);
               exception
                 when error_in_image_data =>
-                  -- vicious IEND at the wrong place
-                  -- basi4a08.png test image (corrupt imho)
+                  --  vicious IEND at the wrong place
+                  --  basi4a08.png test image (corrupt, imho)
                   exit main_chunk_loop;
               end;
               z_crc:= z_crc * 256 + U32(b);
             end loop;
-            -- z_crc : zlib Check value
+            --  z_crc : zlib Check value
             --  if z_crc /= U32(UnZ_Glob.crc32val) then
             --    ada.text_io.put(z_crc 'img &  UnZ_Glob.crc32val'img);
             --    raise
@@ -1417,7 +1416,7 @@ package body GID.Decoding_PNG is
             --  ** Mystery: this check fails even with images which decompress perfectly
             --  ** Is CRC init value different between zip and zlib ? Is it Adler32 ?
             Big_endian(image.buffer, dummy); -- chunk's CRC
-            -- last IDAT chunk's CRC (then, on compressed data)
+            --  last IDAT chunk's CRC (then, on compressed data)
             --
           when tEXt => -- 11.3.4.3 tEXt Textual data
             for i in 1..ch.length loop
@@ -1432,7 +1431,7 @@ package body GID.Decoding_PNG is
             end loop;
             Big_endian(image.buffer, dummy); -- chunk's CRC
           when others =>
-            -- Skip chunk data and CRC
+            --  Skip chunk data and CRC
             for i in 1..ch.length + 4 loop
               Get_Byte(image.buffer, b);
             end loop;
@@ -1450,11 +1449,11 @@ package body GID.Decoding_PNG is
       Feedback(100);
     end Load_specialized;
 
-    -- Instances of Load_specialized, with hard-coded parameters.
-    -- They may take an insane amount of time to compile, and bloat the
-    -- .o code , but are significantly faster since they make the
-    -- compiler skip corresponding tests at pixel level.
-    -- These instances are for most current PNG sub-formats.
+    --  Instances of Load_specialized, with hard-coded parameters.
+    --  They may take an insane amount of time to compile, and bloat the
+    --  .o code , but are significantly faster since they make the
+    --  compiler skip corresponding tests at pixel level.
+    --  These instances are for most current PNG sub-formats.
 
     procedure Load_interlaced_1pal is new Load_specialized(True,  1, 1, 3);
     procedure Load_interlaced_2pal is new Load_specialized(True,  2, 1 ,3);
@@ -1470,9 +1469,9 @@ package body GID.Decoding_PNG is
     procedure Load_straight_24   is new Load_specialized(False, 24, 3, 2);
     procedure Load_straight_32   is new Load_specialized(False, 32, 4, 6);
     --
-    -- For unusual sub-formats, we prefer to fall back to the
-    -- slightly slower, general version, where parameters values
-    -- are not known at compile-time:
+    --  For unusual sub-formats, we prefer to fall back to the
+    --  slightly slower, general version, where parameters values
+    --  are not known at compile-time:
     --
     procedure Load_general is new
       Load_specialized(
@@ -1484,8 +1483,8 @@ package body GID.Decoding_PNG is
 
   begin -- Load
     --
-    -- All these case tests are better done at the picture
-    -- level than at the pixel level.
+    --  All these case tests are better done at the picture
+    --  level than at the pixel level.
     --
     case image.subformat_id is
       when 2 => -- RGB

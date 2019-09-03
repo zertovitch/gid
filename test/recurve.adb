@@ -83,7 +83,7 @@ procedure Recurve is
   type p_Bitmap is access Bitmap;
   procedure Dispose is new Ada.Unchecked_Deallocation(Bitmap, p_Bitmap);
 
-  -- Load image
+  --  Load image
   procedure Load_raw_image(
     image : in out GID.Image_descriptor;
     bmp   : in out p_Bitmap;
@@ -115,7 +115,7 @@ procedure Recurve is
          Real(blue)  / 255.0
         );
       pos_x:= pos_x + 1;
-      -- ^ GID requires us to look to next pixel on the right for next time.
+      --  ^ GID requires us to look to next pixel on the right for next time.
     end Put_Pixel;
     --
     stars: Natural:= 0;
@@ -327,7 +327,7 @@ procedure Recurve is
           if (not grid_hor(y)) and then Grey(color0) < thres_curve and then not done(x0,y) then
             if y > 0 and then done(x0,y-1) and then Dist2(bmp(x0,y-1), color0) < thres_simil_start_2 then
               done(x0,y):= True;  --  Actually the same, fat curve as one pixel above
-            --elsif x0 > 0 and then done(x0-1,y) and then Dist2(bmp(x0-1,y), color0) < thres_simil_start_2 then
+            --  elsif x0 > 0 and then done(x0-1,y) and then Dist2(bmp(x0-1,y), color0) < thres_simil_start_2 then
             --  done(x0,y):= True;  --  Actually the same curve as one pixel left
             else
               Put_Line("curve: " & Integer'Image(x0) & Integer'Image(y));
@@ -387,7 +387,7 @@ procedure Recurve is
     next_frame: Ada.Calendar.Day_Duration:= 0.0;
   begin
     --
-    -- Load the image in its original format
+    --  Load the image in its original format
     --
     Open(f, In_File, file_name);
     Put_Line(Standard_Error, "Processing " & file_name & "...");

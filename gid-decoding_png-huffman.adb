@@ -35,7 +35,7 @@ package body GID.Decoding_PNG.Huffman is
     t.last:= alloc;
   end Build;
 
-  -- Free huffman tables starting with table where t points to
+  --  Free huffman tables starting with table where t points to
 
   procedure HufT_free ( tl: in out p_Table_list ) is
 
@@ -70,7 +70,7 @@ package body GID.Decoding_PNG.Huffman is
     end if;
   end HufT_free;
 
-  -- Build huffman table from code lengths given by array b
+  --  Build huffman table from code lengths given by array b
 
   procedure HufT_build ( b    : Length_array;
                          s    : Integer;
@@ -82,7 +82,7 @@ package body GID.Decoding_PNG.Huffman is
     b_max  : constant:= 16;
     b_maxp1: constant:= b_max + 1;
 
-    -- bit length count table
+    --  bit length count table
     count : array( 0 .. b_maxp1 ) of Integer:= (others=> 0);
 
     f   : Integer;                    -- i repeats in table every f entries
@@ -102,7 +102,7 @@ package body GID.Decoding_PNG.Huffman is
     u : array( 0..b_max ) of p_HufT_table;   -- table stack
 
     n_max : constant:= 288;
-    -- values in order of bit length
+    --  values in order of bit length
     v : array( 0..n_max ) of Integer:= (others=> 0);
     el_v, el_v_m_s: Integer;
 
@@ -112,7 +112,7 @@ package body GID.Decoding_PNG.Huffman is
 
     table_level : Integer:= -1;
     bits : array( Integer'(-1)..b_maxp1 ) of Integer;
-    -- ^bits(table_level) = # bits in table of level table_level
+    --  ^bits(table_level) = # bits in table of level table_level
 
     y  : Integer;                     -- number of dummy codes added
     z  : Natural:= 0;                 -- number of entries in current table
@@ -132,11 +132,11 @@ package body GID.Decoding_PNG.Huffman is
       el := b_max;
     end if;
 
-    -- Generate counts for each bit length
+    --  Generate counts for each bit length
 
     for k in b'Range loop
       if b(k) > b_max then
-        -- m := 0; -- GNAT 2005 doesn't like it (warning).
+        --  m := 0; -- GNAT 2005 doesn't like it (warning).
         raise huft_error;
       end if;
       count( Natural(b(k)) ):= count( Natural(b(k)) ) + 1;
@@ -148,7 +148,7 @@ package body GID.Decoding_PNG.Huffman is
       return; -- complete
     end if;
 
-    -- Find minimum and maximum length, bound m by those
+    --  Find minimum and maximum length, bound m by those
 
     j := 1;
     while j <= b_max and then count(j) = 0 loop
@@ -167,7 +167,7 @@ package body GID.Decoding_PNG.Huffman is
       m := i;
     end if;
 
-    -- Adjust last length count to fill out codes, if needed
+    --  Adjust last length count to fill out codes, if needed
 
     y := Integer( Shift_Left(Unsigned_32'(1), j) ); -- y:= 2 ** j;
     while j < i loop
@@ -185,7 +185,7 @@ package body GID.Decoding_PNG.Huffman is
     end if;
     count(i):= count(i) + y;
 
-    -- Generate starting offsets into the value table for each length
+    --  Generate starting offsets into the value table for each length
 
     offset(1) := 0;
     j:= 0;
@@ -194,7 +194,7 @@ package body GID.Decoding_PNG.Huffman is
       offset( idx ) := j;
     end loop;
 
-    -- Make table of values in order of bit length
+    --  Make table of values in order of bit length
 
     for idx in b'Range loop
       j := Natural(b(idx));
@@ -204,19 +204,19 @@ package body GID.Decoding_PNG.Huffman is
       end if;
     end loop;
 
-    -- Generate huffman codes and for each, make the table entries
+    --  Generate huffman codes and for each, make the table entries
 
     code_stack(0) := 0;
     i := 0;
     v_idx:= v'First;
     bits(-1) := 0;
 
-    -- go through the bit lengths (kcc already is bits in shortest code)
+    --  go through the bit lengths (kcc already is bits in shortest code)
     for k in kcc .. g loop
 
       for am1 in reverse 0 .. count(k)-1 loop -- a counts codes of length k
 
-        -- here i is the huffman code of length k bits for value v(v_idx)
+        --  here i is the huffman code of length k bits for value v(v_idx)
         while k > w + bits(table_level) loop
 
           w:= w + bits(table_level);    -- Length of tables to this position
@@ -249,7 +249,7 @@ package body GID.Decoding_PNG.Huffman is
           z:= Integer(Shift_Left(Unsigned_32'(1), j)); -- z:= 2 ** j;
           bits(table_level) := j;
 
-          -- Allocate and link new table
+          --  Allocate and link new table
 
           begin
             current_table_ptr := new HufT_table ( 0..z );
@@ -269,7 +269,7 @@ package body GID.Decoding_PNG.Huffman is
 
           u( table_level ):= current_table_ptr;
 
-          -- Connect to last table, if there is one
+          --  Connect to last table, if there is one
 
           if table_level > 0 then
             code_stack(table_level) := i;
@@ -283,7 +283,7 @@ package body GID.Decoding_PNG.Huffman is
                 w - bits(table_level-1) )
               );
 
-            -- Test against bad input!
+            --  Test against bad input!
 
             if j > u( table_level - 1 )'Last then
               raise huft_error;
@@ -293,7 +293,7 @@ package body GID.Decoding_PNG.Huffman is
 
         end loop;
 
-        -- Set up table entry in new_entry
+        --  Set up table entry in new_entry
 
         new_entry.bits      := k - w;
         new_entry.next_table:= null;   -- Unused
@@ -320,25 +320,25 @@ package body GID.Decoding_PNG.Huffman is
           v_idx:= v_idx + 1;
         end if;
 
-        -- fill code-like entries with new_entry
+        --  fill code-like entries with new_entry
         f := Integer( Shift_Left( Unsigned_32'(1) , k - w ));
-        -- i.e. f := 2 ** (k-w);
+        --  i.e. f := 2 ** (k-w);
         j := Integer( Shift_Right( Unsigned_32(i), w ) );
         while j < z loop
           current_table_ptr(j) := new_entry;
           j:= j + f;
         end loop;
 
-        -- backwards increment the k-bit code i
+        --  backwards increment the k-bit code i
         j := Integer( Shift_Left( Unsigned_32'(1) , k - 1 ));
-        -- i.e.: j:= 2 ** (k-1)
+        --  i.e.: j:= 2 ** (k-1)
         while ( Unsigned_32(i) and Unsigned_32(j) ) /= 0 loop
           i := Integer( Unsigned_32(i) xor Unsigned_32(j) );
           j :=  j / 2;
         end loop;
         i := Integer( Unsigned_32(i) xor Unsigned_32(j) );
 
-        -- backup over finished tables
+        --  backup over finished tables
         while
           Integer(Unsigned_32(i) and (Shift_Left(1, w)-1)) /=
           code_stack(table_level)

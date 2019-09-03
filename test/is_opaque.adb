@@ -1,8 +1,8 @@
 --
--- Convert any image or animation file to PPM file(s).
+--  Check if an image is opaque (fully non-transparent).
 --
--- Small-size demo for the GID (Generic Image Decoder) package.
--- For a larger example, look for to_bmp.adb .
+--  Small-size demo for the GID (Generic Image Decoder) package.
+--  For a larger example, look for to_bmp.adb .
 --
 
 with GID;
@@ -83,7 +83,7 @@ procedure Is_opaque is
     opaque_frame: Boolean;
   begin
     --
-    -- Load the image in its original format
+    --  Load the image in its original format
     --
     Open(f, In_File, name);
     Put_Line(Current_Error, "Checking " & name & "...");

@@ -45,7 +45,7 @@ package body GID.Decoding_PNM is
             Times_257(Primary_color_range(pix.color.green)),
             Times_257(Primary_color_range(pix.color.blue)),
             Times_257(Primary_color_range(pix.alpha))
-            -- Times_257 makes max intensity FF go to FFFF
+            --  Times_257 makes max intensity FF go to FFFF
           );
         when others =>
           raise invalid_primary_color_range with "PNM: color range not supported";

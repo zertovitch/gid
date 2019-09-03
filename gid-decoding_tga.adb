@@ -136,7 +136,7 @@ package body GID.Decoding_TGA is
             Times_257(Primary_color_range(pix.color.green)),
             Times_257(Primary_color_range(pix.color.blue)),
             Times_257(Primary_color_range(pix.alpha))
-            -- Times_257 makes max intensity FF go to FFFF
+            --  Times_257 makes max intensity FF go to FFFF
           );
         when others =>
           raise invalid_primary_color_range with "TGA: color range not supported";
@@ -226,7 +226,7 @@ package body GID.Decoding_TGA is
     Attach_Stream(image.buffer, image.stream);
     --
     if image.RLE_encoded then
-      -- One format check per row
+      --  One format check per row
       RLE_pixels_remaining:= 0;
       for y in 0 .. Integer (image.height) - 1 loop
         Row_start(y);

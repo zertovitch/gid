@@ -3,8 +3,8 @@ with Ada.IO_Exceptions;
 package body GID.Buffering is
 
   procedure Fill_Buffer(b: in out Input_buffer);
-  -- ^ Spec here to avoid warning by 'Get_Byte' below (GNAT 2009):
-  -- warning: call to subprogram with no separate spec prevents inlining
+  --  ^ Spec here to avoid warning by 'Get_Byte' below (GNAT 2009):
+  --  warning: call to subprogram with no separate spec prevents inlining
 
   procedure Fill_Buffer(b: in out Input_buffer)
   is
@@ -20,7 +20,7 @@ package body GID.Buffering is
       if is_mapping_possible then
         declare
           SE_Buffer_mapped: Stream_Element_Array (1 .. buffer'Length);
-          -- direct mapping: buffer = SE_Buffer_mapped
+          --  direct mapping: buffer = SE_Buffer_mapped
           for SE_Buffer_mapped'Address use buffer'Address;
           pragma Import (Ada, SE_Buffer_mapped);
         begin
@@ -29,7 +29,7 @@ package body GID.Buffering is
       else
         declare
           SE_Buffer: Stream_Element_Array (1 .. buffer'Length);
-          -- need to copy array (slightly slower)
+          --  need to copy array (slightly slower)
         begin
           Read(b.stream.all, SE_Buffer, Last_Read);
           for i in buffer'Range loop
@@ -56,7 +56,7 @@ package body GID.Buffering is
   is
   begin
     b.stream:= stm;
-    -- Fill_Buffer(b) will be performed on first call of Get_Byte
+    --  Fill_Buffer(b) will be performed on first call of Get_Byte
   end Attach_Stream;
 
   function Is_stream_attached(b: Input_buffer) return Boolean is

@@ -1,14 +1,14 @@
 --
--- Convert any image or animation file to BMP file(s).
+--  Convert any image or animation file to BMP file(s).
 --
--- Middle-size test/demo for the GID (Generic Image Decoder) package.
+--  Middle-size test/demo for the GID (Generic Image Decoder) package.
 --
--- Supports:
--- - Transparency (blends transparent or partially opaque areas with a
---     background image, gid.gif, or a fixed, predefined colour)
--- - Display orientation (JPEG EXIF informations from digital cameras)
+--  Supports:
+--  - Transparency (blends transparent or partially opaque areas with a
+--      background image, gid.gif, or a fixed, predefined colour)
+--  - Display orientation (JPEG EXIF informations from digital cameras)
 --
--- For a smaller and simpler example, look for mini.adb .
+--  For a smaller and simpler example, look for mini.adb .
 --
 
 with GID;
@@ -49,7 +49,7 @@ procedure To_BMP is
     New_Line(Standard_Error);
   end Blurb;
 
-  -- Image used as background for displaying images having transparency
+  --  Image used as background for displaying images having transparency
   background_image_name: Unbounded_String:= Null_Unbounded_String;
 
   use Interfaces;
@@ -66,7 +66,7 @@ procedure To_BMP is
 
   generic
     correct_orientation: GID.Orientation;
-  -- Load image into a 24-bit truecolor BGR raw bitmap (for a BMP output)
+  --  Load image into a 24-bit truecolor BGR raw bitmap (for a BMP output)
   procedure Load_raw_image(
     image : in out GID.Image_descriptor;
     buffer: in out p_Byte_Array;
@@ -87,7 +87,7 @@ procedure To_BMP is
       4 * Integer(Float'Ceiling(Float(image_width) * 3.0 / 4.0));
     padded_line_size_y: constant Positive:=
       4 * Integer(Float'Ceiling(Float(image_height) * 3.0 / 4.0));
-    -- (in bytes)
+    --  (in bytes)
     idx: Integer;
     mem_x, mem_y: Natural;
     bkg_padded_line_size: Positive;
@@ -113,7 +113,7 @@ procedure To_BMP is
       mem_y:= y;
     end Set_X_Y;
     --
-    -- No background version of Put_Pixel
+    --  No background version of Put_Pixel
     --
     procedure Put_Pixel_without_bkg (
       red, green, blue : Primary_color_range;
@@ -125,7 +125,7 @@ procedure To_BMP is
       use GID;
     begin
       buffer(idx..idx+2):= (blue, green, red);
-      -- GID requires us to look to next pixel for next time:
+      --  GID requires us to look to next pixel for next time:
       case correct_orientation is
         when Unchanged =>
           idx:= idx + 3;
@@ -138,7 +138,7 @@ procedure To_BMP is
       end case;
     end Put_Pixel_without_bkg;
     --
-    -- Unicolor background version of Put_Pixel
+    --  Unicolor background version of Put_Pixel
     --
     procedure Put_Pixel_with_unicolor_bkg (
       red, green, blue : Primary_color_range;
@@ -158,10 +158,10 @@ procedure To_BMP is
         buffer(idx+2):= Primary_color_range((U16(alpha) * U16(red)   + U16(255-alpha) * u_red  )/255);
       end if;
       idx:= idx + 3;
-      -- ^ GID requires us to look to next pixel on the right for next time.
+      --  ^ GID requires us to look to next pixel on the right for next time.
     end Put_Pixel_with_unicolor_bkg;
     --
-    -- Background image version of Put_Pixel
+    --  Background image version of Put_Pixel
     --
     procedure Put_Pixel_with_image_bkg (
       red, green, blue : Primary_color_range;
@@ -186,7 +186,7 @@ procedure To_BMP is
         buffer(idx+2):= Primary_color_range((U16(alpha) * U16(red)   + U16(255-alpha) * U16(b_red)  )/255);
       end if;
       idx:= idx + 3;
-      -- ^ GID requires us to look to next pixel on the right for next time.
+      --  ^ GID requires us to look to next pixel on the right for next time.
       mem_x:= mem_x + 1;
     end Put_Pixel_with_image_bkg;
 
@@ -200,16 +200,16 @@ procedure To_BMP is
       stars:= so_far;
     end Feedback;
 
-    -- Here, the exciting thing: the instanciation of
-    -- GID.Load_image_contents. In our case, we load the image
-    -- into a 24-bit bitmap (because we provide a Put_Pixel
-    -- that does that with the pixels), but we could do plenty
-    -- of other things instead, like display the image live on a GUI.
+    --  Here, the exciting thing: the instanciation of
+    --  GID.Load_image_contents. In our case, we load the image
+    --  into a 24-bit bitmap (because we provide a Put_Pixel
+    --  that does that with the pixels), but we could do plenty
+    --  of other things instead, like display the image live on a GUI.
 
-    -- More exciting: for tuning performance, we have 3 different
-    -- instances of GID.Load_image_contents (each of them with the full
-    -- decoders for all formats, own specialized generic instances, inlines,
-    -- etc.) depending on the transparency features.
+    --  More exciting: for tuning performance, we have 3 different
+    --  instances of GID.Load_image_contents (each of them with the full
+    --  decoders for all formats, own specialized generic instances, inlines,
+    --  etc.) depending on the transparency features.
 
     procedure BMP24_Load_without_bkg is
       new GID.Load_image_contents(
@@ -292,7 +292,7 @@ procedure To_BMP is
       bfReserved2: Unsigned_16:= 0;
       bfOffBits  : Unsigned_32;
     end record;
-    -- ^ No packing needed
+    --  ^ No packing needed
     BITMAPFILEHEADER_Bytes: constant:= 14;
 
     type BITMAPINFOHEADER is record
@@ -308,7 +308,7 @@ procedure To_BMP is
       biClrUsed      : Unsigned_32:= 0;
       biClrImportant : Unsigned_32:= 0;
     end record;
-    -- ^ No packing needed
+    --  ^ No packing needed
     BITMAPINFOHEADER_Bytes: constant:= 40;
 
     FileInfo  : BITMAPINFOHEADER;
@@ -347,7 +347,7 @@ procedure To_BMP is
     FileHeader.bfSize := FileHeader.bfOffBits + FileInfo.biSizeImage;
 
     Create(f, Out_File, name & ".dib");
-    -- BMP Header, endian-safe:
+    --  BMP Header, endian-safe:
     Write_Intel(FileHeader.bfType);
     Write_Intel(FileHeader.bfSize);
     Write_Intel(FileHeader.bfReserved1);
@@ -365,12 +365,12 @@ procedure To_BMP is
     Write_Intel(FileInfo.biYPelsPerMeter);
     Write_Intel(FileInfo.biClrUsed);
     Write_Intel(FileInfo.biClrImportant);
-    -- BMP raw BGR image:
+    --  BMP raw BGR image:
     declare
-      -- Workaround for the severe xxx'Read xxx'Write performance
-      -- problems in the GNAT and ObjectAda compilers (as in 2009)
-      -- This is possible if and only if Byte = Stream_Element and
-      -- arrays types are both packed the same way.
+      --  Workaround for the severe xxx'Read xxx'Write performance
+      --  problems in the GNAT and ObjectAda compilers (as in 2009)
+      --  This is possible if and only if Byte = Stream_Element and
+      --  arrays types are both packed the same way.
       --
       subtype Size_test_a is Byte_Array(1..19);
       subtype Size_test_b is Ada.Streams.Stream_Element_Array(1..19);
@@ -403,7 +403,7 @@ procedure To_BMP is
     next_frame, current_frame: Ada.Calendar.Day_Duration:= 0.0;
   begin
     --
-    -- Load the image in its original format
+    --  Load the image in its original format
     --
     Open(f, In_File, name);
     Put_Line(Standard_Error, "Processing " & name & "...");
@@ -519,7 +519,7 @@ begin
   Put_Line(Standard_Error, "To_BMP, using GID version " & GID.version & " dated " & GID.reference);
   begin
     Process(default_bkg_name, True, False);
-    -- if success:
+    --  if success:
     background_image_name:= To_Unbounded_String(default_bkg_name);
   exception
     when Ada.Text_IO.Name_Error =>
@@ -538,9 +538,9 @@ begin
           else
             Put_Line(Standard_Error, "Background image is " & opt);
             Process(opt, True, False);
-            -- define this only after processing, otherwise
-            -- a transparent background will try to use
-            -- an undefined background
+            --  define this only after processing, otherwise
+            --  a transparent background will try to use
+            --  an undefined background
             background_image_name:= To_Unbounded_String(opt);
           end if;
         end;

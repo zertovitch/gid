@@ -2,8 +2,8 @@
 -- GID - Generic Image Decoder --
 ---------------------------------
 --
--- Private child of GID, with helpers for identifying
--- image formats and reading header informations.
+--  Private child of GID, with helpers for identifying
+--  image formats and reading header informations.
 --
 
 with GID.Buffering,
@@ -38,7 +38,7 @@ package body GID.Headers is
     procedure Dispose is
       new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
   begin
-    -- Some cleanup
+    --  Some cleanup
     Dispose(image.palette);
     image.next_frame:= 0.0;
     image.display_orientation:= Unchanged;
@@ -70,7 +70,7 @@ package body GID.Headers is
       when 'I' | 'M' =>
         String'Read(image.stream, TIFF_challenge);
         if c = TIFF_challenge(1) then
-          -- TIFF begins either with II (Intel) or MM (Motorola) - TIFF 6.0 Specification p.13
+          --  TIFF begins either with II (Intel) or MM (Motorola) - TIFF 6.0 Specification p.13
           if c = 'I' then
             image.detailed_format:= To_Bounded_String("TIFF, little-endian");
             image.endianess:= little;
@@ -88,7 +88,7 @@ package body GID.Headers is
       when Character'Val(16#FF#) =>
         Character'Read(image.stream, c);
         if c=Character'Val(16#D8#) then
-          -- SOI (Start of Image) segment marker (FFD8)
+          --  SOI (Start of Image) segment marker (FFD8)
           image.detailed_format:= To_Bounded_String("JPEG");
           image.format:= JPEG;
           return;
@@ -121,9 +121,9 @@ package body GID.Headers is
     raise unknown_image_format;
   end Load_signature;
 
-  -- Define reading of unsigned numbers from a byte stream
+  --  Define reading of unsigned numbers from a byte stream
 
-  -- Little-endian
+  --  Little-endian
   generic
     type Number is mod <>;
   procedure Read_Intel_x86_number(
@@ -157,7 +157,7 @@ package body GID.Headers is
   );
     pragma Inline(Read_any_endian_number);
 
-  -- Implementations
+  --  Implementations
 
   procedure Read_Intel_x86_number(
     from : in     Stream_Access;
@@ -218,7 +218,7 @@ package body GID.Headers is
     end case;
   end Read_any_endian_number;
 
-  -- Instantiations
+  --  Instantiations
 
   procedure Read_Intel is new Read_Intel_x86_number( U16 );
   procedure Read_Intel is new Read_Intel_x86_number( U32 );
@@ -269,8 +269,8 @@ package body GID.Headers is
     image.bits_per_pixel:= Integer(w);
     --   Pos= 31, read four bytes
     Read_Intel(image.stream, n);          -- Type of compression used
-    -- BI_RLE8 = 1
-    -- BI_RLE4 = 2
+    --  BI_RLE8 = 1
+    --  BI_RLE4 = 2
     if n /= 0 then
       raise unsupported_image_subformat with "BMP: RLE compression";
     end if;
@@ -301,7 +301,7 @@ package body GID.Headers is
   ----------------
 
   procedure Load_GIF_header (image: in out Image_descriptor) is
-    -- GIF - logical screen descriptor
+    --  GIF - logical screen descriptor
     screen_width, screen_height           : U16;
     packed, background, aspect_ratio_code : U8;
     global_palette: Boolean;
@@ -324,15 +324,15 @@ package body GID.Headers is
     --  Size of Global Color Table    3 Bits
     global_palette:= (packed and 16#80#) /= 0;
     image.bits_per_pixel:= Natural((packed and 16#7F#)/16#10#) + 1;
-    -- Indicative:
-    -- iv) [...] This value should be set to indicate the
-    --     richness of the original palette
+    --  Indicative:
+    --  iv) [...] This value should be set to indicate the
+    --      richness of the original palette
     U8'Read(image.stream, background);
     U8'Read(image.stream, aspect_ratio_code);
     Buffering.Attach_Stream(image.buffer, image.stream);
     if global_palette then
       image.subformat_id:= 1+(Natural(packed and 16#07#));
-      -- palette's bits per pixels, usually <= image's
+      --  palette's bits per pixels, usually <= image's
       --
       --  if image.subformat_id > image.bits_per_pixel then
       --    raise
@@ -350,12 +350,12 @@ package body GID.Headers is
   -----------------
 
   procedure Load_JPEG_header (image: in out Image_descriptor) is
-    -- http://en.wikipedia.org/wiki/JPEG
+    --  http://en.wikipedia.org/wiki/JPEG
     use GID.Decoding_JPG, GID.Buffering;
     sh: Segment_head;
     b: U8;
   begin
-    -- We have already passed the SOI (Start of Image) segment marker (FFD8).
+    --  We have already passed the SOI (Start of Image) segment marker (FFD8).
     image.JPEG_stuff.restart_interval:= 0;
     Attach_Stream(image.buffer, image.stream);
     loop
@@ -373,7 +373,7 @@ package body GID.Headers is
         when APP_1 =>
           Read_EXIF(image, Natural(sh.length));
         when others =>
-          -- Skip segment data
+          --  Skip segment data
           for i in 1..sh.length loop
             Get_Byte(image.buffer, b);
           end loop;
@@ -501,7 +501,7 @@ package body GID.Headers is
             Big_endian_buffered(image.buffer, dummy); -- Chunk's CRC
             exit;
           when others =>
-            -- skip chunk data and CRC
+            --  Skip chunk data and CRC
             for i in 1..ch.length + 4 loop
               Get_Byte(image.buffer, b);
             end loop;
@@ -548,16 +548,16 @@ package body GID.Headers is
   ------------------------
 
   procedure Load_TGA_header (image: in out Image_descriptor) is
-    -- TGA FILE HEADER, p.6
+    --  TGA FILE HEADER, p.6
     --
     image_ID_length: U8; -- Field 1
     color_map_type : U8; -- Field 2
     image_type     : U8; -- Field 3
-    -- Color Map Specification - Field 4
+    --  Color Map Specification - Field 4
     first_entry_index   : U16; -- Field 4.1
     color_map_length    : U16; -- Field 4.2
     color_map_entry_size: U8;  -- Field 4.3
-    -- Image Specification - Field 5
+    --  Image Specification - Field 5
     x_origin: U16;
     y_origin: U16;
     image_width: U16;
@@ -568,7 +568,7 @@ package body GID.Headers is
     dummy: U8;
     base_image_type: Integer;
   begin
-    -- Read the header
+    --  Read the header
     image_ID_length:= image.first_byte;
     U8'Read(image.stream, color_map_type);
     U8'Read(image.stream, image_type);
@@ -583,9 +583,9 @@ package body GID.Headers is
     Read_Intel(image.stream, image_height);
     U8'Read(image.stream, pixel_depth);
     U8'Read(image.stream, tga_image_descriptor);
-    -- Done.
+    --  Done.
     --
-    -- Image type:
+    --  Image type:
     --      1 = 8-bit palette style
     --      2 = Direct [A]RGB image
     --      3 = grayscale
@@ -637,7 +637,7 @@ package body GID.Headers is
     image.height := U16'Pos(image_height);
     image.bits_per_pixel := U8'Pos(pixel_depth);
 
-    -- Make sure we are loading a supported TGA_type
+    --  Make sure we are loading a supported TGA_type
     case image.bits_per_pixel is
       when 24 | 15 | 8 =>
         null;
@@ -662,11 +662,11 @@ package body GID.Headers is
   procedure Load_TIFF_header (image: in out Image_descriptor) is
     first_IFD_offset: U32;
     --
-    -- IFD: Image File Directory. Basically, the image header.
-    -- Issue with TIFF: often the image header is stored after the image data.
-    -- This would need streams with Set_Index instead of a general stream
-    -- (e.g. a file, not an HTTP stream), or to store the full image data
-    -- in a temp buffer. Perhaps we'll do that one day.
+    --  IFD: Image File Directory. Basically, the image header.
+    --  Issue with TIFF: often the image header is stored after the image data.
+    --  This would need streams with Set_Index instead of a general stream
+    --  (e.g. a file, not an HTTP stream), or to store the full image data
+    --  in a temp buffer. Perhaps we'll do that one day.
   begin
     Read_any_endian(image.stream, first_IFD_offset, image.endianess);
     raise known_but_unsupported_image_format with

@@ -1,8 +1,8 @@
 --
--- Convert any image or animation file to PPM file(s).
+--  Convert any image or animation file to PPM file(s).
 --
--- Small-size demo for the GID (Generic Image Decoder) package.
--- For a larger example, look for to_bmp.adb .
+--  Small-size demo for the GID (Generic Image Decoder) package.
+--  For a larger example, look for to_bmp.adb .
 --
 
 with GID;
@@ -38,7 +38,7 @@ procedure Mini is
 
   img_buf: p_Byte_Array:= null;
 
-  -- Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
+  --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
   procedure Load_raw_image(
     image : in out GID.Image_descriptor;
     buffer: in out p_Byte_Array;
@@ -64,7 +64,7 @@ procedure Mini is
     begin
       buffer(idx..idx+2):= (red, green, blue);
       idx:= idx + 3;
-      -- ^ GID requires us to look to next pixel on the right for next time.
+      --  ^ GID requires us to look to next pixel on the right for next time.
     end Put_Pixel;
 
     stars: Natural:= 0;
@@ -93,16 +93,16 @@ procedure Mini is
     f: Ada.Streams.Stream_IO.File_Type;
   begin
     Create(f, Out_File, name & ".ppm");
-    -- PPM Header:
+    --  PPM Header:
     String'Write(
       Stream(f),
       "P6 " &
       Integer'Image(GID.Pixel_width(i)) &
       Integer'Image(GID.Pixel_height(i)) & " 255" & ASCII.LF
     );
-    -- PPM raw BGR image:
+    --  PPM raw BGR image:
     Byte_Array'Write(Stream(f), img_buf.all);
-    -- ^ slow on some Ada systems, see to_bmp to have a faster version
+    --  ^ slow on some Ada systems, see to_bmp to have a faster version
     Close(f);
   end Dump_PPM;
 
@@ -114,7 +114,7 @@ procedure Mini is
     next_frame, current_frame: Ada.Calendar.Day_Duration:= 0.0;
   begin
     --
-    -- Load the image in its original format
+    --  Load the image in its original format
     --
     Open(f, In_File, name);
     Put_Line(Standard_Error, "Processing " & name & "...");

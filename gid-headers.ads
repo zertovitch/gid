@@ -2,13 +2,13 @@
 -- GID - Generic Image Decoder --
 ---------------------------------
 --
--- Private child of GID, with helpers for identifying
--- image formats and reading header informations.
+--  Private child of GID, with helpers for identifying
+--  image formats and reading header informations.
 --
 private package GID.Headers is
 
   --
-  -- Crude image signature detection
+  --  Crude image signature detection
   --
   procedure Load_signature (
     image   : in out Image_descriptor;
@@ -16,7 +16,7 @@ private package GID.Headers is
   );
 
   --
-  -- Loading of various format's headers (past signature)
+  --  Loading of various format's headers (past signature)
   --
 
   procedure Load_BMP_header (image: in out Image_descriptor);

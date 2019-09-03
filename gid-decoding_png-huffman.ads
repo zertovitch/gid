@@ -1,13 +1,13 @@
--- GID.Decoding_PNG.Huffman
----------------------------
--- Huffman tree generation and deletion.
--- Copy of UnZip.Decompress.Huffman
+--  GID.Decoding_PNG.Huffman
+----------------------------
+--  Huffman tree generation and deletion.
+--  Copy of UnZip.Decompress.Huffman
 
 private package GID.Decoding_PNG.Huffman is
 
-  -- Variants A and B.
+  --  Variants A and B.
 
-  -- A/ Simplistic huffman trees, pointerless
+  --  A/ Simplistic huffman trees, pointerless
 
   type Length_code_pair is record
     length: Natural;
@@ -35,10 +35,10 @@ private package GID.Decoding_PNG.Huffman is
 
   procedure Build(t: out Huff_tree; descr: in Huff_descriptor);
 
-  -- B/ Huffman tables: several steps in the binary tree
-  -- in one jump.
-  -- Pro: probably faster
-  -- Contra: complicated, relies on pointers, large data.
+  --  B/ Huffman tables: several steps in the binary tree
+  --  in one jump.
+  --  Pro: probably faster
+  --  Contra: complicated, relies on pointers, large data.
 
   type HufT_table;
   type p_HufT_table is access HufT_table;
@@ -54,7 +54,7 @@ private package GID.Decoding_PNG.Huffman is
 
   type HufT_table is array( Integer range <> ) of HufT;
 
-  -- Linked list just for destroying Huffman tables
+  --  Linked list just for destroying Huffman tables
 
   type Table_list;
   type p_Table_list is access Table_list;
@@ -68,10 +68,10 @@ private package GID.Decoding_PNG.Huffman is
 
   empty : constant Length_array( 1..0 ):= ( others=> 0 );
 
-  -- Free huffman tables starting with table where t points to
+  --  Free huffman tables starting with table where t points to
   procedure HufT_free ( tl: in out p_Table_list );
 
-  -- Build huffman table from code lengths given by array b.all
+  --  Build huffman table from code lengths given by array b.all
   procedure HufT_build ( b    : Length_array;
                          s    : Integer;
                          d, e : Length_array;
@@ -79,7 +79,7 @@ private package GID.Decoding_PNG.Huffman is
                          m    : in out Integer;
               huft_incomplete :    out Boolean);
 
-  -- Possible exceptions occuring in huft_build
+  --  Possible exceptions occuring in huft_build
   huft_error,                    -- bad tree constructed
   huft_out_of_memory: exception; -- not enough memory
 

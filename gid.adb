@@ -22,8 +22,8 @@
 --  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 --  THE SOFTWARE.
 --
--- NB: this is the MIT License, as found 2-May-2010 on the site
--- http://www.opensource.org/licenses/mit-license.php
+--  NB: this is the MIT License, as found 2-May-2010 on the site
+--  http://www.opensource.org/licenses/mit-license.php
 
 with GID.Headers,
      GID.Decoding_BMP,
@@ -152,8 +152,8 @@ package body GID is
 
   begin
     next_frame:= 0.0;
-    -- ^ value updated in case of animation and when
-    --   current frame is not the last frame
+    --  ^ value updated in case of animation and when
+    --    current frame is not the last frame
     case image.format is
       when BMP =>
         BMP_Load(image);

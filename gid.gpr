@@ -42,6 +42,7 @@ project GID is
               "-gnatyO",      --  Style: check that overriding subprograms are explicitly marked as such.
               "-gnatyx",      --  Style: check x:no extra parens
               "-gnatye",      --  Style: check e:end/exit labels present
+              "-gnatyc",      --  Style: check c:comment format (two spaces)
               "-gnatwa", 
               --  "-gnateV",  --  Validity check for parameters, GNAT > 4.6, redundant with -gnatVim ?
               "-gnatVa", 
