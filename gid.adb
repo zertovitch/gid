@@ -201,10 +201,10 @@ package body GID is
     return image.RLE_encoded;
   end RLE_encoded;
 
-  function Interlaced (image: Image_descriptor) return Boolean is
+  function Is_Interlaced (image: Image_descriptor) return Boolean is
   begin
     return image.interlaced;
-  end Interlaced;
+  end Is_Interlaced;
 
   function Greyscale (image: Image_descriptor) return Boolean is
   begin

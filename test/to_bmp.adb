@@ -455,7 +455,7 @@ procedure To_BMP is
       "  RLE encoding (if any): " & Boolean'Image(GID.RLE_encoded(i))
     );
     Put_Line(Standard_Error,
-      "  Interlaced (GIF: each frame's choice): " & Boolean'Image(GID.Interlaced(i))
+      "  Interlaced (GIF: each frame's choice): " & Boolean'Image(GID.Is_Interlaced(i))
     );
     Put_Line(Standard_Error,
       "  Expect transparency: " & Boolean'Image(GID.Expect_transparency(i))

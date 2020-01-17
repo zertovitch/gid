@@ -504,7 +504,7 @@ package body GID.Decoding_JPG is
     procedure Skip_bits(bits: Natural) is
     pragma Inline(Skip_bits);
       dummy: Integer;
-      pragma Warnings(off, dummy);
+      pragma Unreferenced (dummy);
     begin
       if bufbits < bits then
         dummy:= Show_bits(bits);
@@ -584,7 +584,7 @@ package body GID.Decoding_JPG is
     procedure Decode_Block(c: Component; block: in out Block_8x8) is
       value, coef: Integer;
       code: U8;
-      qt: JPEG_defs.QT renames image.JPEG_stuff.qt_list(info_A(c).qt_assoc);
+      qt_local: JPEG_defs.QT renames image.JPEG_stuff.qt_list(info_A(c).qt_assoc);
       --
       W1: constant:= 2841;
       W2: constant:= 2676;
@@ -697,7 +697,7 @@ package body GID.Decoding_JPG is
       Get_VLC(image.JPEG_stuff.vlc_defs(DC, info_B(c).ht_idx_DC).all, code, value);
       --  First value in block (0: top left) uses a predictor.
       info_B(c).dcpred:= info_B(c).dcpred + value;
-      block:= (0 => info_B(c).dcpred * qt(0), others => 0);
+      block:= (0 => info_B(c).dcpred * qt_local(0), others => 0);
       coef:= 0;
       loop
         Get_VLC(image.JPEG_stuff.vlc_defs(AC, info_B(c).ht_idx_AC).all, code, value);
@@ -709,15 +709,15 @@ package body GID.Decoding_JPG is
         if coef > 63 then
           raise error_in_image_data with "JPEG: coefficient for de-quantization is > 63";
         end if;
-        block(zig_zag(coef)):= value * qt(coef);
+        block(zig_zag(coef)):= value * qt_local(coef);
         exit when coef = 63;
       end loop;
       --  Step 3 happens here: Inverse cosine transform
       for row in 0..7 loop
         Row_IDCT(row * 8);
       end loop;
-      for col in 0..7 loop
-        Col_IDCT(col);
+      for column in 0..7 loop
+        Col_IDCT(column);
       end loop;
     end Decode_Block;
 

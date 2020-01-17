@@ -404,7 +404,7 @@ package body GID.Decoding_GIF is
     separator :  Character ;
     --  Colour information
     new_num_of_colours : Natural;
-    pixel_mask : U32;
+    custom_pixel_mask : U32;
     BitsPerPixel  : Natural;
 
   begin -- Load
@@ -547,7 +547,7 @@ package body GID.Decoding_GIF is
       --  Just copy main palette
       local.palette:= new Color_table'(image.palette.all);
     end if;
-    pixel_mask:= U32(new_num_of_colours - 1);
+    custom_pixel_mask:= U32(new_num_of_colours - 1);
 
     if full_trace then
       Ada.Text_IO.Put_Line(
@@ -577,7 +577,7 @@ package body GID.Decoding_GIF is
       declare
         --  We create an instance with dynamic parameters
         procedure GIF_Decode_general is
-          new GIF_Decode(frame_interlaced, frame_transparency, pixel_mask);
+          new GIF_Decode(frame_interlaced, frame_transparency, custom_pixel_mask);
       begin
         GIF_Decode_general;
       end;

@@ -74,10 +74,10 @@ procedure Is_opaque is
     Load_image(image, next_frame);
   end Check_raw_image;
 
-  procedure Process(name: String) is
+  procedure Process(image_name: String) is
     f: Ada.Streams.Stream_IO.File_Type;
     i: GID.Image_descriptor;
-    up_name: constant String:= To_Upper(name);
+    up_name: constant String:= To_Upper(image_name);
     --
     next_frame: Ada.Calendar.Day_Duration:= 0.0;
     opaque_frame: Boolean;
@@ -85,14 +85,14 @@ procedure Is_opaque is
     --
     --  Load the image in its original format
     --
-    Open(f, In_File, name);
-    Put_Line(Current_Error, "Checking " & name & "...");
+    Open(f, In_File, image_name);
+    Put_Line(Current_Error, "Checking " & image_name & "...");
     --
     GID.Load_image_header(
       i,
       Stream(f).all,
       try_tga =>
-        name'Length >= 4 and then
+        image_name'Length >= 4 and then
         up_name(up_name'Last-3..up_name'Last) = ".TGA"
     );
     if GID.Expect_transparency(i) then

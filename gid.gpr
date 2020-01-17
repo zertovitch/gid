@@ -3,7 +3,7 @@
 --
 --      home page:     http://gen-img-dec.sf.net/
 --      project page:  http://sf.net/projects/gen-img-dec/
---      mirror:        https://github.com/svn2github/gid
+--      mirror:        https://github.com/zertovitch/gid
 --
 --  Build me with "gprbuild -p -P gid", or "gnatmake -p -P gid",
 --  or open me with GPS.
@@ -13,13 +13,20 @@ project GID is
    for Source_Dirs use (".", "test");
    for Exec_Dir use "test";
    type Build_Mode_Type is
-      ("Debug", "Fast_but_checked", "Fast", "Small", "Smallest", "Profiling");
+      ("Debug",
+       "Fast_but_checked", 
+       "Fast", 
+       "Small",
+       "Smallest",
+       "Profiling",
+       "Style_Checks"
+      );
    Build_Mode : Build_Mode_Type := external ("Build_Mode", "Debug");
 
    for Main use ("to_bmp.adb", "mini.adb", "steg.adb", "recurve.adb", "is_opaque.adb");
    
    case Build_Mode is
-      when "Debug" =>
+      when "Debug" | "Style_Checks" =>
          for Object_Dir use "obj_debug";
       when "Fast" =>
          for Object_Dir use "obj_fast";
@@ -33,36 +40,61 @@ project GID is
          for Object_Dir use "obj_profiling";
    end case;
 
+   Common_Options := (
+     "-gnatwa",                        --  Warnings switches (a:turn on all info/warnings marked with +)
+     "-gnatwh",                        --  Warnings switches (h:turn on warnings for hiding declarations)
+     "-gnatwcijkmopruvz.c.n.p.t.w.x",  --  Warnings switches (run "gnatmake" for full list)
+     "-gnatf",  --  Full errors. Verbose details, all undefined references
+     "-gnatq",  --  Don't quit, try semantics, even if parse errors
+     "-gnatQ"   --  Don't quit, write ali/tree file even if compile errors
+   );
+
+   Fast_Options := (
+     "-O2",
+     "-funroll-loops", "-fpeel-loops", "-funswitch-loops",
+     "-ftracer", "-fweb", "-frename-registers",
+     "-ftree-vectorize", "-fipa-cp-clone", "-fgcse-after-reload"
+   );
+
+   Debug_Options  := (
+     --  "-gnateV",  --  Validity check for parameters, GNAT > 4.6, redundant with -gnatVim ?
+     "-gnatVa",  --  Turn on all validity checking options
+     "-gnato",   --  Enable overflow checking in STRICT (-gnato1) mode
+     "-g", 
+     "-fno-inline", "-fstack-check",
+     "-gnatec=" & project'Project_Dir & "debug.pra"
+   );
+
    package Compiler is
       case Build_Mode is
          when "Debug" =>
-            for Default_Switches ("ada") use (
+            for Default_Switches ("ada") use Common_Options & Debug_Options ;
+         when "Style_Checks" => 
+            for Default_Switches ("ada") use Common_Options & Debug_Options & 
+            (
               "-gnatyaknpr",  --  Style: check all casings: a:attribute, k:keywords, n:package Standard identifiers, p:pragma, r:identifier references
               "-gnatybfhiu",  --  Style: check b:no blanks at end of lines, f:no ff/vtabs, h: no htabs, i:if-then layout, u:no unnecessary blank lines
               "-gnatyO",      --  Style: check that overriding subprograms are explicitly marked as such.
               "-gnatyx",      --  Style: check x:no extra parens
               "-gnatye",      --  Style: check e:end/exit labels present
-              "-gnatyc",      --  Style: check c:comment format (two spaces)
-              "-gnatwa", 
-              --  "-gnateV",  --  Validity check for parameters, GNAT > 4.6, redundant with -gnatVim ?
-              "-gnatVa", 
-              "-gnato", "-g", "-fno-inline", "-fstack-check", "-gnatec=" & project'Project_Dir & "debug.pra");
+              "-gnatyc"       --  Style: check c:comment format (two spaces)
+            );
          when "Fast" =>
-            for Default_Switches ("ada") use ("-O2", "-gnatpn", "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers", "-ftree-vectorize", "-fipa-cp-clone", "-fgcse-after-reload");
-         when "Fast_but_checked" =>
-            for Default_Switches ("ada") use ("-O2", "-gnato",  "-ffunction-sections", "-funroll-loops", "-fpeel-loops", "-ftracer", "-funswitch-loops", "-fweb", "-frename-registers", "-ftree-vectorize", "-fipa-cp-clone", "-fgcse-after-reload");
-         when "Small" =>
-            for Default_Switches ("ada") use ("-Os", "-gnatpn",                "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0");
-         when "Smallest" =>
-            for Default_Switches ("ada") use ("-Os", "-gnatp", "-fno-inline",  "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0");
+            for Default_Switches ("ada") use Common_Options & Fast_Options & ("-gnatpn", "-ffunction-sections");
          when "Profiling" =>
-            for Default_Switches ("ada") use ("-O3", "-gnatp", "-fno-inline", "-funroll-loops", "-fpeel-loops", "-funswitch-loops", "-ftracer", "-fweb", "-frename-registers", "-g", "-pg");
+            for Default_Switches ("ada") use Common_Options & Fast_Options & ("-gnatp",  "-fno-inline", "-g", "-pg");
+         when "Fast_but_checked" =>
+            for Default_Switches ("ada") use Common_Options & Fast_Options & ("-gnato",  "-ffunction-sections");
+         when "Small" =>
+            for Default_Switches ("ada") use Common_Options &  ("-Os", "-gnatpn",                "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0");
+         when "Smallest" =>
+            for Default_Switches ("ada") use Common_Options &  ("-Os", "-gnatp", "-fno-inline",  "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0");
       end case;
    end Compiler;
 
    package Linker is
       case Build_Mode is
-         when "Debug" =>
+         when "Debug" | "Style_Checks" =>
             for Default_Switches ("ada") use ("-g");
          when "Fast" | "Fast_but_checked" | "Small" | "Smallest" =>
             for Default_Switches ("ada") use ("-g", "-s", "-Wl,--gc-sections");

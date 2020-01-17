@@ -25,7 +25,7 @@
 --
 --     More credits in gid_work.xls, sheet "credits".
 --
---  Copyright (c) Gautier de Montmollin 2010 .. 2019
+--  Copyright (c) Gautier de Montmollin 2010 .. 2020
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -151,7 +151,7 @@ package GID is
 
   function Bits_per_pixel (image: Image_descriptor) return Positive;
   function RLE_encoded (image: Image_descriptor) return Boolean;
-  function Interlaced (image: Image_descriptor) return Boolean;
+  function Is_Interlaced (image: Image_descriptor) return Boolean;
   function Greyscale (image: Image_descriptor) return Boolean;
   function Has_palette (image: Image_descriptor) return Boolean;
   function Expect_transparency (image: Image_descriptor) return Boolean;
@@ -160,8 +160,8 @@ package GID is
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String:= "009";
-  reference : constant String:= "03-Sep-2019";
+  version   : constant String:= "010 Preview 1";
+  reference : constant String:= "17-Jan-2020";
   web: constant String:= "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..^
 

@@ -79,14 +79,14 @@ package body GID.Decoding_TGA is
     end Get_pixel;
 
     generic
-      bpp: Positive;
-      pal: Boolean;
+      rle_bpp : Positive;
+      rle_pal : Boolean;
     procedure RLE_Pixel;
     pragma Inline(RLE_Pixel);
     --
     procedure RLE_Pixel is
       tmp: U8;
-      procedure Get_pixel_for_RLE is new Get_pixel(bpp, pal);
+      procedure Get_pixel_for_RLE is new Get_pixel(rle_bpp, rle_pal);
     begin
       if RLE_pixels_remaining = 0 then -- load RLE code
         Get_Byte(image.buffer, tmp );

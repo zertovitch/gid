@@ -125,18 +125,18 @@ package body GID.Headers is
 
   --  Little-endian
   generic
-    type Number is mod <>;
+    type Number_LE is mod <>;
   procedure Read_Intel_x86_number(
-    from : in     Stream_Access;
-    n    :    out Number
+    from_le : in     Stream_Access;
+    n       :    out Number_LE
   );
     pragma Inline(Read_Intel_x86_number);
 
   generic
-    type Number is mod <>;
+    type Number_BE is mod <>;
   procedure Big_endian_number(
-    from : in     Stream_Access;
-    n    :    out Number
+    from_be : in     Stream_Access;
+    n       :    out Number_BE
   );
     pragma Inline(Big_endian_number);
 
@@ -160,32 +160,32 @@ package body GID.Headers is
   --  Implementations
 
   procedure Read_Intel_x86_number(
-    from : in     Stream_Access;
-    n    :    out Number
+    from_le : in     Stream_Access;
+    n       :    out Number_LE
   )
   is
     b: U8;
-    m: Number:= 1;
+    m: Number_LE:= 1;
   begin
     n:= 0;
-    for i in 1..Number'Size/8 loop
-      U8'Read(from, b);
-      n:= n + m * Number(b);
+    for i in 1..Number_LE'Size/8 loop
+      U8'Read(from_le, b);
+      n:= n + m * Number_LE(b);
       m:= m * 256;
     end loop;
   end Read_Intel_x86_number;
 
   procedure Big_endian_number(
-    from : in     Stream_Access;
-    n    :    out Number
+    from_be : in     Stream_Access;
+    n       :    out Number_BE
   )
   is
     b: U8;
   begin
     n:= 0;
-    for i in 1..Number'Size/8 loop
-      U8'Read(from, b);
-      n:= n * 256 + Number(b);
+    for i in 1..Number_BE'Size/8 loop
+      U8'Read(from_be, b);
+      n:= n * 256 + Number_BE(b);
     end loop;
   end Big_endian_number;
 
@@ -389,7 +389,7 @@ package body GID.Headers is
     use Decoding_PNG, Buffering;
     ch: Chunk_head;
     n, dummy: U32;
-    pragma Warnings(off, dummy);
+    pragma Unreferenced(dummy);
     b, color_type: U8;
     palette: Boolean:= False;
   begin

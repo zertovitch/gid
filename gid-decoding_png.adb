@@ -156,12 +156,12 @@ package body GID.Decoding_PNG is
       --  so we can make them generic parameters. As a result, all
       --  "if", "case", etc. using them at the center of the decoding
       --  are optimized out at compile-time.
-      interlaced        : Boolean;
-      bits_per_pixel    : Positive;
-      bytes_to_unfilter : Positive;
+      interlaced         : Boolean;
+      png_bits_per_pixel : Positive;
+      bytes_to_unfilter  : Positive;
         --  ^ amount of bytes to unfilter at a time
         --  = Integer'Max(1, bits_per_pixel / 8);
-      subformat_id      : Natural;
+      subformat_id       : Natural;
     procedure Load_specialized;
     --
     procedure Load_specialized is
@@ -526,14 +526,14 @@ package body GID.Decoding_PNG is
                 -----------------------
                 -- Type 0: Greyscale --
                 -----------------------
-                case bits_per_pixel is
+                case png_bits_per_pixel is
                   when 1 | 2 | 4  =>
                     Unfilter_bytes(data(i..i), uf(0..0));
                     i:= i + 1;
                     declare
                       b: U8;
-                      shift: Integer:= 8 - bits_per_pixel;
-                      max: constant U8:= U8(Shift_Left(Unsigned_32'(1), bits_per_pixel)-1);
+                      shift: Integer:= 8 - png_bits_per_pixel;
+                      max: constant U8:= U8(Shift_Left(Unsigned_32'(1), png_bits_per_pixel)-1);
                       --  Scaling factor to obtain the correct color value on a 0..255 range.
                       --  The division is exact in all cases (bpp=8,4,2,1),
                       --  since 255 = 3 * 5 * 17 and max = 255, 15, 3 or 1.
@@ -541,9 +541,9 @@ package body GID.Decoding_PNG is
                       factor: constant U8:= 255 / max;
                     begin
                       --  loop through the number of pixels in this byte:
-                      for k in reverse 1..8/bits_per_pixel loop
+                      for k in reverse 1..8/png_bits_per_pixel loop
                         b:= (max and U8(Shift_Right(Unsigned_8(uf(0)), shift))) * factor;
-                        shift:= shift - bits_per_pixel;
+                        shift:= shift - png_bits_per_pixel;
                         Out_Pixel_8(b, b, b, 255);
                         exit when x >= x_max or k = 1;
                         Inc_XY;
@@ -573,7 +573,7 @@ package body GID.Decoding_PNG is
                 -----------------
                 -- Type 2: RGB --
                 -----------------
-                case bits_per_pixel is
+                case png_bits_per_pixel is
                   when 24 =>
                     Unfilter_bytes(data(i..i+2), uf(0..2));
                     i:= i + 3;
@@ -596,16 +596,16 @@ package body GID.Decoding_PNG is
                 ------------------------------
                 Unfilter_bytes(data(i..i), uf(0..0));
                 i:= i + 1;
-                case bits_per_pixel is
+                case png_bits_per_pixel is
                   when 1 | 2 | 4 =>
                     declare
-                      shift: Integer:= 8 - bits_per_pixel;
-                      max: constant U8:= U8(Shift_Left(Unsigned_32'(1), bits_per_pixel)-1);
+                      shift: Integer:= 8 - png_bits_per_pixel;
+                      max: constant U8:= U8(Shift_Left(Unsigned_32'(1), png_bits_per_pixel)-1);
                     begin
                       --  loop through the number of pixels in this byte:
-                      for k in reverse 1..8/bits_per_pixel loop
+                      for k in reverse 1..8/png_bits_per_pixel loop
                         Out_Pixel_Palette(max and U8(Shift_Right(Unsigned_8(uf(0)), shift)));
-                        shift:= shift - bits_per_pixel;
+                        shift:= shift - png_bits_per_pixel;
                         exit when x >= x_max or k = 1;
                         Inc_XY;
                       end loop;
@@ -621,7 +621,7 @@ package body GID.Decoding_PNG is
                 -------------------------------
                 -- Type 4: Greyscale & Alpha --
                 -------------------------------
-                case bits_per_pixel is
+                case png_bits_per_pixel is
                   when 16 =>
                     Unfilter_bytes(data(i..i+1), uf(0..1));
                     i:= i + 2;
@@ -639,7 +639,7 @@ package body GID.Decoding_PNG is
                 ------------------
                 -- Type 6: RGBA --
                 ------------------
-                case bits_per_pixel is
+                case png_bits_per_pixel is
                   when 32 =>
                     Unfilter_bytes(data(i..i+3), uf(0..3));
                     i:= i + 4;
@@ -1362,7 +1362,7 @@ package body GID.Decoding_PNG is
       --  For optimization reasons, bytes_to_unfilter is passed as a
       --  generic parameter but should be always as below right to "/=" :
       --
-      if bytes_to_unfilter /= Integer'Max(1, bits_per_pixel / 8) then
+      if bytes_to_unfilter /= Integer'Max(1, png_bits_per_pixel / 8) then
         raise Program_Error;
       end if;
       if interlaced then
@@ -1475,10 +1475,10 @@ package body GID.Decoding_PNG is
     --
     procedure Load_general is new
       Load_specialized(
-        interlaced        => image.interlaced,
-        bits_per_pixel    => image.bits_per_pixel,
-        bytes_to_unfilter => Integer'Max(1, image.bits_per_pixel / 8),
-        subformat_id      => image.subformat_id
+        interlaced         => image.interlaced,
+        png_bits_per_pixel => image.bits_per_pixel,
+        bytes_to_unfilter  => Integer'Max(1, image.bits_per_pixel / 8),
+        subformat_id       => image.subformat_id
       );
 
   begin -- Load
