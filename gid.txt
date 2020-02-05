@@ -123,8 +123,8 @@ suppression of all checks, loop unrolling).
 
 *Important note*: the performance of GID is mostly dependant of the code
 you provide in Put_Pixel. If it is much more that inserting a byte into
-a buffer and advancing an index or a pointer, you will get an important
-performance penalty. Remember that Put_Pixel is called... for each pixel.
+a buffer and advancing an index or a pointer, you will get an *important
+performance penalty*. Remember that Put_Pixel is called... for each pixel!
 
 How to build GID
 ================
@@ -135,7 +135,7 @@ How to build GID
 - From the command line, with GNAT (see below for GNAT installation):
    - default build mode: gprbuild -p -P gid
    - other build mode (e.g. Fast for producing fast executables):
-       gprbuild -p -P gid -XBuild_Mode=Fast
+       gprbuild -p -P gid -XGID_Build_Mode=Fast
 
 We assume here you have GID unpacked "out of the box", with directories.
 
