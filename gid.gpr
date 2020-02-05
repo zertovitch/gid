@@ -12,7 +12,7 @@ project GID is
 
    for Source_Dirs use (".", "test");
    for Exec_Dir use "test";
-   type Build_Mode_Type is
+   type GID_GID_Build_Mode_Type is
       ("Debug",
        "Fast_but_checked", 
        "Fast", 
@@ -21,11 +21,11 @@ project GID is
        "Profiling",
        "Style_Checks"
       );
-   Build_Mode : Build_Mode_Type := external ("Build_Mode", "Debug");
+   GID_Build_Mode : GID_GID_Build_Mode_Type := external ("GID_Build_Mode", "Debug");
 
    for Main use ("to_bmp.adb", "mini.adb", "steg.adb", "recurve.adb", "is_opaque.adb");
    
-   case Build_Mode is
+   case GID_Build_Mode is
       when "Debug" | "Style_Checks" =>
          for Object_Dir use "obj_debug";
       when "Fast" =>
@@ -66,7 +66,7 @@ project GID is
    );
 
    package Compiler is
-      case Build_Mode is
+      case GID_Build_Mode is
          when "Debug" =>
             for Default_Switches ("ada") use Common_Options & Debug_Options ;
          when "Style_Checks" => 
@@ -93,7 +93,7 @@ project GID is
    end Compiler;
 
    package Linker is
-      case Build_Mode is
+      case GID_Build_Mode is
          when "Debug" | "Style_Checks" =>
             for Default_Switches ("ada") use ("-g");
          when "Fast" | "Fast_but_checked" | "Small" | "Smallest" =>
