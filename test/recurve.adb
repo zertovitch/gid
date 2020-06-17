@@ -41,10 +41,10 @@ procedure Recurve is
     Put_Line(Standard_Error, "URL: " & GID.web);
     New_Line(Standard_Error);
     Put_Line(Standard_Error, "Syntax:");
-    Put_Line(Standard_Error, " recurve <image>");
+    Put_Line(Standard_Error, " recurve <image1> <image2> ...");
     New_Line(Standard_Error);
     Put_Line(Standard_Error, "Output:");
-    Put_Line(Standard_Error, " <image>.csv");
+    Put_Line(Standard_Error, " <image1>.csv, <image2>.csv, ...");
     New_Line(Standard_Error);
   end Blurb;
 
@@ -408,11 +408,11 @@ procedure Recurve is
   end Process;
 
 begin
-  if Argument_Count=0 then
+  if Argument_Count = 0 then
     Blurb;
     return;
   end if;
-  for i in 1..Argument_Count loop
-    Process(Argument(i));
+  for i in 1 .. Argument_Count loop
+    Process (Argument (i));
   end loop;
 end Recurve;

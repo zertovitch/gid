@@ -12,7 +12,7 @@ project GID is
 
    for Source_Dirs use (".", "test");
    for Exec_Dir use "test";
-   type GID_GID_Build_Mode_Type is
+   type GID_Build_Mode_Type is
       ("Debug",
        "Fast_but_checked", 
        "Fast", 
@@ -21,7 +21,7 @@ project GID is
        "Profiling",
        "Style_Checks"
       );
-   GID_Build_Mode : GID_GID_Build_Mode_Type := external ("GID_Build_Mode", "Debug");
+   GID_Build_Mode : GID_Build_Mode_Type := external ("GID_Build_Mode", "Debug");
 
    for Main use ("to_bmp.adb", "mini.adb", "steg.adb", "recurve.adb", "is_opaque.adb");
    
