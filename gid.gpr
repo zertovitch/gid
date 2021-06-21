@@ -1,17 +1,19 @@
---  This is a GNAT, GCC or GNAT Programming Studio (GPS) project file
+--  This is a GNAT, GCC or GNAT Studio project file
 --  for the Generic Image Decoder project:
 --
 --      home page:     http://gen-img-dec.sf.net/
 --      project page:  http://sf.net/projects/gen-img-dec/
 --      mirror:        https://github.com/zertovitch/gid
 --
---  Build me with "gprbuild -p -P gid", or "gnatmake -p -P gid",
---  or open me with GPS.
+--  Build me with "gprbuild -P gid", or "gnatmake -P gid",
+--  or open me with GNAT Studio.
 --
 project GID is
 
    for Source_Dirs use (".", "test");
    for Exec_Dir use "test";
+   for Create_Missing_Dirs use "True";  --  Flips by default the "-p" switch
+
    type GID_Build_Mode_Type is
       ("Debug",
        "Fast_but_checked", 
@@ -21,6 +23,7 @@ project GID is
        "Profiling",
        "Style_Checks"
       );
+
    GID_Build_Mode : GID_Build_Mode_Type := external ("GID_Build_Mode", "Debug");
 
    for Main use ("to_bmp.adb", "mini.adb", "steg.adb", "recurve.adb", "is_opaque.adb");
@@ -61,15 +64,16 @@ project GID is
      "-gnatVa",  --  Turn on all validity checking options
      "-gnato",   --  Enable overflow checking in STRICT (-gnato1) mode
      "-g", 
-     "-fno-inline", "-fstack-check",
-     "-gnatec=" & project'Project_Dir & "debug.pra"
+     "-fno-inline", "-fstack-check"
    );
 
    package Compiler is
       case GID_Build_Mode is
          when "Debug" =>
+            for Local_Configuration_Pragmas use project'Project_Dir & "debug.pra";
             for Default_Switches ("ada") use Common_Options & Debug_Options ;
          when "Style_Checks" => 
+            for Local_Configuration_Pragmas use project'Project_Dir & "debug.pra";
             for Default_Switches ("ada") use Common_Options & Debug_Options & 
             (
               "-gnatyaknpr",  --  Style: check all casings: a:attribute, k:keywords, n:package Standard identifiers, p:pragma, r:identifier references
