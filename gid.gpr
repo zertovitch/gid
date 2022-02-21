@@ -26,7 +26,14 @@ project GID is
 
    GID_Build_Mode : GID_Build_Mode_Type := external ("GID_Build_Mode", "Debug");
 
-   for Main use ("to_bmp.adb", "mini.adb", "steg.adb", "recurve.adb", "is_opaque.adb");
+   for Main use (
+      "to_bmp.adb",
+      "mini.adb",
+      "all_rgb.adb",
+      "is_opaque.adb",
+      "recurve.adb",
+      "steg.adb"
+    );
    
    case GID_Build_Mode is
       when "Debug" | "Style_Checks" =>
@@ -81,6 +88,7 @@ project GID is
               "-gnatyO",      --  Style: check that overriding subprograms are explicitly marked as such.
               "-gnatyx",      --  Style: check x:no extra parens
               "-gnatye",      --  Style: check e:end/exit labels present
+              "-gnatyt",      --  Style: check t:token separation rules
               "-gnatyc"       --  Style: check c:comment format (two spaces)
             );
          when "Fast" =>
