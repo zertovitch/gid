@@ -1,35 +1,42 @@
 --  All_RGB. See https://allrgb.com/
 --
---  "The objective of allRGB is simple: To create images with one
---   pixel for every RGB color (16,777,216); not one color missing,
---   and not one color twice."
+--    "The objective of allRGB is simple: To create images with one
+--     pixel for every RGB color (16,777,216); not one color missing,
+--     and not one color twice."
 --
 --  Example derived from mini.adb and recurve.adb.
 
 with GID;
 
-with Ada.Calendar;
-with Ada.Characters.Handling;           use Ada.Characters.Handling;
-with Ada.Command_Line;                  use Ada.Command_Line;
-with Ada.Numerics.Discrete_Random;
-with Ada.Streams.Stream_IO;             use Ada.Streams.Stream_IO;
-with Ada.Text_IO;                       use Ada.Text_IO;
-with Ada.Unchecked_Deallocation;
+with Ada.Calendar,
+     Ada.Characters.Handling,
+     Ada.Command_Line,
+     Ada.Numerics.Discrete_Random,
+     Ada.Streams.Stream_IO,
+     Ada.Text_IO,
+     Ada.Unchecked_Deallocation;
 
 with Interfaces;
 
 procedure All_RGB is
 
+  use Ada.Streams.Stream_IO, Ada.Text_IO;
+
   procedure Blurb is
   begin
     Put_Line (Standard_Error, "All_RGB * Converts an image file to a PPM file with exactly");
-    Put_Line (Standard_Error, "          1 pixel per RGB colour (8-bit channel)");
+    Put_Line (Standard_Error, "            1 pixel per RGB colour (8-bit colour channels)");
+    New_Line (Standard_Error);
     Put_Line (Standard_Error, "Simple test for the GID (Generic Image Decoder) package");
     Put_Line (Standard_Error, "Package version " & GID.version & " dated " & GID.reference);
     Put_Line (Standard_Error, "URL: " & GID.web);
     New_Line (Standard_Error);
     Put_Line (Standard_Error, "Syntax:");
-    Put_Line (Standard_Error, "all_rgb <image_1> [<image_2>...]");
+    Put_Line (Standard_Error, "all_rgb [option] <image_1> [[option] <image_2>...]");
+    New_Line (Standard_Error);
+    Put_Line (Standard_Error, "Options:");
+    Put_Line (Standard_Error, "  -lp: set Lp distance (l1, l2, l3, linf); default: -l2");
+    Put_Line (Standard_Error, "  -ix: set number of iterations (x = 1 million iterations); default: -x100");
     New_Line (Standard_Error);
   end Blurb;
 
@@ -39,15 +46,46 @@ procedure All_RGB is
     r, g, b : Unsigned_8;
   end record;
 
+  type Dist_Type is (L1, L2, L3, Linf);
+
+  generic
+    dist_choice : Dist_Type;
+  function Dist (p, q : RGB) return Natural;
+  pragma Inline (Dist);
+
   function Dist (p, q : RGB) return Natural is
   begin
-    return
-      abs (Integer (p.r) - Integer (q.r)) +
-      abs (Integer (p.g) - Integer (q.g)) +
-      abs (Integer (p.b) - Integer (q.b));
+    --  The goal of the use of generics is to optimize
+    --  out the following case statement when the function
+    --  is inlined in the main iteration loop:
+    case dist_choice is
+      when L1 =>
+        return
+          abs (Integer (p.r) - Integer (q.r)) +
+          abs (Integer (p.g) - Integer (q.g)) +
+          abs (Integer (p.b) - Integer (q.b));
+      when L2 =>
+        return
+          (Integer (p.r) - Integer (q.r)) ** 2 +
+          (Integer (p.g) - Integer (q.g)) ** 2 +
+          (Integer (p.b) - Integer (q.b)) ** 2;
+      when L3 =>
+        return
+          (abs (Integer (p.r) - Integer (q.r))) ** 3 +
+          (abs (Integer (p.g) - Integer (q.g))) ** 3 +
+          (abs (Integer (p.b) - Integer (q.b))) ** 3;
+      when Linf =>
+        return
+          Integer'Max
+            (Integer'Max
+              ((Integer (p.r) - Integer (q.r)),
+               (Integer (p.g) - Integer (q.g))),
+             (Integer (p.b) - Integer (q.b)));
+    end case;
   end Dist;
 
   procedure Swap (p, q : in out RGB) is
+  pragma Inline (Swap);
     tmp : constant RGB := p;
   begin
     p := q;
@@ -88,7 +126,7 @@ procedure All_RGB is
 
     stars : Natural := 0;
     procedure Feedback (percents : Natural) is
-      so_far : constant Natural := percents / 5;
+      so_far : constant Natural := percents / 10;
     begin
       for i in stars + 1 .. so_far loop
         Put (Standard_Error, '*');
@@ -109,13 +147,23 @@ procedure All_RGB is
 
   subtype All_RGB_Range is Integer range 0 .. 4095;
 
-  procedure Transform (src : in Bitmap; dst : out Bitmap) is
+  generic
+    transform_dist_choice : Dist_Type;
+  procedure Transform (src : in Bitmap; dst : out Bitmap; tr_iterations : Integer);
+
+  procedure Transform (src : in Bitmap; dst : out Bitmap; tr_iterations : Integer) is
     x1, y1, x2, y2 : Integer;
     s1, s2, d1, d2 : RGB;
     package Side_Random is new Ada.Numerics.Discrete_Random (All_RGB_Range);
     use Side_Random;
     gen : Generator;
     dist_no_swap, dist_swap : Natural;
+    function Dist_Lx is new Dist (transform_dist_choice);
+    mix_phase : constant := 3 * 4096 ** 2;
+    do_swap : Boolean;
+    total_iter : constant Integer := mix_phase + tr_iterations;
+    tick : constant Integer := total_iter / 10;
+    --
   begin
     for r in Unsigned_8'(0) .. 255 loop
       for g in Unsigned_8'(0) .. 255 loop
@@ -126,19 +174,30 @@ procedure All_RGB is
         end loop;
       end loop;
     end loop;
-    for i in 1 .. 1_000_000_000 loop
+    Reset (gen);
+    for i in 1 .. total_iter loop
       x1 := Random (gen);
-      x2 := Random (gen);
       y1 := Random (gen);
+      x2 := Random (gen);
       y2 := Random (gen);
-      s1 := src (x1 * src'Last (1) / dst'Last (1), y1 * src'Last (2) / dst'Last (2));
-      s2 := src (x2 * src'Last (1) / dst'Last (1), y2 * src'Last (2) / dst'Last (2));
-      d1 := dst (x1, y1);
-      d2 := dst (x2, y2);
-      dist_no_swap := Dist (s1, d1) + Dist (s2, d2);
-      dist_swap    := Dist (s1, d2) + Dist (s2, d1);
-      if dist_swap < dist_no_swap then
+      if i <= mix_phase then
+        --  In the initial phase we always swap pixels, in order
+        --  to have an uniform background.
+        do_swap := True;
+      else
+        s1 := src (x1 * src'Last (1) / dst'Last (1), y1 * src'Last (2) / dst'Last (2));
+        s2 := src (x2 * src'Last (1) / dst'Last (1), y2 * src'Last (2) / dst'Last (2));
+        d1 := dst (x1, y1);
+        d2 := dst (x2, y2);
+        dist_no_swap := Dist_Lx (s1, d1) + Dist_Lx (s2, d2);
+        dist_swap    := Dist_Lx (s1, d2) + Dist_Lx (s2, d1);
+        do_swap := dist_swap < dist_no_swap;
+      end if;
+      if do_swap  then
         Swap (dst (x1, y1), dst (x2, y2));
+      end if;
+      if i rem tick = 0 then
+        Put (Standard_Error, '*');
       end if;
     end loop;
   end Transform;
@@ -164,15 +223,20 @@ procedure All_RGB is
     Close (f);
   end Dump_PPM;
 
-  procedure Process (name : String) is
+  procedure Process (name : String; Lx : Dist_Type; iterations : Integer) is
+    use Ada.Calendar, Ada.Characters.Handling;
     f : Ada.Streams.Stream_IO.File_Type;
     i : GID.Image_descriptor;
     up_name : constant String := To_Upper (name);
     --
-    use Ada.Calendar;
     next_frame : Day_Duration := 0.0;
-    src, dst : p_Bitmap := null;
     T0, T1 : Time;
+    procedure Transform_L1   is new Transform (L1);
+    procedure Transform_L2   is new Transform (L2);
+    procedure Transform_L3   is new Transform (L3);
+    procedure Transform_Linf is new Transform (Linf);
+    src, dst : p_Bitmap := null;
+    iter_m_img : constant String := Integer'Image (iterations / 1e6);
   begin
     --
     --  Load the image in its original format
@@ -193,8 +257,17 @@ procedure All_RGB is
     src := new Bitmap (0 .. GID.Pixel_width (i) - 1, 0 .. GID.Pixel_height (i) - 1);
     Load_raw_image (i, src.all, next_frame);
     dst := new Bitmap (All_RGB_Range, All_RGB_Range);
-    Transform (src.all, dst.all);
-    Dump_PPM (name, dst.all);
+    case Lx is
+      when L1   => Transform_L1   (src.all, dst.all, iterations);
+      when L2   => Transform_L2   (src.all, dst.all, iterations);
+      when L3   => Transform_L3   (src.all, dst.all, iterations);
+      when Linf => Transform_Linf (src.all, dst.all, iterations);
+    end case;
+    Dump_PPM
+      (name (name'First .. name'Last - 4) & '_' &
+       Dist_Type'Image (Lx) & '_' &
+       iter_m_img (iter_m_img'First + 1 .. iter_m_img'Last) & 'M',
+       dst.all);
     Dispose (src);
     Dispose (dst);
     T1 := Clock;
@@ -203,12 +276,30 @@ procedure All_RGB is
     Close (f);
   end Process;
 
+  Lx : Dist_Type := L2;
+  iter : Integer := 100e6;
+  use Ada.Command_Line;
+
 begin
   if Argument_Count = 0 then
     Blurb;
     return;
   end if;
   for i in 1 .. Argument_Count loop
-    Process (Argument (i));
+    declare
+      arg : constant String := Argument (i);
+    begin
+      if arg'Length >= 3 and then arg (arg'First) = '-' then
+        case arg (arg'First + 1) is
+          when 'l' => Lx := Dist_Type'Value (arg (arg'First + 1 .. arg'Last));
+          when 'i' => iter := 1e6 * Integer'Value (arg (arg'First + 2 .. arg'Last));
+          when others =>
+            Blurb;
+            return;
+        end case;
+      else
+        Process (Argument (i), Lx, iter);
+      end if;
+    end;
   end loop;
 end All_RGB;
