@@ -24,8 +24,8 @@ procedure All_RGB is
 
   procedure Blurb is
   begin
-    Put_Line (Standard_Error, "All_RGB * Converts an image file to a PPM file with exactly");
-    Put_Line (Standard_Error, "            1 pixel per RGB colour (8-bit colour channels)");
+    Put_Line (Standard_Error, "All_RGB * Converts an image file to a PPM image file with exactly");
+    Put_Line (Standard_Error, "            1 pixel per possible RGB colour (8-bit colour channels)");
     New_Line (Standard_Error);
     Put_Line (Standard_Error, "Simple test for the GID (Generic Image Decoder) package");
     Put_Line (Standard_Error, "Package version " & GID.version & " dated " & GID.reference);
@@ -50,10 +50,10 @@ procedure All_RGB is
 
   generic
     dist_choice : Dist_Type;
-  function Dist (p, q : RGB) return Natural;
-  pragma Inline (Dist);
+  function Monotone_Function_of_Distance (p, q : RGB) return Natural;
+  pragma Inline (Monotone_Function_of_Distance);
 
-  function Dist (p, q : RGB) return Natural is
+  function Monotone_Function_of_Distance (p, q : RGB) return Natural is
   begin
     --  The goal of the use of generics is to optimize
     --  out the following case statement when the function
@@ -82,7 +82,7 @@ procedure All_RGB is
                (Integer (p.g) - Integer (q.g))),
              (Integer (p.b) - Integer (q.b)));
     end case;
-  end Dist;
+  end Monotone_Function_of_Distance;
 
   procedure Swap (p, q : in out RGB) is
   pragma Inline (Swap);
@@ -153,18 +153,20 @@ procedure All_RGB is
 
   procedure Transform (src : in Bitmap; dst : out Bitmap; tr_iterations : Integer) is
     x1, y1, x2, y2 : Integer;
-    s1, s2, d1, d2 : RGB;
+    s1, s2 : RGB;
     package Side_Random is new Ada.Numerics.Discrete_Random (All_RGB_Range);
     use Side_Random;
     gen : Generator;
     dist_no_swap, dist_swap : Natural;
-    function Dist_Lx is new Dist (transform_dist_choice);
+    function M_Funct_Dist_Lx is
+      new Monotone_Function_of_Distance (transform_dist_choice);
     mix_phase : constant := 3 * 4096 ** 2;
     do_swap : Boolean;
     total_iter : constant Integer := mix_phase + tr_iterations;
     tick : constant Integer := total_iter / 10;
     --
   begin
+    --  Deterministic bitmap with all possible 8-bit-per-channel colours.
     for r in Unsigned_8'(0) .. 255 loop
       for g in Unsigned_8'(0) .. 255 loop
         for b in Unsigned_8'(0) .. 255 loop
@@ -174,6 +176,7 @@ procedure All_RGB is
         end loop;
       end loop;
     end loop;
+    --
     Reset (gen);
     for i in 1 .. total_iter loop
       x1 := Random (gen);
@@ -185,13 +188,20 @@ procedure All_RGB is
         --  to have an uniform background.
         do_swap := True;
       else
+        --  We improve the colour distance to source image
+        --  for a pair of randomly chosen pixels.
         s1 := src (x1 * src'Last (1) / dst'Last (1), y1 * src'Last (2) / dst'Last (2));
         s2 := src (x2 * src'Last (1) / dst'Last (1), y2 * src'Last (2) / dst'Last (2));
-        d1 := dst (x1, y1);
-        d2 := dst (x2, y2);
-        dist_no_swap := Dist_Lx (s1, d1) + Dist_Lx (s2, d2);
-        dist_swap    := Dist_Lx (s1, d2) + Dist_Lx (s2, d1);
+        dist_no_swap := M_Funct_Dist_Lx (s1, dst (x1, y1)) + M_Funct_Dist_Lx (s2, dst (x2, y2));
+        dist_swap    := M_Funct_Dist_Lx (s1, dst (x2, y2)) + M_Funct_Dist_Lx (s2, dst (x1, y1));
         do_swap := dist_swap < dist_no_swap;
+        --  Note that destination pixels' colours are *pairwise* improved
+        --  in the sense of being closer to the source image's pixels' colours.
+        --  However, pixel at (x1, y1), or at (x2, y2), might
+        --  have *individually*, after the swap, colours that are
+        --  more different from the source's than before the swap.
+        --  A consequence is that we do not risk having pixels that
+        --  are prematurely stuck in a local optimum.
       end if;
       if do_swap  then
         Swap (dst (x1, y1), dst (x2, y2));

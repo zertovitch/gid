@@ -60,10 +60,10 @@ in your project.
 
     gid_objectada.prj   ObjectAda (7.2.2+) project file
     
-    gid_work.xls        this workbook contains GID's history, a list of open
+    gid_work.xls        This workbook contains GID's history, a list of open
                           bugs, technical informations about formats, etc.
     
-    test/mini.adb       small-size command-line demo, recommended for beginning.
+    test/mini.adb       Small-size command-line demo, recommended for beginning.
                           Decodes images of any supported type and writes PPM
                           (Portable PixMap) files. File names are given as
                           arguments (also works from a GUI file explorer
@@ -71,16 +71,22 @@ in your project.
                           images into the test folder and launch "mini *" to
                           convert them all.
 
-    test/to_bmp.adb     middle-size command-line demo which converts all image
+    test/to_bmp.adb     Middle-size command-line demo which converts all image
                           files given as argument into BMP image files with
                           the .dib extension. Contrary to mini.adb, it
                           handles transparency (GIF, PNG, TGA), orientation
                           (JPEG) and animation (GIF) as well, but of course
                           it is more difficult to understand than mini.adb.
 
-    test/steg.adb       steganography tool: hides an image into a data.
+    test/all_rgb.adb    This program transforms an image into a similar image
+                          in which each pixel has a different colour and
+                          all 8-bit-per-channel colours are displayed.
 
-    test/recurve.adb    image processing demo: recovers curves from a chart.
+    test/recurve.adb    Image processing demo: Recurve is a digitalization
+                          tool which recovers curves from a chart and outputs
+                          corresponding data.
+
+    test/steg.adb       Steganography tool: Steg hides a data into an image.
 
 
 How to use GID in your programs
