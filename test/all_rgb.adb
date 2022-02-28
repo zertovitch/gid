@@ -13,6 +13,7 @@ with Ada.Calendar,
      Ada.Command_Line,
      Ada.Numerics.Discrete_Random,
      Ada.Streams.Stream_IO,
+     Ada.Strings.Unbounded,
      Ada.Text_IO,
      Ada.Unchecked_Deallocation;
 
@@ -24,8 +25,8 @@ procedure All_RGB is
 
   procedure Blurb is
   begin
-    Put_Line (Standard_Error, "All_RGB * Converts an image file to a PPM image file with exactly");
-    Put_Line (Standard_Error, "            1 pixel per possible RGB colour (8-bit colour channels)");
+    Put_Line (Standard_Error, "All_RGB * Creates an ""all RGB"" image (in .ppm format) similar to a given image");
+    Put_Line (Standard_Error, "            ""all RGB"" = 1 pixel per possible RGB colour (8-bit colour channels)");
     New_Line (Standard_Error);
     Put_Line (Standard_Error, "Simple test for the GID (Generic Image Decoder) package");
     Put_Line (Standard_Error, "Package version " & GID.version & " dated " & GID.reference);
@@ -37,6 +38,7 @@ procedure All_RGB is
     Put_Line (Standard_Error, "Options:");
     Put_Line (Standard_Error, "  -lp: set Lp distance (l1, l2, l3, linf); default: -l2");
     Put_Line (Standard_Error, "  -ix: set number of iterations (x = 1 million iterations); default: -x100");
+    Put_Line (Standard_Error, "  -s<img>: set start image as ""<img>"" instead of a trivial, then randomized, image");
     New_Line (Standard_Error);
   end Blurb;
 
@@ -149,9 +151,9 @@ procedure All_RGB is
 
   generic
     transform_dist_choice : Dist_Type;
-  procedure Transform (src : in Bitmap; dst : out Bitmap; tr_iterations : Integer);
+  procedure Transform (src : in Bitmap; dst : out Bitmap; do_clear : Boolean; tr_iterations : Integer);
 
-  procedure Transform (src : in Bitmap; dst : out Bitmap; tr_iterations : Integer) is
+  procedure Transform (src : in Bitmap; dst : out Bitmap; do_clear : Boolean; tr_iterations : Integer) is
     x1, y1, x2, y2 : Integer;
     s1, s2 : RGB;
     package Side_Random is new Ada.Numerics.Discrete_Random (All_RGB_Range);
@@ -160,24 +162,30 @@ procedure All_RGB is
     dist_no_swap, dist_swap : Natural;
     function M_Funct_Dist_Lx is
       new Monotone_Function_of_Distance (transform_dist_choice);
-    mix_phase : constant := 3 * 4096 ** 2;
+    mix_phase : Integer := 3 * 4096 ** 2;
     do_swap : Boolean;
-    total_iter : constant Integer := mix_phase + tr_iterations;
-    tick : constant Integer := total_iter / 10;
+    total_iter : Integer;
+    tick : Integer;
     --
   begin
-    --  Deterministic bitmap with all possible 8-bit-per-channel colours.
-    for r in Unsigned_8'(0) .. 255 loop
-      for g in Unsigned_8'(0) .. 255 loop
-        for b in Unsigned_8'(0) .. 255 loop
-          x1 := Integer (r) + Integer (g and 15) * 256;
-          y1 := Integer (b) + Integer (Shift_Right (g, 4)) * 256;
-          dst (x1, y1) := (r, g, b);
+    if do_clear then
+      --  Deterministic bitmap with all possible 8-bit-per-channel colours.
+      for r in Unsigned_8'(0) .. 255 loop
+        for g in Unsigned_8'(0) .. 255 loop
+          for b in Unsigned_8'(0) .. 255 loop
+            x1 := Integer (r) + Integer (g and 15) * 256;
+            y1 := Integer (b) + Integer (Shift_Right (g, 4)) * 256;
+            dst (x1, y1) := (r, g, b);
+          end loop;
         end loop;
       end loop;
-    end loop;
+    else
+      mix_phase := 0;
+    end if;
     --
     Reset (gen);
+    total_iter := mix_phase + tr_iterations;
+    tick := total_iter / 10;
     for i in 1 .. total_iter loop
       x1 := Random (gen);
       y1 := Random (gen);
@@ -233,11 +241,19 @@ procedure All_RGB is
     Close (f);
   end Dump_PPM;
 
-  procedure Process (name : String; Lx : Dist_Type; iterations : Integer) is
+  procedure Process (name : String; Lx : Dist_Type; iterations : Integer; startup_name : String) is
     use Ada.Calendar, Ada.Characters.Handling;
     f : Ada.Streams.Stream_IO.File_Type;
     i : GID.Image_descriptor;
     up_name : constant String := To_Upper (name);
+    try_tga : constant Boolean :=
+      name'Length >= 4 and then
+      up_name (up_name'Last - 3 .. up_name'Last) = ".TGA";
+    clears : constant Boolean := startup_name = "";
+    up_startup_name : constant String := To_Upper (startup_name);
+    try_tga_startup : constant Boolean :=
+      startup_name'Length >= 4 and then
+      up_startup_name (up_startup_name'Last - 3 .. up_startup_name'Last) = ".TGA";
     --
     next_frame : Day_Duration := 0.0;
     T0, T1 : Time;
@@ -254,24 +270,28 @@ procedure All_RGB is
     Open (f, In_File, name);
     Put_Line (Standard_Error, "Processing " & name & "...");
     --
-    GID.Load_image_header (
-      i,
-      Stream (f).all,
-      try_tga =>
-        name'Length >= 4 and then
-        up_name (up_name'Last - 3 .. up_name'Last) = ".TGA"
-    );
+    GID.Load_image_header (i, Stream (f).all, try_tga);
+    if startup_name /= "" then
+      Put (Standard_Error, ".........v");
+    end if;
     Put_Line (Standard_Error, ".........v.........v");
     T0 := Clock;
     --
     src := new Bitmap (0 .. GID.Pixel_width (i) - 1, 0 .. GID.Pixel_height (i) - 1);
     Load_raw_image (i, src.all, next_frame);
+    Close (f);
     dst := new Bitmap (All_RGB_Range, All_RGB_Range);
+    if startup_name /= "" then
+      Open (f, In_File, startup_name);
+      GID.Load_image_header (i, Stream (f).all, try_tga_startup);
+      Load_raw_image (i, dst.all, next_frame);
+      Close (f);
+    end if;
     case Lx is
-      when L1   => Transform_L1   (src.all, dst.all, iterations);
-      when L2   => Transform_L2   (src.all, dst.all, iterations);
-      when L3   => Transform_L3   (src.all, dst.all, iterations);
-      when Linf => Transform_Linf (src.all, dst.all, iterations);
+      when L1   => Transform_L1   (src.all, dst.all, clears, iterations);
+      when L2   => Transform_L2   (src.all, dst.all, clears, iterations);
+      when L3   => Transform_L3   (src.all, dst.all, clears, iterations);
+      when Linf => Transform_Linf (src.all, dst.all, clears, iterations);
     end case;
     Dump_PPM
       (name (name'First .. name'Last - 4) & '_' &
@@ -283,12 +303,12 @@ procedure All_RGB is
     T1 := Clock;
     Put (Standard_Error, " Time elapsed:" & Duration'Image (T1 - T0));
     New_Line (Standard_Error);
-    Close (f);
   end Process;
 
   Lx : Dist_Type := L2;
   iter : Integer := 100e6;
-  use Ada.Command_Line;
+  use Ada.Command_Line, Ada.Strings.Unbounded;
+  startup : Unbounded_String;
 
 begin
   if Argument_Count = 0 then
@@ -303,12 +323,14 @@ begin
         case arg (arg'First + 1) is
           when 'l' => Lx := Dist_Type'Value (arg (arg'First + 1 .. arg'Last));
           when 'i' => iter := 1e6 * Integer'Value (arg (arg'First + 2 .. arg'Last));
+          when 's' =>
+            startup := To_Unbounded_String (arg (arg'First + 2 .. arg'Last));
           when others =>
             Blurb;
             return;
         end case;
       else
-        Process (Argument (i), Lx, iter);
+        Process (Argument (i), Lx, iter, To_String (startup));
       end if;
     end;
   end loop;
