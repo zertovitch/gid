@@ -446,11 +446,7 @@ package body GID.Decoding_JPG is
   -- Image decoding --
   --------------------
 
-  procedure Load (
-    image     : in out Image_descriptor;
-    next_frame:    out Ada.Calendar.Day_Duration
-  )
-  is
+  procedure Load (image : in out Image_descriptor) is
     --
     --  Bit buffer
     --
@@ -1019,31 +1015,30 @@ package body GID.Decoding_JPG is
     end Read_SOS;
 
     --
-    sh: Segment_head;
-    b: U8;
-  begin -- Load
+    sh : Segment_head;
+    b : U8;
+  begin  --  Load
     loop
-      Read(image, sh);
+      Read (image, sh);
       case sh.kind is
-        when DQT => -- Quantization Table
-          Read_DQT(image, Natural(sh.length));
-        when DHT => -- Huffman Table
-          Read_DHT(image, Natural(sh.length));
-        when DRI => -- Restart Interval
-          Read_DRI(image);
-        when EOI => -- End Of Input
+        when DQT =>  --  Quantization Table
+          Read_DQT (image, Natural(sh.length));
+        when DHT =>  --  Huffman Table
+          Read_DHT (image, Natural(sh.length));
+        when DRI =>  --  Restart Interval
+          Read_DRI (image);
+        when EOI =>  --  End Of Input
           exit;
-        when SOS => -- Start Of Scan
+        when SOS =>  --  Start Of Scan
           Read_SOS;
           exit;
         when others =>
           --  Skip segment data
-          for i in 1..sh.length loop
-            Get_Byte(image.buffer, b);
+          for i in 1 .. sh.length loop
+            Get_Byte (image.buffer, b);
           end loop;
       end case;
     end loop;
-    next_frame:= 0.0; -- still picture
   end Load;
 
 end GID.Decoding_JPG;

@@ -2,7 +2,7 @@ with GID.Buffering;
 
 package body GID.Color_tables is
 
-  procedure Convert(c, d: in U8; rgb: out RGB_color) is
+  procedure Convert(c, d: in U8; rgb: out RGB_Color_8_Bit) is
   begin
     rgb.red  := (d and 127) / 4;
     rgb.green:= (d and 3) * 8 + c / 32;

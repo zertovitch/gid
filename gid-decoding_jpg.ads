@@ -81,9 +81,6 @@ private package GID.Decoding_JPG is
     with procedure Feedback (percents: Natural);
     --  mode: Display_mode; -- nice -> progressive nicely displayed
   --
-  procedure Load (
-    image     : in out Image_descriptor;
-    next_frame:    out Ada.Calendar.Day_Duration
-  );
+  procedure Load (image : in out Image_descriptor);
 
 end GID.Decoding_JPG;

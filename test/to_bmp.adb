@@ -17,6 +17,7 @@ with Ada.Calendar;
 with Ada.Characters.Handling;           use Ada.Characters.Handling;
 with Ada.Command_Line;                  use Ada.Command_Line;
 with Ada.Streams.Stream_IO;             use Ada.Streams.Stream_IO;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;             use Ada.Strings.Unbounded;
 with Ada.Text_IO;                       use Ada.Text_IO;
 with Ada.Unchecked_Deallocation;
@@ -401,6 +402,7 @@ procedure To_BMP is
     up_name: constant String:= To_Upper(name);
     --
     next_frame, current_frame: Ada.Calendar.Day_Duration:= 0.0;
+    use Ada.Strings, Ada.Strings.Fixed;
   begin
     --
     --  Load the image in its original format
@@ -452,7 +454,7 @@ procedure To_BMP is
       "  Greyscale: " & Boolean'Image(GID.Greyscale(i))
     );
     Put_Line(Standard_Error,
-      "  RLE encoding (if any): " & Boolean'Image(GID.RLE_encoded(i))
+      "  RLE encoding (if any): " & Boolean'Image(GID.Is_RLE_encoded(i))
     );
     Put_Line(Standard_Error,
       "  Interlaced (GIF: each frame's choice): " & Boolean'Image(GID.Is_Interlaced(i))
@@ -491,7 +493,7 @@ procedure To_BMP is
           Load_raw_image_270(i, img_buf, next_frame);
       end case;
       if not test_only then
-        Dump_BMP_24(name & Duration'Image(current_frame), i);
+        Dump_BMP_24 (name & '_' & Trim (Duration'Image (current_frame), Left), i);
       end if;
       New_Line(Standard_Error);
       if error then

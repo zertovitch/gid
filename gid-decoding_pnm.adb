@@ -16,7 +16,7 @@ package body GID.Decoding_PNM is
     end Row_start;
 
     type Pixel is record
-      color: RGB_color;
+      color: RGB_Color_8_Bit;
       alpha: U8;
     end record;
 

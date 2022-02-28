@@ -16,7 +16,7 @@
 --
 --  Image types currently supported:
 --
---     BMP, GIF, JPEG, PNG, PNM, TGA
+--     BMP, GIF, JPEG, PNG, PNM, QOI, TGA
 --
 --  Credits:
 --
@@ -25,7 +25,7 @@
 --
 --     More credits in gid_work.xls, sheet "credits".
 --
---  Copyright (c) Gautier de Montmollin 2010 .. 2020
+--  Copyright (c) Gautier de Montmollin 2010 .. 2022
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -63,7 +63,7 @@ package GID is
   procedure Load_image_header (
     image   :    out Image_descriptor;
     from    : in out Ada.Streams.Root_Stream_Type'Class;
-    try_tga :        Boolean:= False
+    try_tga :        Boolean := False
   );
 
   --  try_tga: if no known signature is found, assume it might be
@@ -74,7 +74,7 @@ package GID is
   known_but_unsupported_image_format,
   unsupported_image_subformat,
   error_in_image_data,
-  invalid_primary_color_range: exception;
+  invalid_primary_color_range : exception;
 
   ----------------------------------------------------------------------
   -- 2) If needed, use dimensions to prepare the retrieval of the     --
@@ -82,8 +82,8 @@ package GID is
   --    GUI object, defining a browser element, setting up a device   --
   ----------------------------------------------------------------------
 
-  function Pixel_width (image: Image_descriptor) return Positive;
-  function Pixel_height (image: Image_descriptor) return Positive;
+  function Pixel_width (image : Image_descriptor) return Positive;
+  function Pixel_height (image : Image_descriptor) return Positive;
 
   --  "Unchanged" orientation has origin at top left
 
@@ -92,7 +92,7 @@ package GID is
     Rotation_90, Rotation_180, Rotation_270
   );
 
-  function Display_orientation (image: Image_descriptor) return Orientation;
+  function Display_orientation (image : Image_descriptor) return Orientation;
 
   --------------------------------------------------------------------
   -- 3) Load and decode the image itself. If the image is animated, --
@@ -111,7 +111,7 @@ package GID is
     --      8-bit coding is usual: TrueColor, PC graphics, etc.;
     --     16-bit coding is seen in some high-end apps/devices/formats.
     --
-    with procedure Set_X_Y (x, y: Natural);
+    with procedure Set_X_Y (x, y : Natural);
     --  After Set_X_Y, next pixel is meant to be displayed at position (x,y)
     with procedure Put_Pixel (
       red, green, blue : Primary_color_range;
@@ -123,13 +123,13 @@ package GID is
     --    on the X axis, this approach allows full address calculation to be
     --    made only at the beginning of each row, which is much faster ]
     --
-    with procedure Feedback (percents: Natural);
+    with procedure Feedback (percents : Natural);
     --
-    mode: Display_mode;
+    mode : Display_mode;
     --
   procedure Load_image_contents (
-    image     : in out Image_descriptor;
-    next_frame:    out Ada.Calendar.Day_Duration
+    image      : in out Image_descriptor;
+    next_frame :    out Ada.Calendar.Day_Duration
       --  ^ animation: real time lapse foreseen between the first image
       --  and the image right after this one; 0.0 if no next frame
   );
@@ -140,73 +140,71 @@ package GID is
 
   type Image_format_type is
     ( -- Bitmap formats
-      BMP, FITS, GIF, JPEG, PNG, PNM, TGA, TIFF
+      BMP, FITS, GIF, JPEG, PNG, PNM, QOI, TGA, TIFF
     );
 
-  function Format (image: Image_descriptor) return Image_format_type;
-  function Detailed_format (image: Image_descriptor) return String;
+  function Format (image : Image_descriptor) return Image_format_type;
+  function Detailed_format (image : Image_descriptor) return String;
   --  example: "GIF89a, interlaced"
-  function Subformat (image: Image_descriptor) return Integer;
+  function Subformat (image : Image_descriptor) return Integer;
   --  example the 'color type' in PNG
 
-  function Bits_per_pixel (image: Image_descriptor) return Positive;
-  function RLE_encoded (image: Image_descriptor) return Boolean;
-  function Is_Interlaced (image: Image_descriptor) return Boolean;
-  function Greyscale (image: Image_descriptor) return Boolean;
-  function Has_palette (image: Image_descriptor) return Boolean;
-  function Expect_transparency (image: Image_descriptor) return Boolean;
+  function Bits_per_pixel (image : Image_descriptor) return Positive;
+  function Is_RLE_encoded (image : Image_descriptor) return Boolean;
+  function Is_Interlaced (image : Image_descriptor) return Boolean;
+  function Greyscale (image : Image_descriptor) return Boolean;
+  function Has_palette (image : Image_descriptor) return Boolean;
+  function Expect_transparency (image : Image_descriptor) return Boolean;
 
   ----------------------------------------------------------------
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String:= "010 Preview 1";
-  reference : constant String:= "17-Jan-2020";
-  web: constant String:= "http://gen-img-dec.sf.net/";
+  version   : constant String := "010 Preview 2";
+  reference : constant String := "28-Feb-2022";
+  web       : constant String := "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..^
 
 private
 
-  use Interfaces;
-
-  subtype U8  is Unsigned_8;
-  subtype U16 is Unsigned_16;
-  subtype U32 is Unsigned_32;
+  subtype U8  is Interfaces.Unsigned_8;
+  subtype U16 is Interfaces.Unsigned_16;
+  subtype U32 is Interfaces.Unsigned_32;
 
   package Bounded_255 is
-    new Ada.Strings.Bounded.Generic_Bounded_Length(255);
+    new Ada.Strings.Bounded.Generic_Bounded_Length (255);
 
   type Stream_Access is access all Ada.Streams.Root_Stream_Type'Class;
 
-  type RGB_color is record
+  type RGB_Color_8_Bit is record
     red, green, blue : U8;
   end record;
 
-  type Color_table is array (Integer range <>) of RGB_color;
+  type Color_table is array (Integer range <>) of RGB_Color_8_Bit;
 
   type p_Color_table is access Color_table;
 
-  min_bits: constant:= Integer'Max(32, System.Word_Size);
+  min_bits : constant := Integer'Max (32, System.Word_Size);
   --  13.3(8): A word is the largest amount of storage that can be
   --  conveniently and efficiently manipulated by the hardware,
   --  given the implementation's run-time model.
 
-  type Integer_M32 is range -2**(min_bits-1) .. 2**(min_bits-1) - 1;
+  type Integer_M32 is range -2**(min_bits - 1) .. 2**(min_bits - 1) - 1;
   --  We define an Integer type which is at least 32 bits, but n bits
   --  on a native n > 32 bits architecture (no performance hit on 64+
   --  bits architectures).
 
-  subtype Natural_M32 is Integer_M32 range 0..Integer_M32'Last;
-  subtype Positive_M32 is Integer_M32 range 1..Integer_M32'Last;
+  subtype Natural_M32 is Integer_M32 range 0 .. Integer_M32'Last;
+  subtype Positive_M32 is Integer_M32 range 1 .. Integer_M32'Last;
 
-  type Byte_array is array(Integer range <>) of U8;
+  type Byte_array is array (Integer range <>) of U8;
 
   type Input_buffer is record
-    data       : Byte_array(1..1024);
-    stream     : Stream_Access:= null;
-    InBufIdx   : Positive:= 1; --  Points to next char in buffer to be read
-    MaxInBufIdx: Natural := 0; --  Count of valid chars in input buffer
-    InputEoF   : Boolean;      --  End of file indicator
+    data        : Byte_array (1 .. 1024);
+    stream      : Stream_Access := null;
+    InBufIdx    : Positive := 1;  --  Points to next char in buffer to be read
+    MaxInBufIdx : Natural := 0;   --  Count of valid chars in input buffer
+    InputEoF    : Boolean;        --  End of file indicator
   end record;
   --  Initial values ensure call to Fill_Buffer on first Get_Byte
 
@@ -223,10 +221,10 @@ private
        Q   -- ??
       );
 
-    type QT is array(0..63) of Natural;
-    type QT_list is array(0..7) of QT;
+    type QT is array (0 .. 63) of Natural;
+    type QT_list is array (0 .. 7) of QT;
 
-    type Compo_set is array(Component) of Boolean;
+    type Compo_set is array (Component) of Boolean;
 
     type Info_per_component_A is record -- B is defined inside the decoder
       qt_assoc    : Natural;
@@ -238,7 +236,7 @@ private
       shift_y     : Natural; -- shift for repeating pixels vertically
     end record;
 
-    type Component_info_A is array(Component) of Info_per_component_A;
+    type Component_info_A is array (Component) of Info_per_component_A;
 
     type Supported_color_space is (
       YCbCr,  -- 3-dim color space
@@ -249,25 +247,25 @@ private
     type AC_DC is (AC, DC);
 
     type VLC_code is record
-      bits, code: U8;
+      bits, code : U8;
     end record;
 
-    type VLC_table is array(0..65_535) of VLC_code;
+    type VLC_table is array (0 .. 65_535) of VLC_code;
 
     type p_VLC_table is access VLC_table;
 
-    type VLC_defs_type is array(AC_DC, 0..7) of p_VLC_table;
+    type VLC_defs_type is array (AC_DC, 0 .. 7) of p_VLC_table;
 
   end JPEG_defs;
 
   type JPEG_stuff_type is record
-    components       : JPEG_defs.Compo_set:= (others => False);
+    components       : JPEG_defs.Compo_set := (others => False);
     color_space      : JPEG_defs.Supported_color_space;
     info             : JPEG_defs.Component_info_A;
     max_samples_hor  : Natural;
     max_samples_ver  : Natural;
     qt_list          : JPEG_defs.QT_list;
-    vlc_defs         : JPEG_defs.VLC_defs_type:= (others => (others => null));
+    vlc_defs         : JPEG_defs.VLC_defs_type := (others => (others => null));
     restart_interval : Natural; -- predictor restarts every... (0: never)
   end record;
 
@@ -276,30 +274,30 @@ private
   subtype Positive_32 is Interfaces.Integer_32 range 1 .. Interfaces.Integer_32'Last;
 
   type Image_descriptor is new Ada.Finalization.Controlled with record
-    format             : Image_format_type;
-    detailed_format    : Bounded_255.Bounded_String; -- for humans only!
-    subformat_id       : Integer:= 0;
-    width, height      : Positive_32;
-    display_orientation: Orientation;
-    top_first          : Boolean; -- data orientation in TGA
-    bits_per_pixel     : Positive;
-    RLE_encoded        : Boolean:= False;
-    transparency       : Boolean:= False;
-    greyscale          : Boolean:= False;
-    interlaced         : Boolean:= False; -- GIF or PNG
-    endianess          : Endianess_type;  -- TIFF
-    JPEG_stuff         : JPEG_stuff_type;
-    stream             : Stream_Access;
-    buffer             : Input_buffer;
-    palette            : p_Color_table:= null;
-    first_byte         : U8;
-    next_frame         : Ada.Calendar.Day_Duration;
+    format              : Image_format_type;
+    detailed_format     : Bounded_255.Bounded_String; -- for humans only!
+    subformat_id        : Integer := 0;
+    width, height       : Positive_32;
+    display_orientation : Orientation;
+    top_first           : Boolean; -- data orientation in TGA
+    bits_per_pixel      : Positive;
+    RLE_encoded         : Boolean := False;
+    transparency        : Boolean := False;
+    greyscale           : Boolean := False;
+    interlaced          : Boolean := False; -- GIF or PNG
+    endianess           : Endianess_type;  -- TIFF
+    JPEG_stuff          : JPEG_stuff_type;
+    stream              : Stream_Access;
+    buffer              : Input_buffer;
+    palette             : p_Color_table := null;
+    first_byte          : U8;
+    next_frame          : Ada.Calendar.Day_Duration;
   end record;
 
   overriding procedure Adjust (Object : in out Image_descriptor);
   overriding procedure Finalize (Object : in out Image_descriptor);
 
-  to_be_done: exception;
+  to_be_done : exception;
   --  this exception should not happen, even with malformed files
   --  its role is to pop up when a feature is set as implemented
   --  but one aspect (e.g. palette) was forgotten.
@@ -314,10 +312,12 @@ private
     full    -- Byte / pixel / compressed block details
   );
 
-  trace: constant Trace_type:= none; -- <== Choice here
+  trace : constant Trace_type := none; -- <== Choice here
 
-  no_trace  : constant Boolean:= trace=none;
-  full_trace: constant Boolean:= trace=full;
-  some_trace: constant Boolean:= trace>=some_t;
+  no_trace   : constant Boolean := trace = none;
+  full_trace : constant Boolean := trace = full;
+  some_trace : constant Boolean := trace >= some_t;
+
+  use Interfaces;
 
 end GID;

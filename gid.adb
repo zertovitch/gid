@@ -29,6 +29,7 @@ with GID.Headers,
      GID.Decoding_BMP,
      GID.Decoding_GIF,
      GID.Decoding_JPG,
+     GID.Decoding_QOI,
      GID.Decoding_PNG,
      GID.Decoding_PNM,
      GID.Decoding_TGA;
@@ -82,21 +83,23 @@ package body GID is
     --
     case image.format is
       when BMP =>
-        Headers.Load_BMP_header(image);
+        Headers.Load_BMP_header (image);
       when FITS =>
-        Headers.Load_FITS_header(image);
+        Headers.Load_FITS_header (image);
       when GIF =>
-        Headers.Load_GIF_header(image);
+        Headers.Load_GIF_header (image);
       when JPEG =>
-        Headers.Load_JPEG_header(image);
+        Headers.Load_JPEG_header (image);
       when PNG =>
-        Headers.Load_PNG_header(image);
+        Headers.Load_PNG_header (image);
       when PNM =>
-        Headers.Load_PNM_header(image);
+        Headers.Load_PNM_header (image);
+      when QOI =>
+        Headers.Load_QOI_header (image);
       when TGA =>
-        Headers.Load_TGA_header(image);
+        Headers.Load_TGA_header (image);
       when TIFF =>
-        Headers.Load_TIFF_header(image);
+        Headers.Load_TIFF_header (image);
     end case;
   end Load_image_header;
 
@@ -133,42 +136,39 @@ package body GID is
   )
   is
     procedure BMP_Load is
-      new Decoding_BMP.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+      new Decoding_BMP.Load (Primary_color_range, Set_X_Y, Put_Pixel, Feedback);
 
     procedure GIF_Load is
-      new Decoding_GIF.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback, mode );
+      new Decoding_GIF.Load (Primary_color_range, Set_X_Y, Put_Pixel, Feedback, mode);
 
     procedure JPG_Load is
-      new Decoding_JPG.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+      new Decoding_JPG.Load (Primary_color_range, Set_X_Y, Put_Pixel, Feedback);
 
     procedure PNG_Load is
-      new Decoding_PNG.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+      new Decoding_PNG.Load (Primary_color_range, Set_X_Y, Put_Pixel, Feedback);
 
     procedure PNM_Load is
-      new Decoding_PNM.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+      new Decoding_PNM.Load (Primary_color_range, Set_X_Y, Put_Pixel, Feedback);
+
+    procedure QOI_Load is
+      new Decoding_QOI.Load (Primary_color_range, Set_X_Y, Put_Pixel, Feedback);
 
     procedure TGA_Load is
-      new Decoding_TGA.Load( Primary_color_range, Set_X_Y, Put_Pixel, Feedback );
+      new Decoding_TGA.Load (Primary_color_range, Set_X_Y, Put_Pixel, Feedback);
 
   begin
-    next_frame:= 0.0;
+    next_frame := 0.0;
     --  ^ value updated in case of animation and when
     --    current frame is not the last frame
     case image.format is
-      when BMP =>
-        BMP_Load(image);
-      when GIF =>
-        GIF_Load(image, next_frame);
-      when JPEG =>
-        JPG_Load(image, next_frame);
-      when PNG =>
-        PNG_Load(image);
-      when PNM =>
-        PNM_Load(image);
-      when TGA =>
-        TGA_Load(image);
-      when others =>
-        raise known_but_unsupported_image_format;
+      when BMP =>        BMP_Load (image);
+      when GIF =>        GIF_Load (image, next_frame);
+      when JPEG =>       JPG_Load (image);
+      when PNG =>        PNG_Load (image);
+      when PNM =>        PNM_Load (image);
+      when QOI =>        QOI_Load (image);
+      when TGA =>        TGA_Load (image);
+      when others =>     raise known_but_unsupported_image_format;
     end case;
   end Load_image_contents;
 
@@ -196,10 +196,10 @@ package body GID is
     return image.bits_per_pixel;
   end Bits_per_pixel;
 
-  function RLE_encoded (image: Image_descriptor) return Boolean is
+  function Is_RLE_encoded (image: Image_descriptor) return Boolean is
   begin
     return image.RLE_encoded;
-  end RLE_encoded;
+  end Is_RLE_encoded;
 
   function Is_Interlaced (image: Image_descriptor) return Boolean is
   begin

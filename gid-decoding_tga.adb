@@ -23,7 +23,7 @@ package body GID.Decoding_TGA is
     is_run_packet: Boolean;
 
     type Pixel is record
-      color: RGB_color;
+      color: RGB_Color_8_Bit;
       alpha: U8;
     end record;
 

@@ -28,13 +28,15 @@ package body GID.Headers is
   is
     use Bounded_255;
     c: Character;
-    FITS_challenge : String(1..5); -- without the initial
-    GIF_challenge  : String(1..5); -- without the initial
-    PNG_challenge  : String(1..7); -- without the initial
+    FITS_challenge : String (1..5);  --  without the initial
+    GIF_challenge  : String (1..5);  --  without the initial
+    QOI_challenge  : String (1..3);  --  without the initial
+    QOI_signature  : constant String := "oif";
+    PNG_challenge  : String (1..7);  --  without the initial
     PNG_signature  : constant String:= "PNG" & ASCII.CR & ASCII.LF & ASCII.SUB & ASCII.LF;
     PNM_challenge  : Character;
-    TIFF_challenge : String(1..3); -- without the initial
-    TIFF_signature : String(1..2);
+    TIFF_challenge : String (1..3);  --  without the initial
+    TIFF_signature : String (1..2);
     procedure Dispose is
       new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
   begin
@@ -108,7 +110,13 @@ package body GID.Headers is
           image.subformat_id:= Integer'Value((1 => PNM_challenge));
           return;
         end if;
-
+      when 'q' =>
+        String'Read (image.stream, QOI_challenge);
+        if QOI_challenge = QOI_signature then
+          image.format := QOI;
+          image.RLE_encoded := True;
+          return;
+        end if;
       when others =>
         if try_tga then
           image.detailed_format:= To_Bounded_String("TGA");
@@ -235,9 +243,8 @@ package body GID.Headers is
 
   procedure Load_BMP_header (image: in out Image_descriptor) is
     n, dummy: U32;
-    pragma Warnings(off, dummy);
     w, dummy16: U16;
-    pragma Warnings(off, dummy16);
+    pragma Unreferenced (dummy, dummy16);
   begin
     --   Pos= 3, read the file size
     Read_Intel(image.stream, dummy);
@@ -380,6 +387,21 @@ package body GID.Headers is
       end case;
     end loop;
   end Load_JPEG_header;
+
+  procedure Load_QOI_header (image: in out Image_descriptor) is
+    val_32 : U32;
+    channels, colorspace : U8;
+  begin
+    Buffering.Attach_Stream (image.buffer, image.stream);
+    Read_any_endian (image.stream, val_32, big);
+    image.width := Positive_32 (val_32);
+    Read_any_endian (image.stream, val_32, big);
+    image.height := Positive_32 (val_32);
+    U8'Read (image.stream, channels);
+    image.bits_per_pixel := Positive (channels) * 8;
+    image.transparency:= channels = 4;
+    U8'Read (image.stream, colorspace);
+  end Load_QOI_header;
 
   ----------------
   -- PNG header --
