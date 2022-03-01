@@ -44,9 +44,9 @@ package body GID is
 
   procedure Clear_heap_allocated_memory (Object : in out Image_descriptor) is
     procedure Dispose is
-      new Ada.Unchecked_Deallocation(Color_table, p_Color_table);
+      new Ada.Unchecked_Deallocation (Color_table, p_Color_table);
     procedure Dispose is
-      new Ada.Unchecked_Deallocation(
+      new Ada.Unchecked_Deallocation (
         JPEG_defs.VLC_table,
         JPEG_defs.p_VLC_table
       );
@@ -55,8 +55,8 @@ package body GID is
     --  -> Palette
     Dispose (Object.palette);
     --  -> JPEG tables
-    for ad in JPEG_defs.VLC_defs_type'Range(1) loop
-      for idx in JPEG_defs.VLC_defs_type'Range(2) loop
+    for ad in JPEG_defs.VLC_defs_type'Range (1) loop
+      for idx in JPEG_defs.VLC_defs_type'Range (2) loop
         Dispose (Object.JPEG_stuff.vlc_defs (ad, idx));
       end loop;
     end loop;
@@ -69,17 +69,17 @@ package body GID is
   procedure Load_image_header (
     image   :    out Image_descriptor;
     from    : in out Ada.Streams.Root_Stream_Type'Class;
-    try_tga :        Boolean:= False
+    try_tga :        Boolean := False
   )
   is
   begin
     Clear_heap_allocated_memory (image);
-    image.stream:= from'Unchecked_Access;
+    image.stream := from'Unchecked_Access;
     --
     --  Load the very first symbols of the header,
     --  this identifies the image format.
     --
-    Headers.Load_signature(image, try_tga);
+    Headers.Load_signature (image, try_tga);
     --
     case image.format is
       when BMP =>
@@ -107,7 +107,7 @@ package body GID is
   -- Pixel_width --
   -----------------
 
-  function Pixel_width (image: Image_descriptor) return Positive is
+  function Pixel_width (image : Image_descriptor) return Positive is
   begin
     return Positive (image.width);
   end Pixel_width;
@@ -116,12 +116,12 @@ package body GID is
   -- Pixel_height --
   ------------------
 
-  function Pixel_height (image: Image_descriptor) return Positive is
+  function Pixel_height (image : Image_descriptor) return Positive is
   begin
     return Positive (image.height);
   end Pixel_height;
 
-  function Display_orientation (image: Image_descriptor) return Orientation is
+  function Display_orientation (image : Image_descriptor) return Orientation is
   begin
     return image.display_orientation;
   end Display_orientation;
@@ -132,7 +132,7 @@ package body GID is
 
   procedure Load_image_contents (
     image     : in out Image_descriptor;
-    next_frame:    out Ada.Calendar.Day_Duration
+    next_frame :    out Ada.Calendar.Day_Duration
   )
   is
     procedure BMP_Load is
@@ -176,47 +176,47 @@ package body GID is
   -- Some informations about the image --
   ---------------------------------------
 
-  function Format (image: Image_descriptor) return Image_format_type is
+  function Format (image : Image_descriptor) return Image_format_type is
   begin
     return image.format;
   end Format;
 
-  function Detailed_format (image: Image_descriptor) return String is
+  function Detailed_format (image : Image_descriptor) return String is
   begin
-    return Bounded_255.To_String(image.detailed_format);
+    return Bounded_255.To_String (image.detailed_format);
   end Detailed_format;
 
-  function Subformat (image: Image_descriptor) return Integer is
+  function Subformat (image : Image_descriptor) return Integer is
   begin
     return image.subformat_id;
   end Subformat;
 
-  function Bits_per_pixel (image: Image_descriptor) return Positive is
+  function Bits_per_pixel (image : Image_descriptor) return Positive is
   begin
     return image.bits_per_pixel;
   end Bits_per_pixel;
 
-  function Is_RLE_encoded (image: Image_descriptor) return Boolean is
+  function Is_RLE_encoded (image : Image_descriptor) return Boolean is
   begin
     return image.RLE_encoded;
   end Is_RLE_encoded;
 
-  function Is_Interlaced (image: Image_descriptor) return Boolean is
+  function Is_Interlaced (image : Image_descriptor) return Boolean is
   begin
     return image.interlaced;
   end Is_Interlaced;
 
-  function Greyscale (image: Image_descriptor) return Boolean is
+  function Greyscale (image : Image_descriptor) return Boolean is
   begin
     return image.greyscale;
   end Greyscale;
 
-  function Has_palette (image: Image_descriptor) return Boolean is
+  function Has_palette (image : Image_descriptor) return Boolean is
   begin
     return image.palette /= null;
   end Has_palette;
 
-  function Expect_transparency (image: Image_descriptor) return Boolean is
+  function Expect_transparency (image : Image_descriptor) return Boolean is
   begin
     return image.transparency;
   end Expect_transparency;
@@ -230,8 +230,8 @@ package body GID is
       Object.palette := new Color_table'(Object.palette.all);
     end if;
     --  -> JPEG tables
-    for ad in JPEG_defs.VLC_defs_type'Range(1) loop
-      for idx in JPEG_defs.VLC_defs_type'Range(2) loop
+    for ad in JPEG_defs.VLC_defs_type'Range (1) loop
+      for idx in JPEG_defs.VLC_defs_type'Range (2) loop
         if Object.JPEG_stuff.vlc_defs (ad, idx) /= null then
           Object.JPEG_stuff.vlc_defs (ad, idx) :=
             new VLC_table'(Object.JPEG_stuff.vlc_defs (ad, idx).all);

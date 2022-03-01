@@ -10,30 +10,30 @@ private package GID.Decoding_PNG.Huffman is
   --  A/ Simplistic huffman trees, pointerless
 
   type Length_code_pair is record
-    length: Natural;
+    length : Natural;
     code  : Natural;
   end record;
 
-  type Huff_descriptor is array(Natural range <>) of Length_code_pair;
+  type Huff_descriptor is array (Natural range <>) of Length_code_pair;
 
-  nil: constant:= 0;
-  root: constant:= 1;
+  nil : constant := 0;
+  root : constant := 1;
 
   type Huff_node is record
-    n: Natural; -- value
-    zero, one: Natural:= nil; -- index of next node, if any
+    n : Natural; -- value
+    zero, one : Natural := nil; -- index of next node, if any
   end record;
 
-  max_size: constant:= 800;
+  max_size : constant := 800;
 
-  type Huff_node_list is array(1..max_size) of Huff_node;
+  type Huff_node_list is array (1 .. max_size) of Huff_node;
 
   type Huff_tree is record
-    last: Natural:= nil;
-    node: Huff_node_list;
+    last : Natural := nil;
+    node : Huff_node_list;
   end record;
 
-  procedure Build(t: out Huff_tree; descr: in Huff_descriptor);
+  procedure Build (t : out Huff_tree; descr : in Huff_descriptor);
 
   --  B/ Huffman tables: several steps in the binary tree
   --  in one jump.
@@ -43,16 +43,16 @@ private package GID.Decoding_PNG.Huffman is
   type HufT_table;
   type p_HufT_table is access HufT_table;
 
-  invalid: constant:= 99; -- invalid value for extra bits
+  invalid : constant := 99; -- invalid value for extra bits
 
   type HufT is record
-    extra_bits : Natural:= invalid;
+    extra_bits : Natural := invalid;
     bits       : Natural;
     n          : Natural;
-    next_table : p_HufT_table:= null;
+    next_table : p_HufT_table := null;
   end record;
 
-  type HufT_table is array( Integer range <> ) of HufT;
+  type HufT_table is array (Integer range <>) of HufT;
 
   --  Linked list just for destroying Huffman tables
 
@@ -60,19 +60,19 @@ private package GID.Decoding_PNG.Huffman is
   type p_Table_list is access Table_list;
 
   type Table_list is record
-    table: p_HufT_table;
+    table : p_HufT_table;
     next : p_Table_list;
   end record;
 
-  type Length_array is array(Integer range <>) of Natural_M32;
+  type Length_array is array (Integer range <>) of Natural_M32;
 
-  empty : constant Length_array( 1..0 ):= ( others=> 0 );
+  empty : constant Length_array (1 .. 0) := (others => 0);
 
   --  Free huffman tables starting with table where t points to
-  procedure HufT_free ( tl: in out p_Table_list );
+  procedure HufT_free (tl : in out p_Table_list);
 
   --  Build huffman table from code lengths given by array b.all
-  procedure HufT_build ( b    : Length_array;
+  procedure HufT_build (b    : Length_array;
                          s    : Integer;
                          d, e : Length_array;
                          tl   :    out p_Table_list;
@@ -81,6 +81,6 @@ private package GID.Decoding_PNG.Huffman is
 
   --  Possible exceptions occuring in huft_build
   huft_error,                    -- bad tree constructed
-  huft_out_of_memory: exception; -- not enough memory
+  huft_out_of_memory : exception; -- not enough memory
 
 end GID.Decoding_PNG.Huffman;

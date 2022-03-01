@@ -53,11 +53,11 @@ private package GID.Decoding_PNG is
   );
 
   type Chunk_head is record
-    length: U32;
+    length : U32;
     kind  : PNG_Chunk_tag;
   end record;
 
-  procedure Read( image: in out Image_descriptor; ch: out Chunk_head);
+  procedure Read (image : in out Image_descriptor; ch : out Chunk_head);
 
   --------------------
   -- Image decoding --
@@ -65,13 +65,13 @@ private package GID.Decoding_PNG is
 
   generic
     type Primary_color_range is mod <>;
-    with procedure Set_X_Y (x, y: Natural);
+    with procedure Set_X_Y (x, y : Natural);
     with procedure Put_Pixel (
       red, green, blue : Primary_color_range;
       alpha            : Primary_color_range
     );
-    with procedure Feedback (percents: Natural);
+    with procedure Feedback (percents : Natural);
   --
-  procedure Load (image: in out Image_descriptor);
+  procedure Load (image : in out Image_descriptor);
 
 end GID.Decoding_PNG;
