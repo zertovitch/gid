@@ -55,8 +55,7 @@ For example, you can have a copy of those in a gid/ subdirectory
 in your project.
 
     gid.gpr             AdaCore GNAT/GCC project file - to be opened with
-                          GNAT Programming Studio (GPS) or used with the
-                          command: gnatmake -p -P gid
+                          GNAT Studio or used with the command: gnatmake -P gid
 
     gid_objectada.prj   ObjectAda (7.2.2+) project file
     
@@ -74,7 +73,7 @@ in your project.
     test/to_bmp.adb     Middle-size command-line demo which converts all image
                           files given as argument into BMP image files with
                           the .dib extension. Contrary to mini.adb, it
-                          handles transparency (GIF, PNG, TGA), orientation
+                          handles transparency (GIF, PNG, QOI, TGA), orientation
                           (JPEG) and animation (GIF) as well, but of course
                           it is more difficult to understand than mini.adb.
 
