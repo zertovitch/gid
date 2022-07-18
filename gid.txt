@@ -57,7 +57,7 @@ in your project.
     gid.gpr             AdaCore GNAT/GCC project file - to be opened with
                           GNAT Studio or used with the command: gnatmake -P gid
 
-    gid_objectada.prj   ObjectAda (7.2.2+) project file
+    gid_objectada.prj   ObjectAda (10.4+) project file
     
     gid_work.xls        This workbook contains GID's history, a list of open
                           bugs, technical informations about formats, etc.
