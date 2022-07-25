@@ -19,10 +19,16 @@ with Interfaces;
 
 procedure Recurve is
 
-  --  Parameters
+  ------------------
+  --  Parameters  --
+  ------------------
 
-  thres_grid           : constant := 0.925;      --  avg intensity below thres_grid => grid line
-  thres_curve          : constant := 0.8;        --  intensity below thres_curve => curve
+  --  When average intensity is below thres_grid, we decide it is a grid line:
+  thres_grid           : constant := 0.85;
+
+  --  When pixel intensity is below thres_curve, we decide it is a potential curve:
+  thres_curve          : constant := 0.8;
+
   thres_simil_2        : constant := 0.16 ** 2;  --  similarity within curve
   thres_simil_start_2  : constant := 0.40 ** 2;  --  similarity when scanning for curves
   radius               : constant := 0.08;       --  in proportion of image width
@@ -31,6 +37,8 @@ procedure Recurve is
   interval_verticals   : constant := 15;
   start_verticals      : constant := 0;          --  > 0 for more vertical initial scans
 
+  --  CSV (Comma-Separated-Values) file separator.
+  --  Normally a comma except, when Excel decides to use another separator...
   sep : constant Character := ';';
 
   procedure Blurb is
@@ -149,8 +157,8 @@ procedure Recurve is
   --------------------------------------------------------------------------------
 
   procedure Detect_curves (file_name : String) is
-    grid_hor : array (bmp'Range (2)) of Boolean := (others => False);
-    grid_ver : array (bmp'Range (1)) of Boolean := (others => False);
+    horizontal_gridline : array (bmp'Range (2)) of Boolean := (others => False);
+    vertical_gridline   : array (bmp'Range (1)) of Boolean := (others => False);
     v : Real;
     done : array (bmp'Range (1), bmp'Range (2)) of Boolean := (others => (others => False));
     --  color_scanned: array(0..255, 0..255, 0..255) of Boolean:= ... mmmh too big
@@ -296,8 +304,8 @@ procedure Recurve is
       end loop;
       v := v / Real (bmp'Length (2));
       if v < thres_grid then
-        grid_ver (x) := True;
-        Put_Line ("Vertical: " & Integer'Image (x));
+        vertical_gridline (x) := True;
+        Put_Line ("Vertical gridline: " & Integer'Image (x));
       end if;
     end loop;
     --
@@ -310,8 +318,8 @@ procedure Recurve is
       end loop;
       v := v / Real (bmp'Length (1));
       if v < thres_grid then
-        grid_hor (y) := True;
-        Put_Line ("Horizontal: " & Integer'Image (y));
+        horizontal_gridline (y) := True;
+        Put_Line ("Horizontal gridline: " & Integer'Image (y));
       end if;
     end loop;
     --
@@ -321,16 +329,20 @@ procedure Recurve is
     --
     for sv in -start_verticals / 2 .. start_verticals / 2 loop
       x0 := mid + sv * interval_verticals;
-      if x0 in bmp'Range (1) and then not grid_ver (x0) then
+      if x0 in bmp'Range (1) and then not vertical_gridline (x0) then
         for y in bmp'Range (2) loop
           color0 := bmp (x0, y);
-          if (not grid_hor (y)) and then Grey (color0) < thres_curve and then not done (x0, y) then
+          if (not horizontal_gridline (y)) and then Grey (color0) < thres_curve and then not done (x0, y) then
+            --  We don't sit on a presumed gridline, and the pixel is dark enough.
             if y > 0 and then done (x0, y - 1) and then Dist2 (bmp (x0, y - 1), color0) < thres_simil_start_2 then
-              done (x0, y) := True;  --  Actually the same, fat curve as one pixel above
+              --  We met actually the same fat, already processed, curve as one pixel above.
+              done (x0, y) := True;
             --  elsif x0 > 0 and then done(x0-1,y) and then Dist2(bmp(x0-1,y), color0) < thres_simil_start_2 then
             --  done(x0,y):= True;  --  Actually the same curve as one pixel left
             else
-              Put_Line ("curve: " & Integer'Image (x0) & Integer'Image (y));
+              Put_Line
+                ("Curve detected from point: (x =" & Integer'Image (x0) &
+                 ", y =" & Integer'Image (y) & ')');
               curve_top := curve_top + 1;
               Curve_Stack (curve_top).color := color0;
               --  Following idea is from a humanitarian star who used to send
@@ -354,7 +366,7 @@ procedure Recurve is
     --  Output curves
     --
     Create (f, Out_File, file_name & ".csv");
-    Put_Line (f, "Recurve output");
+    Put_Line (f, "Recurve ( https://gen-img-dec.sourceforge.io/ ) output");
     Put (f, "Color");
     for i in 1 .. curve_top loop
       Put (f, sep & Img (Curve_Stack (i).color));
