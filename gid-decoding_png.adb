@@ -58,22 +58,20 @@ package body GID.Decoding_PNG is
       str4 (i) := Character'Val (b);
     end loop;
     begin
-      ch.kind := PNG_Chunk_tag'Value (str4);
+      ch.kind := PNG_Chunk_Tag'Value (str4);
       if some_trace then
-        Ada.Text_IO.Put_Line (
-          "Chunk [" & str4 &
-          "], length:" & U32'Image (ch.length)
-        );
+        Ada.Text_IO.Put_Line
+          ("Chunk [" & str4 & "], length:" & ch.length'Image);
       end if;
     exception
       when Constraint_Error =>
         raise error_in_image_data with
-          "PNG chunk unknown: " &
+          "PNG chunk is unknown: " &
           Integer'Image (Character'Pos (str4 (1))) &
           Integer'Image (Character'Pos (str4 (2))) &
           Integer'Image (Character'Pos (str4 (3))) &
           Integer'Image (Character'Pos (str4 (4))) &
-          " (" & str4 & ')';
+          " (" & str4 & "), or PNG data is corrupt";
     end;
   end Read;
 

@@ -4,7 +4,7 @@
 --     pixel for every RGB color (16,777,216); not one color missing,
 --     and not one color twice."
 --
---  Example derived from mini.adb and recurve.adb.
+--  This program is derived from mini.adb and recurve.adb.
 
 with GID;
 
@@ -192,8 +192,8 @@ procedure All_RGB is
       x2 := Random (gen);
       y2 := Random (gen);
       if i <= mix_phase then
-        --  In the initial phase we always swap pixels, in order
-        --  to have an uniform background.
+        --  In the initial phase (mix phase) we always swap pixels, in
+        --  order to have an uniform looking, randomized background.
         do_swap := True;
       else
         --  We improve the colour distance to source image
@@ -249,7 +249,8 @@ procedure All_RGB is
     try_tga : constant Boolean :=
       name'Length >= 4 and then
       up_name (up_name'Last - 3 .. up_name'Last) = ".TGA";
-    clears : constant Boolean := startup_name = "";
+    clears      : constant Boolean := startup_name = "";
+    use_startup : constant Boolean := not clears;
     up_startup_name : constant String := To_Upper (startup_name);
     try_tga_startup : constant Boolean :=
       startup_name'Length >= 4 and then
@@ -271,7 +272,7 @@ procedure All_RGB is
     Put_Line (Standard_Error, "Processing " & name & "...");
     --
     GID.Load_image_header (i, Stream (f).all, try_tga);
-    if startup_name /= "" then
+    if use_startup then
       Put (Standard_Error, ".........v");
     end if;
     Put_Line (Standard_Error, ".........v.........v");
@@ -281,7 +282,7 @@ procedure All_RGB is
     Load_raw_image (i, src.all, next_frame);
     Close (f);
     dst := new Bitmap (All_RGB_Range, All_RGB_Range);
-    if startup_name /= "" then
+    if use_startup then
       Open (f, In_File, startup_name);
       GID.Load_image_header (i, Stream (f).all, try_tga_startup);
       Load_raw_image (i, dst.all, next_frame);

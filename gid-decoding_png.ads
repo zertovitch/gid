@@ -1,10 +1,10 @@
 private package GID.Decoding_PNG is
 
-  type PNG_Chunk_tag is (
+  type PNG_Chunk_Tag is
     --
     --  Critical chunks
     --
-    IHDR, --    must be the first chunk; it contains the header.
+   (IHDR, --    must be the first chunk; it contains the header.
     PLTE, --    contains the palette; list of colors.
     IDAT, --    contains the image, which may be split among multiple IDAT chunks.
     IEND, --    marks the image end.
@@ -49,12 +49,12 @@ private package GID.Decoding_PNG is
     mkBS,
     mkBT,
     mkTS,
-    pcLb
-  );
+    pcLb,
+    iDOT);  --  Apple proprietary chunk
 
   type Chunk_head is record
     length : U32;
-    kind  : PNG_Chunk_tag;
+    kind   : PNG_Chunk_Tag;
   end record;
 
   procedure Read (image : in out Image_descriptor; ch : out Chunk_head);
