@@ -100,7 +100,7 @@ procedure All_RGB is
 
   --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
   procedure Load_raw_image (
-    image      : in out GID.Image_descriptor;
+    image      : in out GID.Image_Descriptor;
     bmp        : in out Bitmap;
     next_frame :    out Ada.Calendar.Day_Duration
   )
@@ -137,13 +137,13 @@ procedure All_RGB is
     end Feedback;
 
     procedure Load_image is
-      new GID.Load_image_contents (
+      new GID.Load_Image_Contents (
         Primary_color_range, Set_X_Y,
         Put_Pixel, Feedback, GID.fast
       );
 
   begin
-    max_y := GID.Pixel_height (image) - 1;
+    max_y := GID.Pixel_Height (image) - 1;
     Load_image (image, next_frame);
   end Load_raw_image;
 
@@ -244,7 +244,7 @@ procedure All_RGB is
   procedure Process (name : String; Lx : Dist_Type; iterations : Integer; startup_name : String) is
     use Ada.Calendar, Ada.Characters.Handling;
     f : Ada.Streams.Stream_IO.File_Type;
-    i : GID.Image_descriptor;
+    i : GID.Image_Descriptor;
     up_name : constant String := To_Upper (name);
     try_tga : constant Boolean :=
       name'Length >= 4 and then
@@ -271,20 +271,20 @@ procedure All_RGB is
     Open (f, In_File, name);
     Put_Line (Standard_Error, "Processing " & name & "...");
     --
-    GID.Load_image_header (i, Stream (f).all, try_tga);
+    GID.Load_Image_Header (i, Stream (f).all, try_tga);
     if use_startup then
       Put (Standard_Error, ".........v");
     end if;
     Put_Line (Standard_Error, ".........v.........v");
     T0 := Clock;
     --
-    src := new Bitmap (0 .. GID.Pixel_width (i) - 1, 0 .. GID.Pixel_height (i) - 1);
+    src := new Bitmap (0 .. GID.Pixel_Width (i) - 1, 0 .. GID.Pixel_Height (i) - 1);
     Load_raw_image (i, src.all, next_frame);
     Close (f);
     dst := new Bitmap (All_RGB_Range, All_RGB_Range);
     if use_startup then
       Open (f, In_File, startup_name);
-      GID.Load_image_header (i, Stream (f).all, try_tga_startup);
+      GID.Load_Image_Header (i, Stream (f).all, try_tga_startup);
       Load_raw_image (i, dst.all, next_frame);
       Close (f);
     end if;

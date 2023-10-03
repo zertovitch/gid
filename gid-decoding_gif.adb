@@ -9,16 +9,18 @@ with Ada.Text_IO;
 
 package body GID.Decoding_GIF is
 
+  use Interfaces;
+
   generic
     type Number is mod <>;
   procedure Read_Intel_x86_number (
-    from : in out Input_buffer;
+    from : in out Input_Buffer;
     n    :    out Number
   );
     pragma Inline (Read_Intel_x86_number);
 
   procedure Read_Intel_x86_number (
-    from : in out Input_buffer;
+    from : in out Input_Buffer;
     n    :    out Number
   )
   is
@@ -535,7 +537,7 @@ package body GID.Decoding_GIF is
       BitsPerPixel := 1 + Natural (Descriptor.Depth and 7);
       new_num_of_colours := 2 ** BitsPerPixel;
       --  21. Local Color Table
-      local.palette := new Color_table (0 .. new_num_of_colours - 1);
+      local.palette := new Color_Table (0 .. new_num_of_colours - 1);
       Color_tables.Load_palette (local);
       image.buffer := local.buffer;
     elsif image.palette = null then
@@ -545,7 +547,7 @@ package body GID.Decoding_GIF is
       new_num_of_colours := 2 ** image.subformat_id;
       --  usually <= 2** image.bits_per_pixel
       --  Just copy main palette
-      local.palette := new Color_table'(image.palette.all);
+      local.palette := new Color_Table'(image.palette.all);
     end if;
     custom_pixel_mask := U32 (new_num_of_colours - 1);
 

@@ -1,6 +1,7 @@
 with GID.Buffering;
 
 package body GID.Decoding_QOI is
+  use Interfaces;
 
   ----------
   -- Load --

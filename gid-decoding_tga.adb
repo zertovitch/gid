@@ -1,7 +1,8 @@
-with GID.Buffering;                     use GID.Buffering;
-with GID.Color_tables;
+with GID.Buffering,
+     GID.Color_tables;
 
 package body GID.Decoding_TGA is
+  use Buffering, Interfaces;
 
   ----------
   -- Load --

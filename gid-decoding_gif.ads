@@ -12,7 +12,7 @@ private package GID.Decoding_GIF is
       alpha            : Primary_color_range
     );
     with procedure Feedback (percents : Natural);
-    mode : Display_mode;
+    mode : Display_Mode;
   --
   procedure Load (
     image     : in out Image_descriptor;

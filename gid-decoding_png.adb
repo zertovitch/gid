@@ -14,22 +14,24 @@
 --  W3C Recommendation 10 November 2003
 --  http://www.w3.org/TR/PNG/
 --
-with GID.Buffering, GID.Decoding_PNG.Huffman;
+with GID.Buffering,
+     GID.Decoding_PNG.Huffman;
 
 with Ada.Text_IO;
 
 package body GID.Decoding_PNG is
+  use Interfaces;
 
   generic
     type Number is mod <>;
   procedure Big_endian_number (
-    from : in out Input_buffer;
+    from : in out Input_Buffer;
     n    :    out Number
   );
     pragma Inline (Big_endian_number);
 
   procedure Big_endian_number (
-    from : in out Input_buffer;
+    from : in out Input_Buffer;
     n    :    out Number
   )
   is
@@ -81,7 +83,7 @@ package body GID.Decoding_PNG is
 
     function  Final (CRC : Unsigned_32) return Unsigned_32;
 
-    procedure Update (CRC : in out Unsigned_32; InBuf : Byte_array);
+    procedure Update (CRC : in out Unsigned_32; InBuf : Byte_Array);
     pragma Inline (Update);
 
   end CRC32;
@@ -108,7 +110,7 @@ package body GID.Decoding_PNG is
       end loop;
     end Prepare_table;
 
-    procedure Update (CRC : in out Unsigned_32; InBuf : Byte_array) is
+    procedure Update (CRC : in out Unsigned_32; InBuf : Byte_Array) is
       local_CRC : Unsigned_32;
     begin
       local_CRC := CRC;
@@ -166,7 +168,7 @@ package body GID.Decoding_PNG is
 
       use GID.Buffering;
 
-      subtype Mem_row_bytes_array is Byte_array (0 .. Integer (image.width) * 8);
+      subtype Mem_row_bytes_array is Byte_Array (0 .. Integer (image.width) * 8);
       --
       mem_row_bytes : array (0 .. 1) of Mem_row_bytes_array;
       --  We need to memorize two image rows, for un-filtering
@@ -195,8 +197,8 @@ package body GID.Decoding_PNG is
       current_filter : Filter_method_0;
 
       procedure Unfilter_bytes (
-        f : in  Byte_array;  -- filtered
-        u : out Byte_array   -- unfiltered
+        f : in  Byte_Array;  -- filtered
+        u : out Byte_Array   -- unfiltered
       )
       is
       pragma Inline (Unfilter_bytes);
@@ -313,7 +315,7 @@ package body GID.Decoding_PNG is
       --  Output bytes from decompression
       --
       procedure Output_uncompressed (
-        data  : in     Byte_array;
+        data  : in     Byte_Array;
         reject :    out Natural
         --  amount of bytes to be resent here next time,
         --  in order to have a full multi-byte pixel
@@ -466,7 +468,7 @@ package body GID.Decoding_PNG is
           end if;
         end Inc_XY;
 
-        uf : Byte_array (0 .. 15); -- unfiltered bytes for a pixel
+        uf : Byte_Array (0 .. 15); -- unfiltered bytes for a pixel
         w1, w2 : U16;
         i : Integer;
 
@@ -703,7 +705,7 @@ package body GID.Decoding_PNG is
       package UnZ_Glob is
         --  I/O Buffers
         --  > Sliding dictionary for unzipping, and output buffer as well
-        slide : Byte_array (0 .. wsize);
+        slide : Byte_Array (0 .. wsize);
         slide_index : Integer := 0; -- Current Position in slide
         Zip_EOF  : constant Boolean := False;
         crc32val : Unsigned_32;  -- crc calculated from data
@@ -839,7 +841,7 @@ package body GID.Decoding_PNG is
 
         old_bytes : Natural := 0;
         --  how many bytes to be resent from last Inflate output
-        byte_mem : Byte_array (1 .. 8);
+        byte_mem : Byte_Array (1 .. 8);
 
         procedure Flush (x : Natural) is
         begin
@@ -849,7 +851,7 @@ package body GID.Decoding_PNG is
           CRC32.Update (UnZ_Glob.crc32val, UnZ_Glob.slide (0 .. x - 1));
           if old_bytes > 0 then
             declare
-              app : constant Byte_array :=
+              app : constant Byte_Array :=
                 byte_mem (1 .. old_bytes) & UnZ_Glob.slide (0 .. x - 1);
             begin
               Output_uncompressed (app, old_bytes);

@@ -1,8 +1,9 @@
-with GID.Buffering;                     use GID.Buffering;
+with GID.Buffering;
 
-with Ada.Strings.Unbounded;             use Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded;
 
 package body GID.Decoding_PNM is
+  use Ada.Strings.Unbounded, Buffering, Interfaces;
 
   ----------
   -- Load --

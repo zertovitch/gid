@@ -30,7 +30,7 @@ procedure Is_opaque is
   end Blurb;
 
   procedure Check_raw_image (
-    image     : in out GID.Image_descriptor;
+    image     : in out GID.Image_Descriptor;
     next_frame :    out Ada.Calendar.Day_Duration;
     opaque    :    out Boolean
   )
@@ -64,7 +64,7 @@ procedure Is_opaque is
     end Feedback;
 
     procedure Load_image is
-      new GID.Load_image_contents (
+      new GID.Load_Image_Contents (
         Primary_color_range, Set_X_Y,
         Put_Pixel, Feedback, GID.fast
       );
@@ -76,7 +76,7 @@ procedure Is_opaque is
 
   procedure Process (image_name : String) is
     f : Ada.Streams.Stream_IO.File_Type;
-    i : GID.Image_descriptor;
+    i : GID.Image_Descriptor;
     up_name : constant String := To_Upper (image_name);
     --
     next_frame : Ada.Calendar.Day_Duration := 0.0;
@@ -88,7 +88,7 @@ procedure Is_opaque is
     Open (f, In_File, image_name);
     Put_Line (Current_Error, "Checking " & image_name & "...");
     --
-    GID.Load_image_header (
+    GID.Load_Image_Header (
       i,
       Stream (f).all,
       try_tga =>

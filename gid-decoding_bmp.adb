@@ -1,6 +1,8 @@
-with GID.Buffering;                     use GID.Buffering;
+with GID.Buffering;
 
 package body GID.Decoding_BMP is
+
+  use Buffering, Interfaces;
 
   procedure Load (image : in out Image_descriptor) is
     b01, b, br, bg, bb : U8 := 0;

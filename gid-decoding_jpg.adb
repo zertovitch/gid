@@ -27,19 +27,18 @@ with Ada.Text_IO, Ada.Integer_Text_IO, Ada.IO_Exceptions;
 
 package body GID.Decoding_JPG is
 
-  use GID.Buffering;
-  use Ada.Text_IO;
+  use Buffering, Ada.Text_IO, Interfaces;
 
   generic
     type Number is mod <>;
   procedure Big_endian_number (
-    from : in out Input_buffer;
+    from : in out Input_Buffer;
     n    :    out Number
   );
   pragma Inline (Big_endian_number);
 
   procedure Big_endian_number (
-    from : in out Input_buffer;
+    from : in out Input_Buffer;
     n    :    out Number
   )
   is
@@ -109,7 +108,7 @@ package body GID.Decoding_JPG is
     use Bounded_255;
     b, bits_pp_primary, id_base : U8;
     w, h : U16;
-    compo : JPEG_defs.Component;
+    compo : JPEG_Defs.Component;
   begin
     case sh.kind is
       when SOF_0 =>
@@ -156,11 +155,11 @@ package body GID.Decoding_JPG is
       if b - id_base > Component'Pos (Component'Last) then
         raise error_in_image_data with "JPEG: SOF: invalid component ID: " & U8'Image (b);
       end if;
-      compo := JPEG_defs.Component'Val (b - id_base);
+      compo := JPEG_Defs.Component'Val (b - id_base);
       image.JPEG_stuff.components (compo) := True;
       declare
-        stuff : JPEG_stuff_type renames image.JPEG_stuff;
-        info : JPEG_defs.Info_per_component_A renames stuff.info (compo);
+        stuff : JPEG_Stuff_Type renames image.JPEG_stuff;
+        info : JPEG_Defs.Info_per_Component_A renames stuff.info (compo);
       begin
         --  Sampling factors (bit 0-3 vert., 4-7 hor.)
         Get_Byte (image.buffer, b);
@@ -178,8 +177,8 @@ package body GID.Decoding_JPG is
     for c in Component loop
       if image.JPEG_stuff.components (c) then
         declare
-          stuff : JPEG_stuff_type renames image.JPEG_stuff;
-          info : JPEG_defs.Info_per_component_A renames stuff.info (c);
+          stuff : JPEG_Stuff_Type renames image.JPEG_stuff;
+          info : JPEG_Defs.Info_per_Component_A renames stuff.info (c);
         begin
           info.up_factor_x := stuff.max_samples_hor / info.samples_hor;
           info.up_factor_y := stuff.max_samples_ver / info.samples_ver;
@@ -193,9 +192,9 @@ package body GID.Decoding_JPG is
     end if;
     if some_trace then
       Put_Line ("Frame has following components:");
-      for c in JPEG_defs.Component loop
+      for c in JPEG_Defs.Component loop
         Put_Line (
-          JPEG_defs.Component'Image (c) & " -> " &
+          JPEG_Defs.Component'Image (c) & " -> " &
           Boolean'Image (image.JPEG_stuff.components (c))
         );
       end loop;
@@ -212,11 +211,11 @@ package body GID.Decoding_JPG is
         "JPEG: only YCbCr, Y_Grey and CMYK color spaces are currently supported";
     end if;
     image.detailed_format := image.detailed_format & ", " &
-      JPEG_defs.Supported_color_space'Image (image.JPEG_stuff.color_space);
+      JPEG_Defs.Supported_color_space'Image (image.JPEG_stuff.color_space);
     if some_trace then
       Put_Line (
         "Color space: " &
-        JPEG_defs.Supported_color_space'Image (image.JPEG_stuff.color_space)
+        JPEG_Defs.Supported_color_space'Image (image.JPEG_stuff.color_space)
       );
     end if;
     if image.JPEG_stuff.color_space = CMYK then
@@ -525,7 +524,7 @@ package body GID.Decoding_JPG is
       dcpred : Integer := 0;
     end record;
 
-    info_A : Component_info_A renames image.JPEG_stuff.info;
+    info_A : Component_Info_A renames image.JPEG_stuff.info;
     info_B : array (Component) of Info_per_component_B;
 
     procedure Get_VLC (
@@ -580,7 +579,7 @@ package body GID.Decoding_JPG is
     procedure Decode_Block (c : Component; block : in out Block_8x8) is
       value, coef : Integer;
       code : U8;
-      qt_local : JPEG_defs.QT renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
+      qt_local : JPEG_Defs.QT renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
       --
       W1 : constant := 2841;
       W2 : constant := 2676;

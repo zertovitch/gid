@@ -1,6 +1,6 @@
 private package GID.Decoding_JPG is
 
-  use JPEG_defs;
+  use JPEG_Defs;
 
   type JPEG_marker is
   (
@@ -47,9 +47,9 @@ private package GID.Decoding_JPG is
     EOI        --  End of Image
   );
 
-  YCbCr_set : constant Compo_set := (Y | Cb | Cr => True, others => False);
-  Y_Grey_set : constant Compo_set := (Y => True, others => False);
-  CMYK_set  : constant Compo_set := (Y | Cb | Cr | I => True, others => False);
+  YCbCr_set  : constant Compo_Set := (Y | Cb | Cr => True, others => False);
+  Y_Grey_set : constant Compo_Set := (Y => True, others => False);
+  CMYK_set   : constant Compo_Set := (Y | Cb | Cr | I => True, others => False);
 
   type Segment_head is record
     length : U16;

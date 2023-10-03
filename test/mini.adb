@@ -40,14 +40,14 @@ procedure Mini is
 
   --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
   procedure Load_raw_image (
-    image : in out GID.Image_descriptor;
+    image : in out GID.Image_Descriptor;
     buffer : in out p_Byte_Array;
     next_frame : out Ada.Calendar.Day_Duration
   )
   is
     subtype Primary_color_range is Unsigned_8;
-    image_width : constant Positive := GID.Pixel_width (image);
-    image_height : constant Positive := GID.Pixel_height (image);
+    image_width : constant Positive := GID.Pixel_Width (image);
+    image_height : constant Positive := GID.Pixel_Height (image);
     idx : Natural;
     --
     procedure Set_X_Y (x, y : Natural) is
@@ -78,7 +78,7 @@ procedure Mini is
     end Feedback;
 
     procedure Load_image is
-      new GID.Load_image_contents (
+      new GID.Load_Image_Contents (
         Primary_color_range, Set_X_Y,
         Put_Pixel, Feedback, GID.fast
       );
@@ -89,7 +89,7 @@ procedure Mini is
     Load_image (image, next_frame);
   end Load_raw_image;
 
-  procedure Dump_PPM (name : String; i : GID.Image_descriptor) is
+  procedure Dump_PPM (name : String; i : GID.Image_Descriptor) is
     f : Ada.Streams.Stream_IO.File_Type;
   begin
     Create (f, Out_File, name & ".ppm");
@@ -97,8 +97,8 @@ procedure Mini is
     String'Write (
       Stream (f),
       "P6 " &
-      Integer'Image (GID.Pixel_width (i)) &
-      Integer'Image (GID.Pixel_height (i)) & " 255" & ASCII.LF
+      Integer'Image (GID.Pixel_Width (i)) &
+      Integer'Image (GID.Pixel_Height (i)) & " 255" & ASCII.LF
     );
     --  PPM raw BGR image:
     Byte_Array'Write (Stream (f), img_buf.all);
@@ -108,7 +108,7 @@ procedure Mini is
 
   procedure Process (name : String) is
     f : Ada.Streams.Stream_IO.File_Type;
-    i : GID.Image_descriptor;
+    i : GID.Image_Descriptor;
     up_name : constant String := To_Upper (name);
     --
     next_frame, current_frame : Ada.Calendar.Day_Duration := 0.0;
@@ -119,7 +119,7 @@ procedure Mini is
     Open (f, In_File, name);
     Put_Line (Standard_Error, "Processing " & name & "...");
     --
-    GID.Load_image_header (
+    GID.Load_Image_Header (
       i,
       Stream (f).all,
       try_tga =>

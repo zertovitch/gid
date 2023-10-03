@@ -93,13 +93,13 @@ procedure Recurve is
 
   --  Load image
   procedure Load_raw_image (
-    image : in out GID.Image_descriptor;
+    image : in out GID.Image_Descriptor;
     bmp   : in out p_Bitmap;
     next_frame : out Ada.Calendar.Day_Duration
   )
   is
-    image_width : constant Positive := GID.Pixel_width (image);
-    image_height : constant Positive := GID.Pixel_height (image);
+    image_width : constant Positive := GID.Pixel_Width (image);
+    image_height : constant Positive := GID.Pixel_Height (image);
     pos_x, pos_y : Natural;
     --
     --  Generic parameters to feed GID.Load_image_contents with.
@@ -139,7 +139,7 @@ procedure Recurve is
     --  Instantiation of GID.Load_image_contents.
     --
     procedure Load_image is
-      new GID.Load_image_contents (
+      new GID.Load_Image_Contents (
         Primary_color_range, Set_X_Y,
         Put_Pixel, Feedback, GID.fast
       );
@@ -393,7 +393,7 @@ procedure Recurve is
   procedure Process (file_name : String) is
     use Ada.Streams.Stream_IO;
     f : Ada.Streams.Stream_IO.File_Type;
-    i : GID.Image_descriptor;
+    i : GID.Image_Descriptor;
     up_name : constant String := To_Upper (file_name);
     --
     next_frame : Ada.Calendar.Day_Duration := 0.0;
@@ -404,7 +404,7 @@ procedure Recurve is
     Open (f, In_File, file_name);
     Put_Line (Standard_Error, "Processing " & file_name & "...");
     --
-    GID.Load_image_header (
+    GID.Load_Image_Header (
       i,
       Stream (f).all,
       try_tga =>

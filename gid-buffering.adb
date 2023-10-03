@@ -2,15 +2,15 @@ with Ada.IO_Exceptions;
 
 package body GID.Buffering is
 
-  procedure Fill_Buffer (b : in out Input_buffer);
+  procedure Fill_Buffer (b : in out Input_Buffer);
   --  ^ Spec here to avoid warning by 'Get_Byte' below (GNAT 2009):
   --  warning: call to subprogram with no separate spec prevents inlining
 
-  procedure Fill_Buffer (b : in out Input_buffer)
+  procedure Fill_Buffer (b : in out Input_Buffer)
   is
     --
     procedure BlockRead (
-      buffer       :    out Byte_array;
+      buffer       :    out Byte_Array;
       actually_read :    out Natural
     )
     is
@@ -50,7 +50,7 @@ package body GID.Buffering is
   end Fill_Buffer;
 
   procedure Attach_Stream (
-    b   :    out Input_buffer;
+    b   :    out Input_Buffer;
     stm : in     Stream_Access
   )
   is
@@ -59,12 +59,12 @@ package body GID.Buffering is
     --  Fill_Buffer(b) will be performed on first call of Get_Byte
   end Attach_Stream;
 
-  function Is_stream_attached (b : Input_buffer) return Boolean is
+  function Is_stream_attached (b : Input_Buffer) return Boolean is
   begin
     return b.stream /= null;
   end Is_stream_attached;
 
-  procedure Get_Byte (b : in out Input_buffer; byte : out U8) is
+  procedure Get_Byte (b : in out Input_Buffer; byte : out U8) is
   begin
     if b.InBufIdx > b.MaxInBufIdx then
       Fill_Buffer (b);

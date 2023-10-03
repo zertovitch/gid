@@ -15,6 +15,7 @@ with GID.Buffering,
 with Ada.Unchecked_Deallocation;
 
 package body GID.Headers is
+  use Interfaces;
 
   -------------------------------------------------------
   -- The very first: read signature to identify format --
@@ -36,7 +37,7 @@ package body GID.Headers is
     TIFF_challenge : String (1 .. 3);  --  without the initial
     TIFF_signature : String (1 .. 2);
     procedure Dispose is
-      new Ada.Unchecked_Deallocation (Color_table, p_Color_table);
+      new Ada.Unchecked_Deallocation (Color_Table, p_Color_Table);
   begin
     --  Some cleanup
     Dispose (image.palette);
@@ -149,7 +150,7 @@ package body GID.Headers is
   generic
     type Number is mod <>;
   procedure Big_endian_number_buffered (
-    from : in out Input_buffer;
+    from : in out Input_Buffer;
     n    :    out Number
   );
     pragma Inline (Big_endian_number_buffered);
@@ -159,7 +160,7 @@ package body GID.Headers is
   procedure Read_any_endian_number (
     from : in     Stream_Access;
     n    :    out Number;
-    endi : in     Endianess_type
+    endi : in     Endianess_Type
   );
     pragma Inline (Read_any_endian_number);
 
@@ -196,7 +197,7 @@ package body GID.Headers is
   end Big_endian_number;
 
   procedure Big_endian_number_buffered (
-    from : in out Input_buffer;
+    from : in out Input_Buffer;
     n    :    out Number
   )
   is
@@ -212,7 +213,7 @@ package body GID.Headers is
   procedure Read_any_endian_number (
     from : in     Stream_Access;
     n    :    out Number;
-    endi : in     Endianess_type
+    endi : in     Endianess_Type
   )
   is
     procedure Read_Intel is new Read_Intel_x86_number (Number);
@@ -258,17 +259,13 @@ package body GID.Headers is
     --   biSize, bV5Size
     Read_Intel (image.stream, header_size);
     case header_size is
-      when  0 .. 39 =>
+      when   0 ..  39 =>
         raise error_in_image_data
           with "BMP Bitmap Info Header is too small:" & header_size'Image;
-      when 40 .. 51 =>
-        null;
-      when 52 .. 107 =>
-        Append (image.detailed_format, " v2");
-      when 108 .. 123 =>
-        Append (image.detailed_format, " v4");
-      when 124 .. U32'Last =>
-        Append (image.detailed_format, " v5");
+      when  40 ..  51      => null;
+      when  52 .. 107      => Append (image.detailed_format, " v2");
+      when 108 .. 123      => Append (image.detailed_format, " v4");
+      when 124 .. U32'Last => Append (image.detailed_format, " v5");
     end case;
     --   Pos= 19. Bitmap width, in pixels: biWidth, bV5Width
     Read_Intel (image.stream, n);
@@ -307,9 +304,9 @@ package body GID.Headers is
     Read_Intel (image.stream, n);
     if image.bits_per_pixel <= 8 then
       if n = 0 then
-        image.palette := new Color_table (0 .. 2**image.bits_per_pixel - 1);
+        image.palette := new Color_Table (0 .. 2**image.bits_per_pixel - 1);
       else
-        image.palette := new Color_table (0 .. Natural (n) - 1);
+        image.palette := new Color_Table (0 .. Natural (n) - 1);
       end if;
     end if;
     --   Pos= 51, number of important colors: biClrImportant, bV5ClrImportant
@@ -371,7 +368,7 @@ package body GID.Headers is
       --      "GIF: global palette has more colors than the image" &
       --       image.subformat_id'img & image.bits_per_pixel'img;
       --  end if;
-      image.palette := new Color_table (0 .. 2**(image.subformat_id) - 1);
+      image.palette := new Color_Table (0 .. 2**(image.subformat_id) - 1);
       Color_tables.Load_palette (image);
     end if;
   end Load_GIF_header;
@@ -542,7 +539,7 @@ package body GID.Headers is
               raise error_in_image_data with
                 "PNG: palette chunk byte length must be a multiple of 3";
             end if;
-            image.palette := new Color_table (0 .. Integer (ch.length / 3) - 1);
+            image.palette := new Color_Table (0 .. Integer (ch.length / 3) - 1);
             Color_tables.Load_palette (image);
             Big_endian_buffered (image.buffer, dummy); -- Chunk's CRC
             exit;
@@ -643,21 +640,21 @@ package body GID.Headers is
     image.RLE_encoded := (image_type and 8) /= 0;
     --
     if color_map_type /= 0 then
-      image.palette := new Color_table (
-        Integer (first_entry_index) ..
-        Integer (first_entry_index) + Integer (color_map_length) - 1
-      );
+      image.palette := new Color_Table
+        (Integer (first_entry_index) ..
+         Integer (first_entry_index) + Integer (color_map_length) - 1);
+      --
       image.subformat_id := Integer (color_map_entry_size);
       case image.subformat_id is -- = palette's bit depth
-        when 8 =>       -- Grey
+        when  8 =>  --  Grey
           null;
-        when 15 => -- RGB 3*5 bit
+        when 15 =>  --  RGB 3*5 bit
           null;
-        when 16 => -- RGBA 3*5+1 bit
+        when 16 =>  --  RGBA 3*5+1 bit
           image.transparency := True;
-        when 24 => -- RGB 3*8 bit
+        when 24 =>  --  RGB 3*8 bit
           null;
-        when 32 => -- RGBA 4*8 bit
+        when 32 =>  --  RGBA 4*8 bit
           image.transparency := True;
         when others =>
           raise error_in_image_data with

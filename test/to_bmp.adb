@@ -63,27 +63,27 @@ procedure To_BMP is
   error : Boolean;
 
   img_buf, bkg_buf : p_Byte_Array := null;
-  bkg : GID.Image_descriptor;
+  bkg : GID.Image_Descriptor;
 
   generic
     correct_orientation : GID.Orientation;
   --  Load image into a 24-bit truecolor BGR raw bitmap (for a BMP output)
   procedure Load_raw_image (
-    image : in out GID.Image_descriptor;
+    image : in out GID.Image_Descriptor;
     buffer : in out p_Byte_Array;
     next_frame : out Ada.Calendar.Day_Duration
   );
   --
   procedure Load_raw_image (
-    image : in out GID.Image_descriptor;
+    image : in out GID.Image_Descriptor;
     buffer : in out p_Byte_Array;
     next_frame : out Ada.Calendar.Day_Duration
   )
   is
     subtype Primary_color_range is Unsigned_8;
     subtype U16 is Unsigned_16;
-    image_width : constant Positive := GID.Pixel_width (image);
-    image_height : constant Positive := GID.Pixel_height (image);
+    image_width  : constant Positive := GID.Pixel_Width (image);
+    image_height : constant Positive := GID.Pixel_Height (image);
     padded_line_size_x : constant Positive :=
       4 * Integer (Float'Ceiling (Float (image_width) * 3.0 / 4.0));
     padded_line_size_y : constant Positive :=
@@ -213,47 +213,44 @@ procedure To_BMP is
     --  etc.) depending on the transparency features.
 
     procedure BMP24_Load_without_bkg is
-      new GID.Load_image_contents (
-        Primary_color_range,
-        Set_X_Y,
-        Put_Pixel_without_bkg,
-        Feedback,
-        GID.fast
-      );
+      new GID.Load_Image_Contents
+        (Primary_color_range,
+         Set_X_Y,
+         Put_Pixel_without_bkg,
+         Feedback,
+         GID.fast);
 
     procedure BMP24_Load_with_unicolor_bkg is
-      new GID.Load_image_contents (
-        Primary_color_range,
-        Set_X_Y,
-        Put_Pixel_with_unicolor_bkg,
-        Feedback,
-        GID.fast
-      );
+      new GID.Load_Image_Contents
+        (Primary_color_range,
+         Set_X_Y,
+         Put_Pixel_with_unicolor_bkg,
+         Feedback,
+         GID.fast);
 
     procedure BMP24_Load_with_image_bkg is
-      new GID.Load_image_contents (
-        Primary_color_range,
-        Set_X_Y,
-        Put_Pixel_with_image_bkg,
-        Feedback,
-        GID.fast
-      );
+      new GID.Load_Image_Contents
+        (Primary_color_range,
+         Set_X_Y,
+         Put_Pixel_with_image_bkg,
+         Feedback,
+         GID.fast);
 
   begin
     error := False;
     Dispose (buffer);
     case correct_orientation is
       when GID.Unchanged | GID.Rotation_180 =>
-        buffer := new Byte_Array (0 .. padded_line_size_x * GID.Pixel_height (image) - 1);
+        buffer := new Byte_Array (0 .. padded_line_size_x * GID.Pixel_Height (image) - 1);
       when GID.Rotation_90 | GID.Rotation_270 =>
-        buffer := new Byte_Array (0 .. padded_line_size_y * GID.Pixel_width (image) - 1);
+        buffer := new Byte_Array (0 .. padded_line_size_y * GID.Pixel_Width (image) - 1);
     end case;
     if GID.Expect_transparency (image) then
       if background_image_name = Null_Unbounded_String then
         BMP24_Load_with_unicolor_bkg (image, next_frame);
       else
-        bkg_width := GID.Pixel_width (bkg);
-        bkg_height := GID.Pixel_height (bkg);
+        bkg_width := GID.Pixel_Width (bkg);
+        bkg_height := GID.Pixel_Height (bkg);
         bkg_padded_line_size :=
           4 * Integer (Float'Ceiling (Float (bkg_width) * 3.0 / 4.0));
         BMP24_Load_with_image_bkg (image, next_frame);
@@ -284,7 +281,7 @@ procedure To_BMP is
   procedure Load_raw_image_180 is new Load_raw_image (GID.Rotation_180);
   procedure Load_raw_image_270 is new Load_raw_image (GID.Rotation_270);
 
-  procedure Dump_BMP_24 (name : String; i : GID.Image_descriptor) is
+  procedure Dump_BMP_24 (name : String; i : GID.Image_Descriptor) is
     f : Ada.Streams.Stream_IO.File_Type;
     type BITMAPFILEHEADER is record
       bfType     : Unsigned_16;
@@ -333,17 +330,17 @@ procedure To_BMP is
   begin
     FileHeader.bfType := 16#4D42#; -- 'BM'
     FileHeader.bfOffBits := BITMAPINFOHEADER_Bytes + BITMAPFILEHEADER_Bytes;
-    FileInfo.biSize       := BITMAPINFOHEADER_Bytes;
-    case GID.Display_orientation (i) is
+    FileInfo.biSize      := BITMAPINFOHEADER_Bytes;
+    case GID.Display_Orientation (i) is
       when GID.Unchanged | GID.Rotation_180 =>
-        FileInfo.biWidth  := Unsigned_32 (GID.Pixel_width (i));
-        FileInfo.biHeight := Unsigned_32 (GID.Pixel_height (i));
+        FileInfo.biWidth  := Unsigned_32 (GID.Pixel_Width (i));
+        FileInfo.biHeight := Unsigned_32 (GID.Pixel_Height (i));
       when GID.Rotation_90 | GID.Rotation_270 =>
-        FileInfo.biWidth  := Unsigned_32 (GID.Pixel_height (i));
-        FileInfo.biHeight := Unsigned_32 (GID.Pixel_width (i));
+        FileInfo.biWidth  := Unsigned_32 (GID.Pixel_Height (i));
+        FileInfo.biHeight := Unsigned_32 (GID.Pixel_Width (i));
     end case;
-    FileInfo.biBitCount   := 24;
-    FileInfo.biSizeImage  := Unsigned_32 (img_buf.all'Length);
+    FileInfo.biBitCount  := 24;
+    FileInfo.biSizeImage := Unsigned_32 (img_buf.all'Length);
 
     FileHeader.bfSize := FileHeader.bfOffBits + FileInfo.biSizeImage;
 
@@ -398,7 +395,7 @@ procedure To_BMP is
 
   procedure Process (name : String; as_background, test_only : Boolean) is
     f : Ada.Streams.Stream_IO.File_Type;
-    i : GID.Image_descriptor;
+    i : GID.Image_Descriptor;
     up_name : constant String := To_Upper (name);
     --
     next_frame, current_frame : Ada.Calendar.Day_Duration := 0.0;
@@ -410,15 +407,15 @@ procedure To_BMP is
     Open (f, In_File, name);
     Put_Line (Standard_Error, "Processing " & name & "...");
     --
-    GID.Load_image_header (
-      i,
-      Stream (f).all,
-      try_tga =>
-        name'Length >= 4 and then
-        up_name (up_name'Last - 3 .. up_name'Last) = ".TGA"
-    );
+    GID.Load_Image_Header
+      (i,
+       Stream (f).all,
+       try_tga =>
+         name'Length >= 4 and then
+         up_name (up_name'Last - 3 .. up_name'Last) = ".TGA");
+    --
     Put_Line (Standard_Error,
-      "  Image format: " & GID.Image_format_type'Image (GID.Format (i))
+      "  Image format: " & GID.Image_Format_Type'Image (GID.Format (i))
     );
     Put_Line (Standard_Error,
       "  Image detailed format: " & GID.Detailed_format (i)
@@ -428,12 +425,12 @@ procedure To_BMP is
     );
     Put_Line (Standard_Error,
       "  Dimensions in pixels: " &
-      Integer'Image (GID.Pixel_width (i)) & " x" &
-      Integer'Image (GID.Pixel_height (i))
+      Integer'Image (GID.Pixel_Width (i)) & " x" &
+      Integer'Image (GID.Pixel_Height (i))
     );
     Put_Line (Standard_Error,
       "  Display orientation: " &
-      GID.Orientation'Image (GID.Display_orientation (i))
+      GID.Orientation'Image (GID.Display_Orientation (i))
     );
     Put (Standard_Error,
       "  Color depth: " &
@@ -466,7 +463,7 @@ procedure To_BMP is
     Put_Line (Standard_Error, "         |         | ");
     --
     if as_background then
-      case GID.Display_orientation (i) is
+      case GID.Display_Orientation (i) is
         when GID.Unchanged =>
           Load_raw_image_0 (i, bkg_buf, next_frame);
         when GID.Rotation_90 =>
@@ -482,7 +479,7 @@ procedure To_BMP is
       return;
     end if;
     loop
-      case GID.Display_orientation (i) is
+      case GID.Display_Orientation (i) is
         when GID.Unchanged =>
           Load_raw_image_0 (i, img_buf, next_frame);
         when GID.Rotation_90 =>
