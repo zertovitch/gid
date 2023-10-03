@@ -2,7 +2,7 @@
 -- GID - Generic Image Decoder --
 ---------------------------------
 --
---  Copyright (c) Gautier de Montmollin 2010 .. 2019
+--  Copyright (c) Gautier de Montmollin 2010 .. 2023
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -66,11 +66,10 @@ package body GID is
   -- Load_image_header --
   -----------------------
 
-  procedure Load_image_header (
-    image   :    out Image_descriptor;
-    from    : in out Ada.Streams.Root_Stream_Type'Class;
-    try_tga :        Boolean := False
-  )
+  procedure Load_image_header
+    (image   :    out Image_descriptor;
+     from    : in out Ada.Streams.Root_Stream_Type'Class;
+     try_tga :        Boolean := False)
   is
   begin
     Clear_heap_allocated_memory (image);

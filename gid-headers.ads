@@ -10,10 +10,9 @@ private package GID.Headers is
   --
   --  Crude image signature detection
   --
-  procedure Load_signature (
-    image   : in out Image_descriptor;
-    try_tga :        Boolean := False
-  );
+  procedure Load_signature
+    (image   : in out Image_descriptor;
+     try_tga :        Boolean          := False);
 
   --
   --  Loading of various format's headers (past signature)

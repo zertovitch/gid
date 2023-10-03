@@ -20,11 +20,9 @@ package body GID.Headers is
   -- The very first: read signature to identify format --
   -------------------------------------------------------
 
-  procedure Load_signature (
-    image   : in out Image_descriptor;
-    try_tga :        Boolean := False
-
-  )
+  procedure Load_signature
+    (image   : in out Image_descriptor;
+     try_tga :        Boolean          := False)
   is
     use Bounded_255;
     c : Character;
@@ -242,9 +240,11 @@ package body GID.Headers is
   ----------------
 
   procedure Load_BMP_header (image : in out Image_descriptor) is
-    n, dummy : U32;
+    n, dummy, header_size : U32;
     w, dummy16 : U16;
+    dummy8 : U8;
     pragma Unreferenced (dummy, dummy16);
+    use Bounded_255;
   begin
     --   Pos= 3, read the file size
     Read_Intel (image.stream, dummy);
@@ -254,38 +254,57 @@ package body GID.Headers is
     --            For 256 colors, this is usually 36 04 00 00
     Read_Intel (image.stream, dummy);
     --   Pos= 15. The beginning of Bitmap information header.
-    --   Data expected:  28H, denoting 40 byte header
-    Read_Intel (image.stream, dummy);
-    --   Pos= 19. Bitmap width, in pixels.  Four bytes
+    --   BITMAPINFOHEADER, BITMAPV5HEADER
+    --   biSize, bV5Size
+    Read_Intel (image.stream, header_size);
+    case header_size is
+      when  0 .. 39 =>
+        raise error_in_image_data
+          with "BMP Bitmap Info Header is too small:" & header_size'Image;
+      when 40 .. 51 =>
+        null;
+      when 52 .. 107 =>
+        Append (image.detailed_format, " v2");
+      when 108 .. 123 =>
+        Append (image.detailed_format, " v4");
+      when 124 .. U32'Last =>
+        Append (image.detailed_format, " v5");
+    end case;
+    --   Pos= 19. Bitmap width, in pixels: biWidth, bV5Width
     Read_Intel (image.stream, n);
     image.width :=  Positive_32 (n);
-    --   Pos= 23. Bitmap height, in pixels.  Four bytes
+    --   Pos= 23. Bitmap height, in pixels: biHeight, bV5Height
     Read_Intel (image.stream, n);
     image.height := Positive_32 (n);
-    --   Pos= 27, skip two bytes.  Data is number of Bitmap planes.
-    Read_Intel (image.stream, dummy16); -- perform the skip
-    --   Pos= 29, Number of bits per pixel
-    --   Value 8, denoting 256 color, is expected
+    --   Pos= 27: Bitmap planes: biPlanes, bV5Planes
+    Read_Intel (image.stream, dummy16);
+    --   Pos= 29, Number of bits per pixel: biBitCount, bV5BitCount
     Read_Intel (image.stream, w);
     case w is
       when 1 | 4 | 8 | 24 =>
         null;
       when others =>
-        raise unsupported_image_subformat with "BMP bit depth =" & U16'Image (w);
+        raise unsupported_image_subformat
+          with "BMP bit depth =" & U16'Image (w);
     end case;
     image.bits_per_pixel := Integer (w);
-    --   Pos= 31, read four bytes
-    Read_Intel (image.stream, n);          -- Type of compression used
+    --   Pos= 31, Type of compression: biCompression, bV5Compression
+    Read_Intel (image.stream, n);
     --  BI_RLE8 = 1
     --  BI_RLE4 = 2
     if n /= 0 then
-      raise unsupported_image_subformat with "BMP: RLE compression";
+      raise unsupported_image_subformat
+        with "BMP: compression code" & n'Image;
     end if;
     --
-    Read_Intel (image.stream, dummy); -- Pos= 35, image size
-    Read_Intel (image.stream, dummy); -- Pos= 39, horizontal resolution
-    Read_Intel (image.stream, dummy); -- Pos= 43, vertical resolution
-    Read_Intel (image.stream, n); -- Pos= 47, number of palette colors
+    --   Pos= 35, Image size: biSizeImage, bV5SizeImage
+    Read_Intel (image.stream, dummy);
+    --   Pos= 39, horizontal resolution: biXPelsPerMeter, bV5XPelsPerMeter
+    Read_Intel (image.stream, dummy);
+    --   Pos= 43, vertical resolution: biYPelsPerMeter, bV5YPelsPerMeter
+    Read_Intel (image.stream, dummy);
+    --   Pos= 47, number of palette colors: biClrUsed, bV5ClrUsed
+    Read_Intel (image.stream, n);
     if image.bits_per_pixel <= 8 then
       if n = 0 then
         image.palette := new Color_table (0 .. 2**image.bits_per_pixel - 1);
@@ -293,8 +312,13 @@ package body GID.Headers is
         image.palette := new Color_table (0 .. Natural (n) - 1);
       end if;
     end if;
-    Read_Intel (image.stream, dummy); -- Pos= 51, number of important colors
-    --   Pos= 55 (36H), - start of palette
+    --   Pos= 51, number of important colors: biClrImportant, bV5ClrImportant
+    Read_Intel (image.stream, dummy);
+    --   Skip the rest of the header.
+    for skip in 41 .. header_size loop
+      U8'Read (image.stream, dummy8);
+    end loop;
+    --   Start of palette
     Color_tables.Load_palette (image);
   end Load_BMP_header;
 
