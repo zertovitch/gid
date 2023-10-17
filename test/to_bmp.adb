@@ -400,6 +400,7 @@ procedure To_BMP is
     --
     next_frame, current_frame : Ada.Calendar.Day_Duration := 0.0;
     use Ada.Strings, Ada.Strings.Fixed;
+    use type GID.Image_Format_Type;
   begin
     --
     --  Load the image in its original format
@@ -414,51 +415,60 @@ procedure To_BMP is
          name'Length >= 4 and then
          up_name (up_name'Last - 3 .. up_name'Last) = ".TGA");
     --
-    Put_Line (Standard_Error,
-      "  Image format: " & GID.Image_Format_Type'Image (GID.Format (i))
-    );
-    Put_Line (Standard_Error,
-      "  Image detailed format: " & GID.Detailed_format (i)
-    );
-    Put_Line (Standard_Error,
-      "  Image sub-format ID (if any): " & Integer'Image (GID.Subformat (i))
-    );
-    Put_Line (Standard_Error,
-      "  Dimensions in pixels: " &
-      Integer'Image (GID.Pixel_Width (i)) & " x" &
-      Integer'Image (GID.Pixel_Height (i))
-    );
-    Put_Line (Standard_Error,
-      "  Display orientation: " &
-      GID.Orientation'Image (GID.Display_Orientation (i))
-    );
-    Put (Standard_Error,
-      "  Color depth: " &
-      Integer'Image (GID.Bits_per_pixel (i)) & " bits"
-    );
+    Put_Line
+      (Standard_Error,
+       "  Image format: " & GID.Image_Format_Type'Image (GID.Format (i)));
+    Put_Line
+      (Standard_Error,
+       "  Image detailed format: " & GID.Detailed_format (i));
+    Put_Line
+      (Standard_Error,
+       "  Image sub-format ID (if any):" & Integer'Image (GID.Subformat (i)));
+    Put_Line
+      (Standard_Error,
+       "  Dimensions in pixels:" &
+       Integer'Image (GID.Pixel_Width (i)) & " x" &
+       Integer'Image (GID.Pixel_Height (i)));
+    Put_Line
+      (Standard_Error,
+       "  Display orientation: " &
+       GID.Orientation'Image (GID.Display_Orientation (i)));
+    Put
+      (Standard_Error,
+       "  Color depth:" &
+       Integer'Image (GID.Bits_per_pixel (i)) & " bits");
+
     if GID.Bits_per_pixel (i) <= 24 then
-      Put_Line (Standard_Error,
-        ',' &
-        Integer'Image (2**GID.Bits_per_pixel (i)) & " colors"
-      );
+      Put_Line
+        (Standard_Error,
+         ',' & Integer'Image (2**GID.Bits_per_pixel (i)) & " colors");
     else
       New_Line (Standard_Error);
     end if;
-    Put_Line (Standard_Error,
-      "  Palette: " & Boolean'Image (GID.Has_palette (i))
-    );
-    Put_Line (Standard_Error,
-      "  Greyscale: " & Boolean'Image (GID.Greyscale (i))
-    );
-    Put_Line (Standard_Error,
-      "  RLE encoding (if any): " & Boolean'Image (GID.Is_RLE_encoded (i))
-    );
-    Put_Line (Standard_Error,
-      "  Interlaced (GIF: each frame's choice): " & Boolean'Image (GID.Is_Interlaced (i))
-    );
-    Put_Line (Standard_Error,
-      "  Expect transparency: " & Boolean'Image (GID.Expect_transparency (i))
-    );
+
+    Put_Line
+      (Standard_Error,
+       "  Palette: " & Boolean'Image (GID.Has_palette (i)));
+    Put_Line
+      (Standard_Error,
+       "  Greyscale: " & Boolean'Image (GID.Greyscale (i)));
+    Put_Line
+      (Standard_Error,
+       "  RLE encoding (if any): " & Boolean'Image (GID.Is_RLE_encoded (i)));
+    Put_Line
+      (Standard_Error,
+       "  Expect transparency: " &
+       Boolean'Image (GID.Expect_transparency (i)));
+
+    if GID.Format (i) = GID.GIF then
+      null;  --  Interlaced-or-not choice is per frame in the GIF format.
+    else
+      Put_Line
+        (Standard_Error,
+         "  Interlaced / Progressive: " &
+         Boolean'Image (GID.Is_Interlaced (i)));
+    end if;
+
     Put_Line (Standard_Error, "1........10........20");
     Put_Line (Standard_Error, "         |         | ");
     --

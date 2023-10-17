@@ -282,8 +282,8 @@ private
     RLE_encoded         : Boolean := False;
     transparency        : Boolean := False;
     greyscale           : Boolean := False;
-    interlaced          : Boolean := False;  -- GIF or PNG
-    endianess           : Endianess_Type;    -- TIFF
+    interlaced          : Boolean := False;  --  GIF, JPEG or PNG; also called progressive
+    endianess           : Endianess_Type;    --  TIFF
     JPEG_stuff          : JPEG_Stuff_Type;
     stream              : Stream_Access;
     buffer              : Input_Buffer;

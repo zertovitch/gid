@@ -948,7 +948,8 @@ package body GID.Decoding_JPG is
       end loop;
       --
       if image.interlaced then
-        raise unsupported_image_subformat with "JPEG: progressive format not yet functional";
+        raise unsupported_image_subformat
+          with "JPEG: progressive format not yet functional";
       end if;
       declare
         mb : Macro_block (Component, 1 .. ssxmax, 1 .. ssymax);
