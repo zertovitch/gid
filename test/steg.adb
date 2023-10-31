@@ -51,14 +51,13 @@ procedure Steg is
   img_buf : p_Byte_Array := null;
 
   --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
-  procedure Load_raw_image (
-    image : in out GID.Image_Descriptor;
-    buffer : in out p_Byte_Array;
-    next_frame : out Ada.Calendar.Day_Duration
-  )
+  procedure Load_Raw_Image
+    (image      : in out GID.Image_Descriptor;
+     buffer     : in out p_Byte_Array;
+     next_frame :    out Ada.Calendar.Day_Duration)
   is
-    subtype Primary_color_range is Unsigned_8;
-    image_width : constant Positive := GID.Pixel_Width (image);
+    subtype Primary_Color_Range is Unsigned_8;
+    image_width  : constant Positive := GID.Pixel_Width (image);
     image_height : constant Positive := GID.Pixel_Height (image);
     idx : Natural;
     --
@@ -67,12 +66,11 @@ procedure Steg is
       idx := 3 * (x + image_width * (image_height - 1 - y));
     end Set_X_Y;
     --
-    procedure Put_Pixel (
-      red, green, blue : Primary_color_range;
-      alpha            : Primary_color_range
-    )
+    procedure Put_Pixel
+      (red, green, blue : Primary_Color_Range;
+       alpha            : Primary_Color_Range)
     is
-    pragma Warnings (off, alpha); -- alpha is just ignored
+    pragma Warnings (off, alpha);  --  alpha is ignored
     begin
       buffer (idx .. idx + 2) := (red, green, blue);
       idx := idx + 3;
@@ -90,16 +88,15 @@ procedure Steg is
     end Feedback;
 
     procedure Load_image is
-      new GID.Load_Image_Contents (
-        Primary_color_range, Set_X_Y,
-        Put_Pixel, Feedback, GID.fast
-      );
+      new GID.Load_Image_Contents
+        (Primary_Color_Range, Set_X_Y,
+         Put_Pixel, Feedback, GID.fast);
 
   begin
     Dispose (buffer);
     buffer := new Byte_Array (0 .. 3 * image_width * image_height - 1);
     Load_image (image, next_frame);
-  end Load_raw_image;
+  end Load_Raw_Image;
 
   procedure Dump_PPM (name : String; i : GID.Image_Descriptor) is
     f : Ada.Streams.Stream_IO.File_Type;
@@ -108,12 +105,11 @@ procedure Steg is
     Create (f, Out_File, ppm_name);
     Put_Line (Standard_Error, "Creating PPM image, name = " & ppm_name & " ...");
     --  PPM Header:
-    String'Write (
-      Stream (f),
-      "P6 " &
-      Integer'Image (GID.Pixel_Width (i)) &
-      Integer'Image (GID.Pixel_Height (i)) & " 255" & ASCII.LF
-    );
+    String'Write
+      (Stream (f),
+       "P6 " &
+       Integer'Image (GID.Pixel_Width (i)) &
+       Integer'Image (GID.Pixel_Height (i)) & " 255" & ASCII.LF);
     --  PPM raw BGR image:
     Byte_Array'Write (Stream (f), img_buf.all);
     --  ^ slow on some Ada systems, see to_bmp to have a faster version
@@ -129,12 +125,13 @@ procedure Steg is
     --
     procedure Encode is
       idx : Natural := img_buf'Last;
-      --
-      --  Start with buffer's end (the image's bottom), with the hope it is "noisier":
-      --  often there is a blue sky, or some smooth background like that, on the image's top...
+      --  ^ Start with buffer's end (the image's bottom), with the hope it
+      --    is "noisier": often there is a blue sky, or some smooth
+      --    background like that, on the image's top...
       --
       procedure Encode_Byte (b : Unsigned_8) is
       begin
+        --  One pixel contains one data byte.
         --  Blue:
         img_buf (idx) := (img_buf (idx) and 2#1111_1100#) or (b and 2#0000_0011#);
         idx := idx - 1;
@@ -190,6 +187,7 @@ procedure Steg is
       --
       procedure Decode_Byte (b : out Unsigned_8) is
       begin
+        --  One pixel contains one data byte.
         --  Blue:
         b := img_buf (idx) and 2#0000_0011#;
         idx := idx - 1;
@@ -208,6 +206,12 @@ procedure Steg is
         Decode_Byte (b);
         data_size := data_size + Shift_Left (Unsigned_64 (b), i * 8);
       end loop;
+      if data_size * 3 > Unsigned_64 (idx + 1) then
+        raise Data_too_large with
+          "Data size (as stored in the image) exceeds the image's" &
+          " capacity. It seems that either the steganography has been" &
+          " altered, or that there is no steganography at all.";
+      end if;
       Create (f_dt, Out_File, data_name);
       for i in 1 .. data_size loop
         Decode_Byte (b);
@@ -227,16 +231,15 @@ procedure Steg is
     Open (f_im, In_File, image_name);
     Put_Line (Standard_Error, "Processing " & image_name & "...");
     --
-    GID.Load_Image_Header (
-      i,
-      Stream (f_im).all,
-      try_tga =>
-        image_name'Length >= 4 and then
-        up_name (up_name'Last - 3 .. up_name'Last) = ".TGA"
-    );
+    GID.Load_Image_Header
+      (i,
+       Stream (f_im).all,
+       try_tga =>
+         image_name'Length >= 4 and then
+         up_name (up_name'Last - 3 .. up_name'Last) = ".TGA");
     Put_Line (Standard_Error, ".........v.........v");
     --
-    Load_raw_image (i, img_buf, next_frame);
+    Load_Raw_Image (i, img_buf, next_frame);
     New_Line (Standard_Error);
     Close (f_im);
     case op is
