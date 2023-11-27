@@ -14,9 +14,8 @@ private package GID.Decoding_GIF is
     with procedure Feedback (percents : Natural);
     mode : Display_Mode;
   --
-  procedure Load (
-    image     : in out Image_descriptor;
-    next_frame :    out Ada.Calendar.Day_Duration
-  );
+  procedure Load
+    (image      : in out Image_Descriptor;
+     next_frame :    out Ada.Calendar.Day_Duration);
 
 end GID.Decoding_GIF;

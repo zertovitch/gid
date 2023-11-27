@@ -41,12 +41,11 @@ package body GID.Decoding_GIF is
   -- Load --
   ----------
 
-  procedure Load (
-    image     : in out Image_descriptor;
-    next_frame :    out Ada.Calendar.Day_Duration
-  )
+  procedure Load
+    (image      : in out Image_Descriptor;
+     next_frame :    out Ada.Calendar.Day_Duration)
   is
-    local : Image_descriptor;
+    local : Image_Descriptor;
     --  With GIF, each frame is a local image with an eventual
     --  palette, different dimensions, etc. ...
 

@@ -22,7 +22,7 @@ package body GID.Headers is
   -------------------------------------------------------
 
   procedure Load_signature
-    (image   : in out Image_descriptor;
+    (image   : in out Image_Descriptor;
      try_tga :        Boolean          := False)
   is
     use Bounded_255;
@@ -240,7 +240,7 @@ package body GID.Headers is
   -- BMP header --
   ----------------
 
-  procedure Load_BMP_header (image : in out Image_descriptor) is
+  procedure Load_BMP_header (image : in out Image_Descriptor) is
     n, dummy, header_size : U32;
     w, dummy16 : U16;
     dummy8 : U8;
@@ -319,7 +319,7 @@ package body GID.Headers is
     Color_tables.Load_palette (image);
   end Load_BMP_header;
 
-  procedure Load_FITS_header (image : in out Image_descriptor) is
+  procedure Load_FITS_header (image : in out Image_Descriptor) is
   begin
     raise known_but_unsupported_image_format;
   end Load_FITS_header;
@@ -328,7 +328,7 @@ package body GID.Headers is
   -- GIF header --
   ----------------
 
-  procedure Load_GIF_header (image : in out Image_descriptor) is
+  procedure Load_GIF_header (image : in out Image_Descriptor) is
     --  GIF - logical screen descriptor
     screen_width, screen_height           : U16;
     packed, background, aspect_ratio_code : U8;
@@ -377,7 +377,7 @@ package body GID.Headers is
   -- JPEG header --
   -----------------
 
-  procedure Load_JPEG_header (image : in out Image_descriptor) is
+  procedure Load_JPEG_header (image : in out Image_Descriptor) is
     --  http://en.wikipedia.org/wiki/JPEG
     use GID.Decoding_JPG, GID.Buffering;
     sh : Segment_head;
@@ -409,7 +409,7 @@ package body GID.Headers is
     end loop;
   end Load_JPEG_header;
 
-  procedure Load_QOI_header (image : in out Image_descriptor) is
+  procedure Load_QOI_header (image : in out Image_Descriptor) is
     val_32 : U32;
     channels, colorspace : U8;
   begin
@@ -428,7 +428,7 @@ package body GID.Headers is
   -- PNG header --
   ----------------
 
-  procedure Load_PNG_header (image : in out Image_descriptor) is
+  procedure Load_PNG_header (image : in out Image_Descriptor) is
     use Decoding_PNG, Buffering;
     ch : Chunk_head;
     n, dummy : U32;
@@ -557,7 +557,7 @@ package body GID.Headers is
   -- PNM (PBM, PGM, PPM) header --
   --------------------------------
 
-  procedure Load_PNM_header (image : in out Image_descriptor) is
+  procedure Load_PNM_header (image : in out Image_Descriptor) is
     use Decoding_PNM;
     depth_val : Integer;
   begin
@@ -590,7 +590,7 @@ package body GID.Headers is
   -- TGA (Targa) header --
   ------------------------
 
-  procedure Load_TGA_header (image : in out Image_descriptor) is
+  procedure Load_TGA_header (image : in out Image_Descriptor) is
     --  TGA FILE HEADER, p.6
     --
     image_ID_length : U8; -- Field 1
@@ -702,7 +702,7 @@ package body GID.Headers is
     --  * Image data: Read by Load_image_contents.
   end Load_TGA_header;
 
-  procedure Load_TIFF_header (image : in out Image_descriptor) is
+  procedure Load_TIFF_header (image : in out Image_Descriptor) is
     first_IFD_offset : U32;
     --
     --  IFD: Image File Directory. Basically, the image header.

@@ -128,8 +128,11 @@ package GID is
   procedure Load_Image_Contents
     (image      : in out Image_Descriptor;
      next_frame :    out Ada.Calendar.Day_Duration);
-     --  ^ animation: real time lapse foreseen between the first image
-     --  and the image right after this one; 0.0 if no next frame
+     --  ^ Animation: real time lapse foreseen between the first image
+     --    and the image right after this one.
+     --
+     --    The return value is 0.0 if there is no next frame;
+     --    this includes the case of simgle-image data or formats.
 
   -------------------------------------------------------------------
   -- Some informations about the image, not necessary for decoding --
@@ -271,7 +274,7 @@ private
 
   subtype Positive_32 is Interfaces.Integer_32 range 1 .. Interfaces.Integer_32'Last;
 
-  type Image_descriptor is new Ada.Finalization.Controlled with record
+  type Image_Descriptor is new Ada.Finalization.Controlled with record
     format              : Image_Format_Type;
     detailed_format     : Bounded_255.Bounded_String;  --  For humans only!
     subformat_id        : Integer := 0;
@@ -292,8 +295,8 @@ private
     next_frame          : Ada.Calendar.Day_Duration;
   end record;
 
-  overriding procedure Adjust (Object : in out Image_descriptor);
-  overriding procedure Finalize (Object : in out Image_descriptor);
+  overriding procedure Adjust (Object : in out Image_Descriptor);
+  overriding procedure Finalize (Object : in out Image_Descriptor);
 
   to_be_done : exception;
   --  this exception should not happen, even with malformed files

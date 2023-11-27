@@ -57,7 +57,7 @@ private package GID.Decoding_PNG is
     kind   : PNG_Chunk_Tag;
   end record;
 
-  procedure Read (image : in out Image_descriptor; ch : out Chunk_head);
+  procedure Read (image : in out Image_Descriptor; ch : out Chunk_head);
 
   --------------------
   -- Image decoding --
@@ -72,6 +72,6 @@ private package GID.Decoding_PNG is
     );
     with procedure Feedback (percents : Natural);
   --
-  procedure Load (image : in out Image_descriptor);
+  procedure Load (image : in out Image_Descriptor);
 
 end GID.Decoding_PNG;

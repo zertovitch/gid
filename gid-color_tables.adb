@@ -14,7 +14,7 @@ package body GID.Color_tables is
     rgb.blue := U8 ((U16 (rgb.blue) * 255) / 31);
   end Convert;
 
-  procedure Load_palette (image : in out Image_descriptor) is
+  procedure Load_palette (image : in out Image_Descriptor) is
     c, d : U8;
     use GID.Buffering;
   begin

@@ -1,7 +1,8 @@
-with Ada.Text_IO;
-with Ada.Unchecked_Deallocation;
+with Ada.Text_IO,
+     Ada.Unchecked_Deallocation;
 
 package body GID.Decoding_PNG.Huffman is
+  use Interfaces;
 
   procedure Build (t : out Huff_tree; descr : in Huff_descriptor) is
     curr, alloc : Natural;

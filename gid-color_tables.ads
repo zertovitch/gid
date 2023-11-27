@@ -7,7 +7,7 @@ private package GID.Color_tables is
   --  Load a palette on its defined range, according to
   --  the format and subformats loaded by initial
   --  steps in GID.Load_image_header
-  procedure Load_palette (image : in out Image_descriptor);
+  procedure Load_palette (image : in out Image_Descriptor);
   --  if image.palette = null, nothing happens.
 
   --  Convert a RGB value packed in 2 bytes

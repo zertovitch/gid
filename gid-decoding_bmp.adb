@@ -4,7 +4,7 @@ package body GID.Decoding_BMP is
 
   use Buffering, Interfaces;
 
-  procedure Load (image : in out Image_descriptor) is
+  procedure Load (image : in out Image_Descriptor) is
     b01, b, br, bg, bb : U8 := 0;
     x, x_max, y : Natural;
     --

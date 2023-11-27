@@ -13,6 +13,6 @@ private package GID.Decoding_TGA is
     );
     with procedure Feedback (percents : Natural);
   --
-  procedure Load (image : in out Image_descriptor);
+  procedure Load (image : in out Image_Descriptor);
 
 end GID.Decoding_TGA;

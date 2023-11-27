@@ -42,7 +42,7 @@ package body GID is
   --  are heap allocated; we need to release them upon finalization
   --  or descriptor reuse.
 
-  procedure Clear_heap_allocated_memory (Object : in out Image_descriptor) is
+  procedure Clear_heap_allocated_memory (Object : in out Image_Descriptor) is
     procedure Dispose is
       new Ada.Unchecked_Deallocation (Color_Table, p_Color_Table);
     procedure Dispose is
@@ -66,7 +66,7 @@ package body GID is
   -----------------------
 
   procedure Load_Image_Header
-    (image   :    out Image_descriptor;
+    (image   :    out Image_Descriptor;
      from    : in out Ada.Streams.Root_Stream_Type'Class;
      try_tga :        Boolean := False)
   is
@@ -96,7 +96,7 @@ package body GID is
   -- Pixel_width --
   -----------------
 
-  function Pixel_Width (image : Image_descriptor) return Positive is
+  function Pixel_Width (image : Image_Descriptor) return Positive is
   begin
     return Positive (image.width);
   end Pixel_Width;
@@ -105,12 +105,12 @@ package body GID is
   -- Pixel_height --
   ------------------
 
-  function Pixel_Height (image : Image_descriptor) return Positive is
+  function Pixel_Height (image : Image_Descriptor) return Positive is
   begin
     return Positive (image.height);
   end Pixel_Height;
 
-  function Display_Orientation (image : Image_descriptor) return Orientation is
+  function Display_Orientation (image : Image_Descriptor) return Orientation is
   begin
     return image.display_orientation;
   end Display_Orientation;
@@ -119,10 +119,9 @@ package body GID is
   -- Load_image_contents --
   -------------------------
 
-  procedure Load_Image_Contents (
-    image     : in out Image_descriptor;
-    next_frame :    out Ada.Calendar.Day_Duration
-  )
+  procedure Load_Image_Contents
+    (image      : in out Image_Descriptor;
+     next_frame :    out Ada.Calendar.Day_Duration)
   is
     procedure BMP_Load is
       new Decoding_BMP.Load (Primary_Color_Range, Set_X_Y, Put_Pixel, Feedback);
@@ -165,52 +164,52 @@ package body GID is
   -- Some informations about the image --
   ---------------------------------------
 
-  function Format (image : Image_descriptor) return Image_Format_Type is
+  function Format (image : Image_Descriptor) return Image_Format_Type is
   begin
     return image.format;
   end Format;
 
-  function Detailed_format (image : Image_descriptor) return String is
+  function Detailed_format (image : Image_Descriptor) return String is
   begin
     return Bounded_255.To_String (image.detailed_format);
   end Detailed_format;
 
-  function Subformat (image : Image_descriptor) return Integer is
+  function Subformat (image : Image_Descriptor) return Integer is
   begin
     return image.subformat_id;
   end Subformat;
 
-  function Bits_per_pixel (image : Image_descriptor) return Positive is
+  function Bits_per_pixel (image : Image_Descriptor) return Positive is
   begin
     return image.bits_per_pixel;
   end Bits_per_pixel;
 
-  function Is_RLE_encoded (image : Image_descriptor) return Boolean is
+  function Is_RLE_encoded (image : Image_Descriptor) return Boolean is
   begin
     return image.RLE_encoded;
   end Is_RLE_encoded;
 
-  function Is_Interlaced (image : Image_descriptor) return Boolean is
+  function Is_Interlaced (image : Image_Descriptor) return Boolean is
   begin
     return image.interlaced;
   end Is_Interlaced;
 
-  function Greyscale (image : Image_descriptor) return Boolean is
+  function Greyscale (image : Image_Descriptor) return Boolean is
   begin
     return image.greyscale;
   end Greyscale;
 
-  function Has_palette (image : Image_descriptor) return Boolean is
+  function Has_palette (image : Image_Descriptor) return Boolean is
   begin
     return image.palette /= null;
   end Has_palette;
 
-  function Expect_transparency (image : Image_descriptor) return Boolean is
+  function Expect_transparency (image : Image_Descriptor) return Boolean is
   begin
     return image.transparency;
   end Expect_transparency;
 
-  overriding procedure Adjust (Object : in out Image_descriptor) is
+  overriding procedure Adjust (Object : in out Image_Descriptor) is
     use JPEG_Defs;
   begin
     --  Clone heap allocated objects, if any.
@@ -229,7 +228,7 @@ package body GID is
     end loop;
   end Adjust;
 
-  overriding procedure Finalize (Object : in out Image_descriptor) is
+  overriding procedure Finalize (Object : in out Image_Descriptor) is
   begin
     Clear_heap_allocated_memory (Object);
   end Finalize;

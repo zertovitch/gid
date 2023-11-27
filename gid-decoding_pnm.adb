@@ -9,7 +9,7 @@ package body GID.Decoding_PNM is
   -- Load --
   ----------
 
-  procedure Load (image : in out Image_descriptor) is
+  procedure Load (image : in out Image_Descriptor) is
 
     procedure Row_start (y : Natural) is
     begin

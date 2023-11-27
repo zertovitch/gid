@@ -53,7 +53,7 @@ package body GID.Decoding_JPG is
 
   procedure Big_endian is new Big_endian_number (U16);
 
-  procedure Read (image : in out Image_descriptor; sh : out Segment_head) is
+  procedure Read (image : in out Image_Descriptor; sh : out Segment_head) is
     b : U8;
     id : constant array (JPEG_marker) of U8 :=
     (SOI      => 16#D8#,
@@ -104,7 +104,7 @@ package body GID.Decoding_JPG is
     (1 => 0, 2 => 1, 4 => 2, 8 => 3, others => -1);
 
   --  SOF - Start Of Frame (the real header)
-  procedure Read_SOF (image : in out Image_descriptor; sh : Segment_head) is
+  procedure Read_SOF (image : in out Image_Descriptor; sh : Segment_head) is
     use Bounded_255;
     b, bits_pp_primary, id_base : U8;
     w, h : U16;
@@ -224,7 +224,7 @@ package body GID.Decoding_JPG is
     end if;
   end Read_SOF;
 
-  procedure Read_DHT (image : in out Image_descriptor; data_length : Natural) is
+  procedure Read_DHT (image : in out Image_Descriptor; data_length : Natural) is
     remaining : Integer_M32 := Integer_M32 (data_length); -- data remaining in segment
     b : U8;
     ht_idx : Natural;
@@ -291,7 +291,7 @@ package body GID.Decoding_JPG is
     end loop multi_tables;
   end Read_DHT;
 
-  procedure Read_DQT (image : in out Image_descriptor; data_length : Natural) is
+  procedure Read_DQT (image : in out Image_Descriptor; data_length : Natural) is
     remaining : Integer := data_length; -- data remaining in segment
     b, q8 : U8; q16 : U16;
     qt_idx : Natural;
@@ -321,7 +321,7 @@ package body GID.Decoding_JPG is
     end loop multi_tables;
   end Read_DQT;
 
-  procedure Read_DRI (image : in out Image_descriptor) is
+  procedure Read_DRI (image : in out Image_Descriptor) is
     ri : U16;
   begin
     Big_endian (image.buffer, ri);
@@ -331,7 +331,7 @@ package body GID.Decoding_JPG is
     image.JPEG_stuff.restart_interval := Natural (ri);
   end Read_DRI;
 
-  procedure Read_EXIF (image : in out Image_descriptor; data_length : Natural) is
+  procedure Read_EXIF (image : in out Image_Descriptor; data_length : Natural) is
     b, orientation_value : U8;
     x, ifd0_entries : Natural;
     Exif_signature : constant String := "Exif" & ASCII.NUL & ASCII.NUL;
@@ -445,7 +445,7 @@ package body GID.Decoding_JPG is
   -- Image decoding --
   --------------------
 
-  procedure Load (image : in out Image_descriptor) is
+  procedure Load (image : in out Image_Descriptor) is
     --
     --  Bit buffer
     --

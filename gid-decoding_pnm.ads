@@ -17,7 +17,7 @@ private package GID.Decoding_PNM is
     );
     with procedure Feedback (percents : Natural);
   --
-  procedure Load (image : in out Image_descriptor);
+  procedure Load (image : in out Image_Descriptor);
 
   function Get_Token (
     stream      : Stream_Access;

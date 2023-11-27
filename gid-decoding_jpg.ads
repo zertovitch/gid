@@ -56,16 +56,16 @@ private package GID.Decoding_JPG is
     kind   : JPEG_marker;
   end record;
 
-  procedure Read (image : in out Image_descriptor; sh : out Segment_head);
+  procedure Read (image : in out Image_Descriptor; sh : out Segment_head);
 
   --  SOF - Start Of Frame (the real header)
-  procedure Read_SOF (image : in out Image_descriptor; sh : Segment_head);
+  procedure Read_SOF (image : in out Image_Descriptor; sh : Segment_head);
 
-  procedure Read_DHT (image : in out Image_descriptor; data_length : Natural);
-  procedure Read_DQT (image : in out Image_descriptor; data_length : Natural);
-  procedure Read_DRI (image : in out Image_descriptor);
+  procedure Read_DHT (image : in out Image_Descriptor; data_length : Natural);
+  procedure Read_DQT (image : in out Image_Descriptor; data_length : Natural);
+  procedure Read_DRI (image : in out Image_Descriptor);
 
-  procedure Read_EXIF (image : in out Image_descriptor; data_length : Natural);
+  procedure Read_EXIF (image : in out Image_Descriptor; data_length : Natural);
 
   --------------------
   -- Image decoding --
@@ -81,6 +81,6 @@ private package GID.Decoding_JPG is
     with procedure Feedback (percents : Natural);
     --  mode: Display_mode; -- nice -> progressive nicely displayed
   --
-  procedure Load (image : in out Image_descriptor);
+  procedure Load (image : in out Image_Descriptor);
 
 end GID.Decoding_JPG;

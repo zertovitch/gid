@@ -50,7 +50,7 @@ package body GID.Decoding_PNG is
   -- Read --
   ----------
 
-  procedure Read (image : in out Image_descriptor; ch : out Chunk_head) is
+  procedure Read (image : in out Image_Descriptor; ch : out Chunk_head) is
     str4 : String (1 .. 4);
     b : U8;
   begin
@@ -145,7 +145,7 @@ package body GID.Decoding_PNG is
   -- Load --
   ----------
 
-  procedure Load (image : in out Image_descriptor) is
+  procedure Load (image : in out Image_Descriptor) is
 
     ----------------------
     -- Load_specialized --

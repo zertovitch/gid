@@ -7,7 +7,7 @@ package body GID.Decoding_QOI is
   -- Load --
   ----------
 
-  procedure Load (image : in out Image_descriptor) is
+  procedure Load (image : in out Image_Descriptor) is
 
     procedure Row_start (y : Natural) is
     begin
