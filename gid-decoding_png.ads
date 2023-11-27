@@ -50,7 +50,13 @@ private package GID.Decoding_PNG is
     mkBT,
     mkTS,
     pcLb,
-    iDOT);  --  Apple proprietary chunk
+    iDOT,   --  Apple proprietary chunk
+    --
+    --  Animated PNG (APNG - https://en.wikipedia.org/wiki/APNG )
+    --
+    acTL,   --  Animation control chunk
+    fcTL,   --  Frame control chunk
+    fdAT);  --  Frame data chunk
 
   type Chunk_Header is record
     length : U32;
