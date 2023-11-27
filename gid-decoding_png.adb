@@ -748,7 +748,6 @@ package body GID.Decoding_PNG is
       end UnZ_IO;
 
       package UnZ_Meth is
-        deflate_e_mode : constant Boolean := False;
         procedure Inflate;
       end UnZ_Meth;
 
@@ -1069,13 +1068,13 @@ package body GID.Decoding_PNG is
 
         --  Copy lengths for literal codes 257..285
 
-        copy_lengths_literal : Length_array (0 .. 30) :=
+        copy_lengths_literal : constant Length_array (0 .. 30) :=
              (3,  4,  5,  6,  7,  8,  9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
                35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0);
 
         --  Extra bits for literal codes 257..285
 
-        extra_bits_literal : Length_array (0 .. 30) :=
+        extra_bits_literal : constant Length_array (0 .. 30) :=
                (0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
                  3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, invalid, invalid);
 
@@ -1092,7 +1091,7 @@ package body GID.Decoding_PNG is
              (0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6,
                7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14);
 
-        max_dist : Integer := 29; -- changed to 31 for deflate_e
+        max_dist : constant := 29;
 
         procedure Inflate_fixed_block is
           Tl,                        -- literal/length code table
@@ -1330,11 +1329,6 @@ package body GID.Decoding_PNG is
           is_last_block : Boolean;
           blocks : Positive := 1;
         begin
-          if deflate_e_mode then
-            copy_lengths_literal (28) := 3; -- instead of 258
-            extra_bits_literal (28) := 16;  -- instead of 0
-            max_dist := 31;
-          end if;
           loop
             Inflate_Block (is_last_block);
             exit when is_last_block;
@@ -1356,6 +1350,45 @@ package body GID.Decoding_PNG is
 
       b : U8;
       z_crc, dummy : U32;
+
+      procedure Decompress_Data is
+      begin
+        UnZ_IO.Read_raw_byte (b);  --  zlib compression method/flags code
+        UnZ_IO.Read_raw_byte (b);  --  Additional flags/check bits
+        --
+        UnZ_IO.Init_Buffers;
+        --  ^ we indicate that we have a byte reserve of chunk's length,
+        --    minus both zlib header bytes.
+        UnZ_Meth.Inflate;
+        z_crc := 0;
+        for i in 1 .. 4 loop
+          UnZ_IO.Read_raw_byte (b);
+          z_crc := z_crc * 256 + U32 (b);
+        end loop;
+        --  z_crc : zlib Check value
+        --  if z_crc /= U32(UnZ_Glob.crc32val) then
+        --    ada.text_io.put(z_crc 'img &  UnZ_Glob.crc32val'img);
+        --    raise
+        --      error_in_image_data with
+        --      "PNG: deflate stream corrupt";
+        --  end if;
+        --  ** Mystery: this check fails even with images which decompress perfectly
+        --  ** Is CRC init value different between zip and zlib ? Is it Adler32 ?
+      end Decompress_Data;
+
+      procedure Textual_Data is
+      begin
+        for i in 1 .. ch.length loop
+          Get_Byte (image.buffer, b);
+          if some_trace then
+            if b = 0 then  --  Separates keyword from message
+              Ada.Text_IO.New_Line;
+            else
+              Ada.Text_IO.Put (Character'Val (b));
+            end if;
+          end if;
+        end loop;
+      end Textual_Data;
 
     begin  --  Load_specialized
       --
@@ -1380,56 +1413,26 @@ package body GID.Decoding_PNG is
           exit when ch.kind = IEND or ch.length > 0;
         end loop;
         case ch.kind is
-          when IEND => -- 11.2.5 IEND Image trailer
+          when IEND =>  --  11.2.5 IEND Image trailer
             exit main_chunk_loop;
-          when IDAT => -- 11.2.4 IDAT Image data
+          when IDAT =>  --  11.2.4 IDAT Image data
             --
             --  NB: the compressed data may hold on several IDAT chunks.
             --  It means that right in the middle of compressed data, you
             --  can have a chunk crc, and a new IDAT header!...
+            begin
+              Decompress_Data;
+            exception
+              when error_in_image_data =>
+                --  Vicious IEND at the wrong place
+                --  basi4a08.png test image (corrupt, imho)
+                exit main_chunk_loop;
+            end;
+            Big_endian (image.buffer, dummy);
+            --  ^ Last IDAT chunk's CRC (then, on compressed data)
             --
-            UnZ_IO.Read_raw_byte (b); -- zlib compression method/flags code
-            UnZ_IO.Read_raw_byte (b); -- Additional flags/check bits
-            --
-            UnZ_IO.Init_Buffers;
-            --  ^ we indicate that we have a byte reserve of chunk's length,
-            --    minus both zlib header bytes.
-            UnZ_Meth.Inflate;
-            z_crc := 0;
-            for i in 1 .. 4 loop
-              begin
-                UnZ_IO.Read_raw_byte (b);
-              exception
-                when error_in_image_data =>
-                  --  vicious IEND at the wrong place
-                  --  basi4a08.png test image (corrupt, imho)
-                  exit main_chunk_loop;
-              end;
-              z_crc := z_crc * 256 + U32 (b);
-            end loop;
-            --  z_crc : zlib Check value
-            --  if z_crc /= U32(UnZ_Glob.crc32val) then
-            --    ada.text_io.put(z_crc 'img &  UnZ_Glob.crc32val'img);
-            --    raise
-            --      error_in_image_data with
-            --      "PNG: deflate stream corrupt";
-            --  end if;
-            --  ** Mystery: this check fails even with images which decompress perfectly
-            --  ** Is CRC init value different between zip and zlib ? Is it Adler32 ?
-            Big_endian (image.buffer, dummy); -- chunk's CRC
-            --  last IDAT chunk's CRC (then, on compressed data)
-            --
-          when tEXt => -- 11.3.4.3 tEXt Textual data
-            for i in 1 .. ch.length loop
-              Get_Byte (image.buffer, b);
-              if some_trace then
-                if b = 0 then  --  Separates keyword from message
-                  Ada.Text_IO.New_Line;
-                else
-                  Ada.Text_IO.Put (Character'Val (b));
-                end if;
-              end if;
-            end loop;
+          when tEXt =>  --  11.3.4.3 tEXt Textual data
+            Textual_Data;
             Big_endian (image.buffer, dummy);  --  Chunk's CRC
           when others =>
             --  Skip chunk data and CRC
