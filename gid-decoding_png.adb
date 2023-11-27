@@ -50,7 +50,7 @@ package body GID.Decoding_PNG is
   -- Read --
   ----------
 
-  procedure Read (image : in out Image_Descriptor; ch : out Chunk_head) is
+  procedure Read_Chunk_Header (image : in out Image_Descriptor; ch : out Chunk_Header) is
     str4 : String (1 .. 4);
     b : U8;
   begin
@@ -75,7 +75,7 @@ package body GID.Decoding_PNG is
           Integer'Image (Character'Pos (str4 (4))) &
           " (" & str4 & "), or PNG data is corrupt";
     end;
-  end Read;
+  end Read_Chunk_Header;
 
   package CRC32 is
 
@@ -671,7 +671,7 @@ package body GID.Decoding_PNG is
         end if;
       end Output_uncompressed;
 
-      ch : Chunk_head;
+      ch : Chunk_Header;
 
       --  Out of some intelligent design, there might be an IDAT chunk
       --  boundary anywhere inside the zlib compressed block...
@@ -681,7 +681,7 @@ package body GID.Decoding_PNG is
         Big_endian (image.buffer, dummy); -- ending chunk's CRC
         --  New chunk begins here.
         loop
-          Read (image, ch);
+          Read_Chunk_Header (image, ch);
           exit when ch.kind /= IDAT or ch.length > 0;
         end loop;
         if ch.kind /= IDAT then
@@ -1357,7 +1357,7 @@ package body GID.Decoding_PNG is
       b : U8;
       z_crc, dummy : U32;
 
-    begin -- Load_specialized
+    begin  --  Load_specialized
       --
       --  For optimization reasons, bytes_to_unfilter is passed as a
       --  generic parameter but should be always as below right to "/=" :
@@ -1372,10 +1372,11 @@ package body GID.Decoding_PNG is
         x_max := X_range'Last;
         y_max := Y_range'Last;
       end if;
+
       main_chunk_loop :
       loop
         loop
-          Read (image, ch);
+          Read_Chunk_Header (image, ch);
           exit when ch.kind = IEND or ch.length > 0;
         end loop;
         case ch.kind is
@@ -1422,14 +1423,14 @@ package body GID.Decoding_PNG is
             for i in 1 .. ch.length loop
               Get_Byte (image.buffer, b);
               if some_trace then
-                if b = 0 then -- separates keyword from message
+                if b = 0 then  --  Separates keyword from message
                   Ada.Text_IO.New_Line;
                 else
                   Ada.Text_IO.Put (Character'Val (b));
                 end if;
               end if;
             end loop;
-            Big_endian (image.buffer, dummy); -- chunk's CRC
+            Big_endian (image.buffer, dummy);  --  Chunk's CRC
           when others =>
             --  Skip chunk data and CRC
             for i in 1 .. ch.length + 4 loop
@@ -1437,6 +1438,7 @@ package body GID.Decoding_PNG is
             end loop;
         end case;
       end loop main_chunk_loop;
+
       if some_trace then
         for f in Filter_method_0 loop
           Ada.Text_IO.Put_Line (

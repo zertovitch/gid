@@ -430,14 +430,14 @@ package body GID.Headers is
 
   procedure Load_PNG_header (image : in out Image_Descriptor) is
     use Decoding_PNG, Buffering;
-    ch : Chunk_head;
+    ch : Chunk_Header;
     n, dummy : U32;
     pragma Unreferenced (dummy);
     b, color_type : U8;
     palette : Boolean := False;
   begin
     Buffering.Attach_Stream (image.buffer, image.stream);
-    Read (image, ch);
+    Read_Chunk_Header (image, ch);
     if ch.kind /= IHDR then
       raise error_in_image_data with "PNG: expected 'IHDR' chunk as first chunk in PNG stream";
     end if;
@@ -529,7 +529,7 @@ package body GID.Headers is
     Big_endian_buffered (image.buffer, dummy); -- Chunk's CRC
     if palette then
       loop
-        Read (image, ch);
+        Read_Chunk_Header (image, ch);
         case ch.kind is
           when IEND =>
             raise error_in_image_data with

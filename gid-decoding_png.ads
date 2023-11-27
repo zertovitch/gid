@@ -39,7 +39,7 @@ private package GID.Decoding_PNG is
     --
     --  Private chunks (not defined in the ISO standard)
     --
-    vpAg, --    used in ImageMagick to store "virtual page" size
+    vpAg,   --  Used in ImageMagick to store "virtual page" size
     spAL,
     prVW,
     cmOD,
@@ -52,12 +52,12 @@ private package GID.Decoding_PNG is
     pcLb,
     iDOT);  --  Apple proprietary chunk
 
-  type Chunk_head is record
+  type Chunk_Header is record
     length : U32;
     kind   : PNG_Chunk_Tag;
   end record;
 
-  procedure Read (image : in out Image_Descriptor; ch : out Chunk_head);
+  procedure Read_Chunk_Header (image : in out Image_Descriptor; ch : out Chunk_Header);
 
   --------------------
   -- Image decoding --
@@ -66,10 +66,9 @@ private package GID.Decoding_PNG is
   generic
     type Primary_color_range is mod <>;
     with procedure Set_X_Y (x, y : Natural);
-    with procedure Put_Pixel (
-      red, green, blue : Primary_color_range;
-      alpha            : Primary_color_range
-    );
+    with procedure Put_Pixel
+      (red, green, blue : Primary_color_range;
+       alpha            : Primary_color_range);
     with procedure Feedback (percents : Natural);
   --
   procedure Load (image : in out Image_Descriptor);
