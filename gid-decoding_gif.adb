@@ -395,11 +395,75 @@ package body GID.Decoding_GIF is
       end loop sub_blocks_sequence;
     end Skip_sub_blocks;
 
-    temp, temp2, label : U8;
-    delay_frame : U16;
-    c : Character;
-    frame_interlaced : Boolean;
+    temp, temp2 : U8;
     frame_transparency : Boolean := False;
+
+    procedure GIF_Extension is
+      label : U8;
+      delay_frame : U16;
+      c : Character;
+    begin
+      Get_Byte (image.buffer, label);
+      case label is
+        when 16#F9# =>  --  See: 23. Graphic Control Extension
+          if full_trace then
+            Ada.Text_IO.Put_Line (" - 16#F9#: Graphic Control Extension");
+          end if;
+          Get_Byte (image.buffer, temp);
+          if temp /= 4 then
+            raise error_in_image_data with "GIF: error in Graphic Control Extension";
+          end if;
+          Get_Byte (image.buffer, temp);
+          --  Reserved                      3 Bits
+          --  Disposal Method               3 Bits
+          --  User Input Flag               1 Bit
+          --  Transparent Color Flag        1 Bit
+          frame_transparency := (temp and 1) = 1;
+          Read_Intel (image.buffer, delay_frame);
+          image.next_frame :=
+            image.next_frame + Ada.Calendar.Day_Duration (delay_frame) / 100.0;
+          next_frame := image.next_frame;
+          Get_Byte (image.buffer, temp);
+          Transp_color := Color_type (temp);
+          --  Zero sub-block:
+          Get_Byte (image.buffer, temp);
+        when 16#FE# =>  --  See: 24. Comment Extension
+          if full_trace then
+            Ada.Text_IO.Put_Line (" - 16#FE#: Comment Extension");
+            sub_blocks_sequence :
+            loop
+              Get_Byte (image.buffer, temp);  --  Load sub-block length byte
+              exit sub_blocks_sequence when temp = 0;
+              --  null sub-block = end of sub-block sequence
+              for i in 1 .. temp loop
+                Get_Byte (image.buffer, temp2);
+                c := Character'Val (temp2);
+                Ada.Text_IO.Put (c);
+              end loop;
+            end loop sub_blocks_sequence;
+            Ada.Text_IO.New_Line;
+          else
+            Skip_sub_blocks;
+          end if;
+        when 16#01# =>  --  See: 25. Plain Text Extension
+          if full_trace then
+            Ada.Text_IO.Put_Line (" - 16#01#: Plain Text Extension");
+          end if;
+          Skip_sub_blocks;
+        when 16#FF# =>  --  See: 26. Application Extension
+          if full_trace then
+            Ada.Text_IO.Put_Line (" - 16#FF#: Application Extension");
+          end if;
+          Skip_sub_blocks;
+        when others =>
+          if full_trace then
+            Ada.Text_IO.Put_Line (" - Unused extension:" & U8'Image (label));
+          end if;
+          Skip_sub_blocks;
+      end case;
+    end GIF_Extension;
+
+    frame_interlaced : Boolean;
     local_palette  : Boolean;
     --
     separator :  Character;
@@ -408,7 +472,7 @@ package body GID.Decoding_GIF is
     custom_pixel_mask : U32;
     BitsPerPixel  : Natural;
 
-  begin -- Load
+  begin  --  Load
     next_frame := 0.0;
     --  Scan various GIF blocks, until finding an image
     loop
@@ -421,79 +485,23 @@ package body GID.Decoding_GIF is
         );
       end if;
       case separator is
-        when ',' => -- 16#2C#
+        when ',' =>  --  16#2C#
           exit;
           --  Image descriptor will begin
           --  See: 20. Image Descriptor
-        when ';' => -- 16#3B#
+        when ';' =>  --  16#3B#
           if full_trace then
-            Ada.Text_IO.Put (" - End of GIF");
+            Ada.Text_IO.Put (" - End of GIF image / animation");
           end if;
+          next_frame := 0.0;
           image.next_frame := 0.0;
-          next_frame := image.next_frame;
-          return; -- End of GIF image
-        when '!' => -- 16#21# Extensions
+          Feedback (100);
+          return;
+        when '!' =>  --  16#21# Extensions
           if full_trace then
-            Ada.Text_IO.Put (" - Extension");
+            Ada.Text_IO.Put (" - Extension to GIF format");
           end if;
-          Get_Byte (image.buffer, label);
-          case label is
-            when 16#F9# => -- See: 23. Graphic Control Extension
-              if full_trace then
-                Ada.Text_IO.Put_Line (" - 16#F9#: Graphic Control Extension");
-              end if;
-              Get_Byte (image.buffer, temp);
-              if temp /= 4 then
-                raise error_in_image_data with "GIF: error in Graphic Control Extension";
-              end if;
-              Get_Byte (image.buffer, temp);
-              --  Reserved                      3 Bits
-              --  Disposal Method               3 Bits
-              --  User Input Flag               1 Bit
-              --  Transparent Color Flag        1 Bit
-              frame_transparency := (temp and 1) = 1;
-              Read_Intel (image.buffer, delay_frame);
-              image.next_frame :=
-                image.next_frame + Ada.Calendar.Day_Duration (delay_frame) / 100.0;
-              next_frame := image.next_frame;
-              Get_Byte (image.buffer, temp);
-              Transp_color := Color_type (temp);
-              --  zero sub-block:
-              Get_Byte (image.buffer, temp);
-            when 16#FE# => -- See: 24. Comment Extension
-              if full_trace then
-                Ada.Text_IO.Put_Line (" - 16#FE#: Comment Extension");
-                sub_blocks_sequence :
-                loop
-                  Get_Byte (image.buffer, temp); -- load sub-block length byte
-                  exit sub_blocks_sequence when temp = 0;
-                  --  null sub-block = end of sub-block sequence
-                  for i in 1 .. temp loop
-                    Get_Byte (image.buffer, temp2);
-                    c := Character'Val (temp2);
-                    Ada.Text_IO.Put (c);
-                  end loop;
-                end loop sub_blocks_sequence;
-                Ada.Text_IO.New_Line;
-              else
-                Skip_sub_blocks;
-              end if;
-            when 16#01# => -- See: 25. Plain Text Extension
-              if full_trace then
-                Ada.Text_IO.Put_Line (" - 16#01#: Plain Text Extension");
-              end if;
-              Skip_sub_blocks;
-            when 16#FF# => -- See: 26. Application Extension
-              if full_trace then
-                Ada.Text_IO.Put_Line (" - 16#FF#: Application Extension");
-              end if;
-              Skip_sub_blocks;
-            when others =>
-              if full_trace then
-                Ada.Text_IO.Put_Line (" - Unused extension:" & U8'Image (label));
-              end if;
-              Skip_sub_blocks;
-          end case;
+          GIF_Extension;
         when ASCII.NUL =>
           --  Occurs in some buggy GIFs (2016).
           --  Seems a 2nd zero, the 1st marking the end of sub-block list.
@@ -591,7 +599,7 @@ package body GID.Decoding_GIF is
         else
           GIF_Decode_interlaced_opaque_8;
         end if;
-      else -- straight (non-interlaced)
+      else  --  Straight (non-interlaced)
         if frame_transparency then
           GIF_Decode_straight_transparent_8;
         else
@@ -601,7 +609,7 @@ package body GID.Decoding_GIF is
     end if;
     Feedback (100);
     --
-    Get_Byte (image.buffer, temp); -- zero-size sub-block
+    Get_Byte (image.buffer, temp);  --  Zero-size sub-block
   end Load;
 
 end GID.Decoding_GIF;

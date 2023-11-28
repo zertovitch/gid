@@ -270,9 +270,17 @@ private
     restart_interval : Natural; -- predictor restarts every... (0: never)
   end record;
 
-  type Endianess_Type is (little, big); -- for TIFF images
-
+  subtype Natural_32  is Interfaces.Integer_32 range 0 .. Interfaces.Integer_32'Last;
   subtype Positive_32 is Interfaces.Integer_32 range 1 .. Interfaces.Integer_32'Last;
+
+  type APNG_Stuff_Type is record
+    next_frame_width    : Positive_32;
+    next_frame_height   : Positive_32;
+    next_frame_x_offset : Natural_32;
+    next_frame_y_offset : Natural_32;
+  end record;
+
+  type Endianess_Type is (little, big);  --  For TIFF images
 
   type Image_Descriptor is new Ada.Finalization.Controlled with record
     format              : Image_Format_Type;
@@ -293,14 +301,15 @@ private
     palette             : p_Color_Table := null;
     first_byte          : U8;
     next_frame          : Ada.Calendar.Day_Duration;
+    APNG_stuff          : APNG_Stuff_Type;
   end record;
 
   overriding procedure Adjust (Object : in out Image_Descriptor);
   overriding procedure Finalize (Object : in out Image_Descriptor);
 
   to_be_done : exception;
-  --  this exception should not happen, even with malformed files
-  --  its role is to pop up when a feature is set as implemented
+  --  ^ This exception should not happen, even with malformed files.
+  --  Its role is to pop up when a feature is set as implemented
   --  but one aspect (e.g. palette) was forgotten.
 
   --
@@ -312,7 +321,7 @@ private
      some_t,  -- Image / frame technical informations
      full);   -- Byte / pixel / compressed block details
 
-  trace : constant Trace_Type := none; -- <== Choice here
+  trace : constant Trace_Type := some_t;  --  <=====  Choice here
 
   no_trace   : constant Boolean := trace = none;
   full_trace : constant Boolean := trace = full;

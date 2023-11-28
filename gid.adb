@@ -77,18 +77,18 @@ package body GID is
     --  Load the very first symbols of the header,
     --  this identifies the image format.
     --
-    Headers.Load_signature (image, try_tga);
+    Headers.Load_Signature (image, try_tga);
     --
     case image.format is
-      when BMP  => Headers.Load_BMP_header  (image);
-      when FITS => Headers.Load_FITS_header (image);
-      when GIF  => Headers.Load_GIF_header  (image);
-      when JPEG => Headers.Load_JPEG_header (image);
-      when PNG  => Headers.Load_PNG_header  (image);
-      when PNM  => Headers.Load_PNM_header  (image);
-      when QOI  => Headers.Load_QOI_header  (image);
-      when TGA  => Headers.Load_TGA_header  (image);
-      when TIFF => Headers.Load_TIFF_header (image);
+      when BMP  => Headers.Load_BMP_Header  (image);
+      when FITS => Headers.Load_FITS_Header (image);
+      when GIF  => Headers.Load_GIF_Header  (image);
+      when JPEG => Headers.Load_JPEG_Header (image);
+      when PNG  => Headers.Load_PNG_Header  (image);
+      when PNM  => Headers.Load_PNM_Header  (image);
+      when QOI  => Headers.Load_QOI_Header  (image);
+      when TGA  => Headers.Load_TGA_Header  (image);
+      when TIFF => Headers.Load_TIFF_Header (image);
     end case;
   end Load_Image_Header;
 

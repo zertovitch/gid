@@ -60,7 +60,7 @@ procedure To_BMP is
   procedure Dispose is new Ada.Unchecked_Deallocation (Byte_Array, p_Byte_Array);
 
   forgive_errors : constant Boolean := False;
-  error : Boolean;
+  in_error : Boolean;
 
   img_buf, bkg_buf : p_Byte_Array := null;
   bkg : GID.Image_Descriptor;
@@ -122,7 +122,7 @@ procedure To_BMP is
     )
     is
     pragma Inline (Put_Pixel_without_bkg);
-    pragma Warnings (off, alpha); -- alpha is just ignored
+    pragma Unreferenced (alpha);
       use GID;
     begin
       buffer (idx .. idx + 2) := (blue, green, red);
@@ -153,7 +153,7 @@ procedure To_BMP is
     begin
       if alpha = 255 then
         buffer (idx .. idx + 2) := (blue, green, red);
-      else -- blend with bckground color
+      else  --  Blend with background color
         buffer (idx)  := Primary_color_range ((U16 (alpha) * U16 (blue)  + U16 (255 - alpha) * u_blue) / 255);
         buffer (idx + 1) := Primary_color_range ((U16 (alpha) * U16 (green) + U16 (255 - alpha) * u_green) / 255);
         buffer (idx + 2) := Primary_color_range ((U16 (alpha) * U16 (red)   + U16 (255 - alpha) * u_red) / 255);
@@ -237,7 +237,7 @@ procedure To_BMP is
          GID.fast);
 
   begin
-    error := False;
+    in_error := False;
     Dispose (buffer);
     case correct_orientation is
       when GID.Unchanged | GID.Rotation_180 =>
@@ -269,7 +269,7 @@ procedure To_BMP is
   exception
     when others =>
       if forgive_errors then
-        error := True;
+        in_error := True;
         next_frame := 0.0;
       else
         raise;
@@ -427,8 +427,8 @@ procedure To_BMP is
     Put_Line
       (Standard_Error,
        "  Dimensions in pixels:" &
-       Integer'Image (GID.Pixel_Width (i)) & " x" &
-       Integer'Image (GID.Pixel_Height (i)));
+       GID.Pixel_Width (i)'Image & " x" &
+       GID.Pixel_Height (i)'Image);
     Put_Line
       (Standard_Error,
        "  Display orientation: " &
@@ -488,6 +488,8 @@ procedure To_BMP is
       Close (f);
       return;
     end if;
+
+    Animation_Loop :
     loop
       case GID.Display_Orientation (i) is
         when GID.Unchanged =>
@@ -503,12 +505,13 @@ procedure To_BMP is
         Dump_BMP_24 (name & '_' & Trim (Duration'Image (current_frame), Left), i);
       end if;
       New_Line (Standard_Error);
-      if error then
+      if in_error then
         Put_Line (Standard_Error, "Error!");
       end if;
-      exit when next_frame = 0.0;
+      exit Animation_Loop when next_frame = 0.0;
       current_frame := next_frame;
-    end loop;
+    end loop Animation_Loop;
+
     Close (f);
   exception
     when GID.unknown_image_format =>

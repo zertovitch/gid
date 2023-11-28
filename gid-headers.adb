@@ -21,7 +21,7 @@ package body GID.Headers is
   -- The very first: read signature to identify format --
   -------------------------------------------------------
 
-  procedure Load_signature
+  procedure Load_Signature
     (image   : in out Image_Descriptor;
      try_tga :        Boolean          := False)
   is
@@ -126,7 +126,7 @@ package body GID.Headers is
         end if;
     end case;
     raise unknown_image_format;
-  end Load_signature;
+  end Load_Signature;
 
   --  Define reading of unsigned numbers from a byte stream
 
@@ -240,11 +240,10 @@ package body GID.Headers is
   -- BMP header --
   ----------------
 
-  procedure Load_BMP_header (image : in out Image_Descriptor) is
+  procedure Load_BMP_Header (image : in out Image_Descriptor) is
     n, dummy, header_size : U32;
     w, dummy16 : U16;
     dummy8 : U8;
-    pragma Unreferenced (dummy, dummy16);
     use Bounded_255;
   begin
     --   Pos= 3, read the file size
@@ -317,18 +316,18 @@ package body GID.Headers is
     end loop;
     --   Start of palette
     Color_tables.Load_palette (image);
-  end Load_BMP_header;
+  end Load_BMP_Header;
 
-  procedure Load_FITS_header (image : in out Image_Descriptor) is
+  procedure Load_FITS_Header (image : in out Image_Descriptor) is
   begin
     raise known_but_unsupported_image_format;
-  end Load_FITS_header;
+  end Load_FITS_Header;
 
   ----------------
   -- GIF header --
   ----------------
 
-  procedure Load_GIF_header (image : in out Image_Descriptor) is
+  procedure Load_GIF_Header (image : in out Image_Descriptor) is
     --  GIF - logical screen descriptor
     screen_width, screen_height           : U16;
     packed, background, aspect_ratio_code : U8;
@@ -371,13 +370,13 @@ package body GID.Headers is
       image.palette := new Color_Table (0 .. 2**(image.subformat_id) - 1);
       Color_tables.Load_palette (image);
     end if;
-  end Load_GIF_header;
+  end Load_GIF_Header;
 
   -----------------
   -- JPEG header --
   -----------------
 
-  procedure Load_JPEG_header (image : in out Image_Descriptor) is
+  procedure Load_JPEG_Header (image : in out Image_Descriptor) is
     --  http://en.wikipedia.org/wiki/JPEG
     use GID.Decoding_JPG, GID.Buffering;
     sh : Segment_head;
@@ -407,9 +406,9 @@ package body GID.Headers is
           end loop;
       end case;
     end loop;
-  end Load_JPEG_header;
+  end Load_JPEG_Header;
 
-  procedure Load_QOI_header (image : in out Image_Descriptor) is
+  procedure Load_QOI_Header (image : in out Image_Descriptor) is
     val_32 : U32;
     channels, colorspace : U8;
   begin
@@ -422,19 +421,46 @@ package body GID.Headers is
     image.bits_per_pixel := Positive (channels) * 8;
     image.transparency := channels = 4;
     U8'Read (image.stream, colorspace);
-  end Load_QOI_header;
+  end Load_QOI_Header;
 
   ----------------
   -- PNG header --
   ----------------
 
-  procedure Load_PNG_header (image : in out Image_Descriptor) is
+  procedure Load_PNG_Header (image : in out Image_Descriptor) is
     use Decoding_PNG, Buffering;
     ch : Chunk_Header;
     n, dummy : U32;
-    pragma Unreferenced (dummy);
     b, color_type : U8;
+
+    procedure Read_Palette is
+    begin
+      loop
+        Read_Chunk_Header (image, ch);
+        case ch.kind is
+          when IEND =>
+            raise error_in_image_data with
+              "PNG: a palette (PLTE) is expected here, found IEND";
+          when PLTE =>
+            if ch.length rem 3 /= 0 then
+              raise error_in_image_data with
+                "PNG: palette chunk byte length must be a multiple of 3";
+            end if;
+            image.palette := new Color_Table (0 .. Integer (ch.length / 3) - 1);
+            Color_tables.Load_palette (image);
+            Big_endian_buffered (image.buffer, dummy); -- Chunk's CRC
+            exit;
+          when others =>
+            --  Skip chunk data and CRC
+            for i in 1 .. ch.length + 4 loop
+              Get_Byte (image.buffer, b);
+            end loop;
+        end case;
+      end loop;
+    end Read_Palette;
+
     palette : Boolean := False;
+
   begin
     Buffering.Attach_Stream (image.buffer, image.stream);
     Read_Chunk_Header (image, ch);
@@ -525,39 +551,23 @@ package body GID.Headers is
         "PNG: unknown filtering; ISO/IEC 15948:2003 knows only 'method 0'";
     end if;
     Get_Byte (image.buffer, b);
-    image.interlaced := b = 1; -- Adam7
-    Big_endian_buffered (image.buffer, dummy); -- Chunk's CRC
+    image.interlaced := b = 1;  --  Adam7
+    Big_endian_buffered (image.buffer, dummy);  --  Chunk's CRC
     if palette then
-      loop
-        Read_Chunk_Header (image, ch);
-        case ch.kind is
-          when IEND =>
-            raise error_in_image_data with
-              "PNG: a palette (PLTE) is expected here, found IEND";
-          when PLTE =>
-            if ch.length rem 3 /= 0 then
-              raise error_in_image_data with
-                "PNG: palette chunk byte length must be a multiple of 3";
-            end if;
-            image.palette := new Color_Table (0 .. Integer (ch.length / 3) - 1);
-            Color_tables.Load_palette (image);
-            Big_endian_buffered (image.buffer, dummy); -- Chunk's CRC
-            exit;
-          when others =>
-            --  Skip chunk data and CRC
-            for i in 1 .. ch.length + 4 loop
-              Get_Byte (image.buffer, b);
-            end loop;
-        end case;
-      end loop;
+      Read_Palette;
     end if;
-  end Load_PNG_header;
+    image.APNG_stuff :=
+      (next_frame_width    => image.width,
+       next_frame_height   => image.height,
+       next_frame_x_offset => 0,
+       next_frame_y_offset => 0);
+  end Load_PNG_Header;
 
   --------------------------------
   -- PNM (PBM, PGM, PPM) header --
   --------------------------------
 
-  procedure Load_PNM_header (image : in out Image_Descriptor) is
+  procedure Load_PNM_Header (image : in out Image_Descriptor) is
     use Decoding_PNM;
     depth_val : Integer;
   begin
@@ -584,13 +594,13 @@ package body GID.Headers is
   exception
     when Constraint_Error =>
       raise error_in_image_data with "PNM: invalid numeric value in PNM header";
-  end Load_PNM_header;
+  end Load_PNM_Header;
 
   ------------------------
   -- TGA (Targa) header --
   ------------------------
 
-  procedure Load_TGA_header (image : in out Image_Descriptor) is
+  procedure Load_TGA_Header (image : in out Image_Descriptor) is
     --  TGA FILE HEADER, p.6
     --
     image_ID_length : U8; -- Field 1
@@ -700,9 +710,9 @@ package body GID.Headers is
     --  * Color map data (palette)
     Color_tables.Load_palette (image);
     --  * Image data: Read by Load_image_contents.
-  end Load_TGA_header;
+  end Load_TGA_Header;
 
-  procedure Load_TIFF_header (image : in out Image_Descriptor) is
+  procedure Load_TIFF_Header (image : in out Image_Descriptor) is
     first_IFD_offset : U32;
     --
     --  IFD: Image File Directory. Basically, the image header.
@@ -715,6 +725,6 @@ package body GID.Headers is
     raise known_but_unsupported_image_format with
       "TIFF is not appropriate for streaming. Use PNG, BMP (lossless) or JPEG instead." &
       "Info: IFD Offset=" & U32'Image (first_IFD_offset);
-  end Load_TIFF_header;
+  end Load_TIFF_Header;
 
 end GID.Headers;
