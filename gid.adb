@@ -146,13 +146,13 @@ package body GID is
 
   begin
     next_frame := 0.0;
-    --  ^ value updated in case of animation and when
-    --    current frame is not the last frame
+    --  ^  Value updated in case of an animation and when
+    --     current frame is not the last frame.
     case image.format is
       when BMP =>        BMP_Load (image);
       when GIF =>        GIF_Load (image, next_frame);
       when JPEG =>       JPG_Load (image);
-      when PNG =>        PNG_Load (image);
+      when PNG =>        PNG_Load (image, next_frame);
       when PNM =>        PNM_Load (image);
       when QOI =>        QOI_Load (image);
       when TGA =>        TGA_Load (image);

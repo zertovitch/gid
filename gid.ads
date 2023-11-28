@@ -16,7 +16,7 @@
 --
 --  Image types currently supported:
 --
---     BMP, GIF, JPEG, PNG, PNM, QOI, TGA
+--     APNG, BMP, GIF, JPEG, PNG, PNM, QOI, TGA
 --
 --  Credits:
 --
@@ -321,7 +321,7 @@ private
      some_t,  -- Image / frame technical informations
      full);   -- Byte / pixel / compressed block details
 
-  trace : constant Trace_Type := some_t;  --  <=====  Choice here
+  trace : constant Trace_Type := none;  --  <=====  The choice is here
 
   no_trace   : constant Boolean := trace = none;
   full_trace : constant Boolean := trace = full;
