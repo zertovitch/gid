@@ -9,9 +9,8 @@
 --   8: Display pixels these bytes represent;
 --        eventually, locate the interlaced image current point
 --
---  Reference: Portable Network Graphics (PNG) Specification (Second Edition)
---  ISO/IEC 15948:2003 (E)
---  W3C Recommendation 10 November 2003
+--  Reference: Portable Network Graphics (PNG) Specification (Third Edition)
+--  W3C Recommendation 21 September 2023
 --  http://www.w3.org/TR/PNG/
 --
 with GID.Buffering,
@@ -47,10 +46,14 @@ package body GID.Decoding_PNG is
 
   function Chunk_Info (kind : PNG_Chunk_Tag) return String is
   (case kind is
-     when  acTL  => "Animation Control Chunk",
-     when  fcTL  => "Frame Control Chunk",
-     when  fdAT  => "Frame Data Chunk",
-     when others => "");
+     when tEXt => "Textual Data",             --  11.3.3.2
+     when acTL => "Animation Control Chunk",  --  11.3.6.1 (APNG)
+     when fcTL => "Frame Control Chunk",      --  11.3.6.2 (APNG)
+     when fdAT => "Frame Data Chunk",         --  11.3.6.3 (APNG)
+     when unknown_ancillary_chunk =>
+       "(unknown)",
+     when others =>
+       "");
 
   ----------
   -- Read --
@@ -69,21 +72,29 @@ package body GID.Decoding_PNG is
     end loop;
     begin
       ch.kind := PNG_Chunk_Tag'Value (str4);
-      if some_trace then
-        Ada.Text_IO.Put_Line
-          ("Chunk [" & str4 & "], length:" & ch.length'Image &
-           "   " & Chunk_Info (ch.kind));
-      end if;
     exception
+      --  13.1 Error handling
       when Constraint_Error =>
-        raise error_in_image_data with
-          "PNG chunk is unknown: " &
-          Character'Pos (str4 (1))'Image &
-          Character'Pos (str4 (2))'Image &
-          Character'Pos (str4 (3))'Image &
-          Character'Pos (str4 (4))'Image &
-          " (" & str4 & "), or PNG data is corrupt";
+        if str4 (1) in 'A' .. 'Z' then
+          --  "Encountering an unknown critical chunk is a fatal condition"
+          raise error_in_image_data with
+            "PNG chunk is unknown: " &
+            Character'Pos (str4 (1))'Image &
+            Character'Pos (str4 (2))'Image &
+            Character'Pos (str4 (3))'Image &
+            Character'Pos (str4 (4))'Image &
+            " (" & str4 & "), or PNG data is corrupt";
+        else
+          --  "Encountering an unknown ancillary chunk is never an error.
+          --   The chunk can simply be ignored."
+          ch.kind := unknown_ancillary_chunk;
+        end if;
     end;
+    if some_trace then
+      Ada.Text_IO.Put_Line
+        ("Chunk [" & str4 & "], length:" & ch.length'Image &
+         "   " & Chunk_Info (ch.kind));
+    end if;
   end Read_Chunk_Header;
 
   package CRC32 is
@@ -198,8 +209,8 @@ package body GID.Decoding_PNG is
       x : X_range := X_range'First;
       y : Y_range := Y_range'First;
 
-      x_max : X_range;  --  for non-interlaced images: = X_range'Last
-      y_max : Y_range;  --  for non-interlaced images: = Y_range'Last
+      x_max : X_range;  --  for non-interlaced images:   = X_range'Last
+      y_max : Y_range;  --  for non-interlaced images:   = Y_range'Last
 
       pass : Positive range 1 .. 7 := 1;
 
@@ -212,10 +223,9 @@ package body GID.Decoding_PNG is
 
       current_filter : Filter_method_0;
 
-      procedure Unfilter_bytes (
-        f : in  Byte_Array;  -- filtered
-        u : out Byte_Array   -- unfiltered
-      )
+      procedure Unfilter_bytes
+        (f : in  Byte_Array;  --  filtered
+         u : out Byte_Array)  --  unfiltered
       is
       pragma Inline (Unfilter_bytes);
         --  Byte positions (f is the byte to be unfiltered):
@@ -229,10 +239,8 @@ package body GID.Decoding_PNG is
           if y = 0 then
             Ada.Text_IO.New_Line;
           end if;
-          Ada.Text_IO.Put_Line (
-            "row" & Integer'Image (y) & ": filter= " &
-            Filter_method_0'Image (current_filter)
-          );
+          Ada.Text_IO.Put_Line
+            ("row" & y'Image & ": filter= " & current_filter'Image);
         end if;
         --
         --  !! find a way to have f99n0g04.png decoded correctly...
@@ -484,7 +492,7 @@ package body GID.Decoding_PNG is
           end if;
         end Inc_XY;
 
-        uf : Byte_Array (0 .. 15); -- unfiltered bytes for a pixel
+        uf : Byte_Array (0 .. 15);  --  Unfiltered bytes for a pixel
         w1, w2 : U16;
         i : Integer;
 
@@ -757,9 +765,9 @@ package body GID.Decoding_PNG is
         procedure Flush_if_full (W : in out Integer);
           pragma Inline (Flush_if_full);
 
-        procedure Copy (
-          distance, length :        Natural;
-          index           : in out Natural);
+        procedure Copy
+          (distance, length :        Natural;
+           index            : in out Natural);
         pragma Inline (Copy);
 
       end UnZ_IO;
@@ -862,7 +870,7 @@ package body GID.Decoding_PNG is
         procedure Flush (x : Natural) is
         begin
           if full_trace then
-            Ada.Text_IO.Put ("[Flush..." & Integer'Image (x));
+            Ada.Text_IO.Put ("[Flush..." & x'Image);
           end if;
           CRC32.Update (UnZ_Glob.crc32val, UnZ_Glob.slide (0 .. x - 1));
           if old_bytes > 0 then
@@ -902,11 +910,11 @@ package body GID.Decoding_PNG is
 
         --  Internal:
 
-        procedure Adjust_to_Slide (
-            source         : in out Integer;
-            remain         : in out Natural;
-            part           :    out Integer;
-            index :                  Integer)
+        procedure Adjust_to_Slide
+          (source         : in out Integer;
+           remain         : in out Natural;
+           part           :    out Integer;
+           index          : in     Integer)
         is
           pragma Inline (Adjust_to_Slide);
         begin
@@ -937,7 +945,7 @@ package body GID.Decoding_PNG is
               index := index  + 1;
               source := source + 1;
             end loop;
-          else -- non-overlapping -> copy slice
+          else  --  non-overlapping -> copy slice
             UnZ_Glob.slide (index .. index + amount - 1) :=
               UnZ_Glob.slide (source .. source + amount - 1);
             index := index  + amount;
@@ -1531,7 +1539,7 @@ package body GID.Decoding_PNG is
       for i in 1 .. ch.length loop
         Buffering.Get_Byte (image.buffer, b);
         if some_trace then
-          if b = 0 then  --  Separates keyword from message
+          if b = 0 then  --  Separates keywords in message
             Ada.Text_IO.New_Line;
           else
             Ada.Text_IO.Put (Character'Val (b));
@@ -1601,6 +1609,7 @@ package body GID.Decoding_PNG is
     if some_trace then
       Ada.Text_IO.Put_Line ("[begin Load]");
     end if;
+    next_frame := 0.0;
 
     main_chunk_loop :
     loop
@@ -1609,15 +1618,14 @@ package body GID.Decoding_PNG is
         exit when ch.kind = IEND or ch.length > 0;
       end loop;
       case ch.kind is
-        when IEND =>  --  11.2.5 IEND Image trailer
-          next_frame := 0.0;
+        when IEND =>  --  11.2.4 IEND Image trailer
           image.next_frame := 0.0;
           exit main_chunk_loop;
-        when IDAT =>  --  11.2.4 IDAT Image data
+        when IDAT =>  --  11.2.3 IDAT Image data
           --
           --  NB: the compressed data may hold on several IDAT chunks.
-          --  It means that right in the middle of compressed data, you
-          --  can have a chunk crc, and a new IDAT header!...
+          --      It means that right in the middle of compressed data, you
+          --      can have a chunk crc, and a new IDAT header!...
           begin
             Load_Frame;
           exception
@@ -1627,7 +1635,7 @@ package body GID.Decoding_PNG is
               null;
           end;
           pause_chunk_processing := True;  --  Come back on next frame...
-        when tEXt =>  --  11.3.4.3 tEXt Textual data
+        when tEXt =>
           Textual_Data;
         when fcTL =>
           --  APNG - Frame control chunk

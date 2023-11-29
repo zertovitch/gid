@@ -56,7 +56,9 @@ private package GID.Decoding_PNG is
     --
     acTL,   --  Animation control chunk
     fcTL,   --  Frame control chunk
-    fdAT);  --  Frame data chunk
+    fdAT,   --  Frame data chunk
+    --
+    unknown_ancillary_chunk);
 
   type Chunk_Header is record
     length : U32;
