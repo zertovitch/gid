@@ -556,11 +556,13 @@ package body GID.Headers is
     if palette then
       Read_Palette;
     end if;
-    image.APNG_stuff :=
-      (next_frame_width    => image.width,
-       next_frame_height   => image.height,
-       next_frame_x_offset => 0,
-       next_frame_y_offset => 0);
+    image.PNG_stuff :=
+      (frame_width  => image.width,
+       frame_height => image.height,
+       x_offset     => 0,
+       y_offset     => 0,
+       dispose_op   => PNG_Defs.APNG_DISPOSE_OP_NONE,
+       blend_op     => PNG_Defs.APNG_BLEND_OP_SOURCE);
   end Load_PNG_Header;
 
   --------------------------------

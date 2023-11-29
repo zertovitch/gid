@@ -13,16 +13,14 @@ package body GID.Decoding_GIF is
 
   generic
     type Number is mod <>;
-  procedure Read_Intel_x86_number (
-    from : in out Input_Buffer;
-    n    :    out Number
-  );
-    pragma Inline (Read_Intel_x86_number);
+  procedure Read_Intel_x86_Number
+    (from : in out Input_Buffer;
+     n    :    out Number);
+    pragma Inline (Read_Intel_x86_Number);
 
-  procedure Read_Intel_x86_number (
-    from : in out Input_Buffer;
-    n    :    out Number
-  )
+  procedure Read_Intel_x86_Number
+    (from : in out Input_Buffer;
+     n    :    out Number)
   is
     b : U8;
     m : Number := 1;
@@ -33,9 +31,9 @@ package body GID.Decoding_GIF is
       n := n + m * Number (b);
       m := m * 256;
     end loop;
-  end Read_Intel_x86_number;
+  end Read_Intel_x86_Number;
 
-  procedure Read_Intel is new Read_Intel_x86_number (U16);
+  procedure Read_Intel is new Read_Intel_x86_Number (U16);
 
   ----------
   -- Load --
@@ -229,7 +227,7 @@ package body GID.Decoding_GIF is
             if mode = fast and then Y < Integer (image.height) then
               Set_X_Y (X, Integer (image.height) - Y - 1);
             end if;
-          else -- not interlaced
+          else  --  Not interlaced
             Y := Y + 1;
             if Y < Integer (image.height) then
               Set_X_Y (X, Integer (image.height) - Y - 1);
@@ -360,10 +358,7 @@ package body GID.Decoding_GIF is
          C := Read_Code;
       end loop;
       if full_trace and then BadCodeCount > 0 then
-        Ada.Text_IO.Put_Line (
-         "Found" & Integer'Image (BadCodeCount) &
-         " bad codes"
-        );
+        Ada.Text_IO.Put_Line ("Found" & BadCodeCount'Image & " bad codes");
       end if;
     end GIF_Decode;
 
@@ -434,7 +429,7 @@ package body GID.Decoding_GIF is
             loop
               Get_Byte (image.buffer, temp);  --  Load sub-block length byte
               exit sub_blocks_sequence when temp = 0;
-              --  null sub-block = end of sub-block sequence
+              --  Null sub-block = end of sub-block sequence
               for i in 1 .. temp loop
                 Get_Byte (image.buffer, temp2);
                 c := Character'Val (temp2);
@@ -457,7 +452,7 @@ package body GID.Decoding_GIF is
           Skip_sub_blocks;
         when others =>
           if full_trace then
-            Ada.Text_IO.Put_Line (" - Unused extension:" & U8'Image (label));
+            Ada.Text_IO.Put_Line (" - Unused extension:" & label'Image);
           end if;
           Skip_sub_blocks;
       end case;
@@ -479,10 +474,8 @@ package body GID.Decoding_GIF is
       Get_Byte (image.buffer, temp);
       separator := Character'Val (temp);
       if full_trace then
-        Ada.Text_IO.Put (
-          "GIF separator [" & separator &
-          "][" & U8'Image (temp) & ']'
-        );
+        Ada.Text_IO.Put
+          ("GIF separator [" & separator & "][" & temp'Image & ']');
       end if;
       case separator is
         when ',' =>  --  16#2C#
@@ -559,20 +552,18 @@ package body GID.Decoding_GIF is
     custom_pixel_mask := U32 (new_num_of_colours - 1);
 
     if full_trace then
-      Ada.Text_IO.Put_Line (
-        " - Image, interlaced: " & Boolean'Image (frame_interlaced) &
-        "; local palette: " & Boolean'Image (local_palette) &
-        "; transparency: " & Boolean'Image (frame_transparency) &
-        "; transparency index:" & Color_type'Image (Transp_color)
-      );
+      Ada.Text_IO.Put_Line
+        (" - Image, interlaced: " & frame_interlaced'Image &
+         "; local palette: " & local_palette'Image &
+         "; transparency: " & frame_transparency'Image &
+         "; transparency index:" & Transp_color'Image);
     end if;
 
     --  Get initial code size
     Get_Byte (image.buffer, temp);
     if Natural (temp) not in Code_size_range then
       raise error_in_image_data with
-        "GIF: wrong LZW code size (must be in 2..12), is" &
-        U8'Image (temp);
+        "GIF: wrong LZW code size (must be in 2 .. 12), is" & temp'Image;
     end if;
     CurrSize := Natural (temp);
 

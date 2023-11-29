@@ -111,10 +111,9 @@ package GID is
     --
     with procedure Set_X_Y (x, y : Natural);
     --  After Set_X_Y, next pixel is meant to be displayed at position (x,y)
-    with procedure Put_Pixel (
-      red, green, blue : Primary_Color_Range;
-      alpha            : Primary_Color_Range
-    );
+    with procedure Put_Pixel
+      (red, green, blue : Primary_Color_Range;
+       alpha            : Primary_Color_Range);
     --  When Put_Pixel is called twice without a Set_X_Y inbetween,
     --  the pixel must be displayed on the next X position after the last one.
     --  [ Rationale: if the image lands into an array with contiguous pixels
@@ -267,17 +266,33 @@ private
     max_samples_ver  : Natural;
     qt_list          : JPEG_Defs.QT_List;
     vlc_defs         : JPEG_Defs.VLC_defs_type := (others => (others => null));
-    restart_interval : Natural; -- predictor restarts every... (0: never)
+    restart_interval : Natural;  --  Predictor restarts every... (0: never)
   end record;
 
   subtype Natural_32  is Interfaces.Integer_32 range 0 .. Interfaces.Integer_32'Last;
   subtype Positive_32 is Interfaces.Integer_32 range 1 .. Interfaces.Integer_32'Last;
 
-  type APNG_Stuff_Type is record
-    next_frame_width    : Positive_32;
-    next_frame_height   : Positive_32;
-    next_frame_x_offset : Natural_32;
-    next_frame_y_offset : Natural_32;
+  package PNG_Defs is
+
+    type Dispose_Op_Type is
+      (APNG_DISPOSE_OP_NONE,        --  No disposal done on this frame before rendering the next.
+       APNG_DISPOSE_OP_BACKGROUND,  --  To be cleared to fully transparent black.
+       APNG_DISPOSE_OP_PREVIOUS);   --  To be reverted to the previous contents.
+
+    type Blend_Op_Type is
+      (APNG_BLEND_OP_SOURCE,  --  Overwrite the current contents of the frame's output buffer.
+       APNG_BLEND_OP_OVER);   --  Composited onto the output buffer based on its alpha.
+
+  end PNG_Defs;
+
+  type PNG_Stuff_Type is record
+    --  APNG stuff:
+    frame_width  : Positive_32;
+    frame_height : Positive_32;
+    x_offset     : Natural_32;
+    y_offset     : Natural_32;
+    dispose_op   : PNG_Defs.Dispose_Op_Type;
+    blend_op     : PNG_Defs.Blend_Op_Type;
   end record;
 
   type Endianess_Type is (little, big);  --  For TIFF images
@@ -301,7 +316,7 @@ private
     palette             : p_Color_Table := null;
     first_byte          : U8;
     next_frame          : Ada.Calendar.Day_Duration;
-    APNG_stuff          : APNG_Stuff_Type;
+    PNG_stuff           : PNG_Stuff_Type;
   end record;
 
   overriding procedure Adjust (Object : in out Image_Descriptor);
