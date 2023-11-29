@@ -38,6 +38,9 @@ procedure Mini is
 
   img_buf : p_Byte_Array := null;
 
+  force_allocate : constant := -1;
+  mem_buffer_last : Integer;
+
   --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
   procedure Load_raw_image (
     image : in out GID.Image_Descriptor;
@@ -55,12 +58,11 @@ procedure Mini is
       idx := 3 * (x + image_width * (image_height - 1 - y));
     end Set_X_Y;
     --
-    procedure Put_Pixel (
-      red, green, blue : Primary_color_range;
-      alpha            : Primary_color_range
-    )
+    procedure Put_Pixel
+      (red, green, blue : Primary_color_range;
+       alpha            : Primary_color_range)
     is
-    pragma Warnings (off, alpha); -- alpha is just ignored
+    pragma Warnings (off, alpha);  --  Alpha is just ignored
     begin
       buffer (idx .. idx + 2) := (red, green, blue);
       idx := idx + 3;
@@ -77,16 +79,21 @@ procedure Mini is
       stars := so_far;
     end Feedback;
 
-    procedure Load_image is
-      new GID.Load_Image_Contents (
-        Primary_color_range, Set_X_Y,
-        Put_Pixel, Feedback, GID.fast
-      );
+    procedure Load_Image is
+      new GID.Load_Image_Contents
+        (Primary_color_range, Set_X_Y,
+         Put_Pixel, Feedback, GID.fast);
+
+    buffer_last : Natural;
 
   begin
-    Dispose (buffer);
-    buffer := new Byte_Array (0 .. 3 * image_width * image_height - 1);
-    Load_image (image, next_frame);
+    buffer_last := 3 * image_width * image_height - 1;
+    if buffer_last /= mem_buffer_last then
+      Dispose (buffer);
+      buffer := new Byte_Array (0 .. buffer_last);
+      mem_buffer_last := buffer_last;
+    end if;
+    Load_Image (image, next_frame);
   end Load_raw_image;
 
   procedure Dump_PPM (name : String; i : GID.Image_Descriptor) is
@@ -94,12 +101,10 @@ procedure Mini is
   begin
     Create (f, Out_File, name & ".ppm");
     --  PPM Header:
-    String'Write (
-      Stream (f),
-      "P6 " &
-      Integer'Image (GID.Pixel_Width (i)) &
-      Integer'Image (GID.Pixel_Height (i)) & " 255" & ASCII.LF
-    );
+    String'Write
+      (Stream (f),
+       "P6 " & GID.Pixel_Width (i)'Image & GID.Pixel_Height (i)'Image &
+       " 255" & ASCII.LF);
     --  PPM raw BGR image:
     Byte_Array'Write (Stream (f), img_buf.all);
     --  ^ slow on some Ada systems, see to_bmp to have a faster version
@@ -119,22 +124,24 @@ procedure Mini is
     Open (f, In_File, name);
     Put_Line (Standard_Error, "Processing " & name & "...");
     --
-    GID.Load_Image_Header (
-      i,
-      Stream (f).all,
-      try_tga =>
-        name'Length >= 4 and then
-        up_name (up_name'Last - 3 .. up_name'Last) = ".TGA"
-    );
+    GID.Load_Image_Header
+      (i,
+       Stream (f).all,
+       try_tga =>
+         name'Length >= 4 and then
+         up_name (up_name'Last - 3 .. up_name'Last) = ".TGA");
     Put_Line (Standard_Error, ".........v.........v");
     --
+    mem_buffer_last := force_allocate;
+    Animation_Loop :
     loop
       Load_raw_image (i, img_buf, next_frame);
-      Dump_PPM (name & Duration'Image (current_frame), i);
+      Dump_PPM (name & current_frame'Image, i);
       New_Line (Standard_Error);
-      exit when next_frame = 0.0;
+      exit Animation_Loop when next_frame = 0.0;
       current_frame := next_frame;
-    end loop;
+    end loop Animation_Loop;
+    --
     Close (f);
   end Process;
 

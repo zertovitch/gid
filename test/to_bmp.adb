@@ -65,20 +65,21 @@ procedure To_BMP is
   img_buf, bkg_buf : p_Byte_Array := null;
   bkg : GID.Image_Descriptor;
 
+  force_allocate : constant := -1;
+  mem_buffer_last : Integer := force_allocate;
+
   generic
     correct_orientation : GID.Orientation;
   --  Load image into a 24-bit truecolor BGR raw bitmap (for a BMP output)
-  procedure Load_raw_image (
-    image : in out GID.Image_Descriptor;
-    buffer : in out p_Byte_Array;
-    next_frame : out Ada.Calendar.Day_Duration
-  );
+  procedure Load_raw_image
+    (image      : in out GID.Image_Descriptor;
+     buffer     : in out p_Byte_Array;
+     next_frame :    out Ada.Calendar.Day_Duration);
   --
-  procedure Load_raw_image (
-    image : in out GID.Image_Descriptor;
-    buffer : in out p_Byte_Array;
-    next_frame : out Ada.Calendar.Day_Duration
-  )
+  procedure Load_raw_image
+    (image      : in out GID.Image_Descriptor;
+     buffer     : in out p_Byte_Array;
+     next_frame :    out Ada.Calendar.Day_Duration)
   is
     subtype Primary_color_range is Unsigned_8;
     subtype U16 is Unsigned_16;
@@ -177,7 +178,7 @@ procedure To_BMP is
     begin
       if alpha = 255 then
         buffer (idx .. idx + 2) := (blue, green, red);
-      else -- blend with background image
+      else  --  Blend with background image
         bkg_idx := 3 * (mem_x mod bkg_width) + bkg_padded_line_size * (mem_y mod bkg_height);
         b_blue := bkg_buf (bkg_idx);
         b_green := bkg_buf (bkg_idx + 1);
@@ -236,20 +237,26 @@ procedure To_BMP is
          Feedback,
          GID.fast);
 
+    buffer_last : Natural;
+
   begin
     in_error := False;
-    Dispose (buffer);
     case correct_orientation is
       when GID.Unchanged | GID.Rotation_180 =>
-        buffer := new Byte_Array (0 .. padded_line_size_x * GID.Pixel_Height (image) - 1);
+        buffer_last := padded_line_size_x * image_height - 1;
       when GID.Rotation_90 | GID.Rotation_270 =>
-        buffer := new Byte_Array (0 .. padded_line_size_y * GID.Pixel_Width (image) - 1);
+        buffer_last := padded_line_size_y * image_width - 1;
     end case;
+    if buffer_last > mem_buffer_last then
+      Dispose (buffer);
+      buffer := new Byte_Array (0 .. buffer_last);
+      mem_buffer_last := buffer_last;
+    end if;
     if GID.Expect_transparency (image) then
       if background_image_name = Null_Unbounded_String then
         BMP24_Load_with_unicolor_bkg (image, next_frame);
       else
-        bkg_width := GID.Pixel_Width (bkg);
+        bkg_width  := GID.Pixel_Width (bkg);
         bkg_height := GID.Pixel_Height (bkg);
         bkg_padded_line_size :=
           4 * Integer (Float'Ceiling (Float (bkg_width) * 3.0 / 4.0));
@@ -489,6 +496,8 @@ procedure To_BMP is
       return;
     end if;
 
+    mem_buffer_last := force_allocate;
+
     Animation_Loop :
     loop
       case GID.Display_Orientation (i) is
@@ -502,7 +511,7 @@ procedure To_BMP is
           Load_raw_image_270 (i, img_buf, next_frame);
       end case;
       if not test_only then
-        Dump_BMP_24 (name & '_' & Trim (Duration'Image (current_frame), Left), i);
+        Dump_BMP_24 (name & '_' & Trim (current_frame'Image, Left), i);
       end if;
       New_Line (Standard_Error);
       if in_error then
