@@ -1573,8 +1573,8 @@ package body GID.Decoding_PNG is
       Big_Endian (image.buffer, y_offset);
       Big_Endian (image.buffer, delay_num);
       Big_Endian (image.buffer, delay_den);
-      Buffering.Get_Byte (image.buffer, dispose_op_byte);  --  !! TBD: use that info
-      Buffering.Get_Byte (image.buffer, blend_op_byte);    --  !! TBD: use that info
+      Buffering.Get_Byte (image.buffer, dispose_op_byte);
+      Buffering.Get_Byte (image.buffer, blend_op_byte);
       --
       frame_delay :=
         Ada.Calendar.Day_Duration (delay_num) /

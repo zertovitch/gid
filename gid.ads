@@ -133,14 +133,12 @@ package GID is
      --    The return value is 0.0 if there is no next frame;
      --    this includes the case of simgle-image data or formats.
 
-  -------------------------------------------------------------------
-  -- Some informations about the image, not necessary for decoding --
-  -------------------------------------------------------------------
+  ---------------------------------------------------------------------
+  --  Some informations about the image, not necessary for decoding  --
+  ---------------------------------------------------------------------
 
   type Image_Format_Type is
-    ( -- Bitmap formats
-      BMP, FITS, GIF, JPEG, PNG, PNM, QOI, TGA, TIFF
-    );
+    (BMP, FITS, GIF, JPEG, PNG, PNM, QOI, TGA, TIFF);
 
   function Format (image : Image_Descriptor) return Image_Format_Type;
   function Detailed_format (image : Image_Descriptor) return String;
@@ -155,12 +153,35 @@ package GID is
   function Has_palette (image : Image_Descriptor) return Boolean;
   function Expect_transparency (image : Image_Descriptor) return Boolean;
 
+  ---------------------------------------------------------------------
+  --  Information about frame-to-frame handling in animations.       --
+  --  Currently, it's APNG-only, so we use directly the APNG types.  --
+  ---------------------------------------------------------------------
+
+  package PNG_Defs is
+
+    type Dispose_Op_Type is
+      (APNG_DISPOSE_OP_NONE,        --  No disposal done on this frame before rendering the next.
+       APNG_DISPOSE_OP_BACKGROUND,  --  To be cleared to fully transparent black.
+       APNG_DISPOSE_OP_PREVIOUS);   --  To be reverted to the previous contents.
+
+    type Blend_Op_Type is
+      (APNG_BLEND_OP_SOURCE,  --  Overwrite the current contents of the frame's output buffer.
+       APNG_BLEND_OP_OVER);   --  Composited onto the output buffer based on its alpha.
+
+  end PNG_Defs;
+
+  procedure Get_Next_Frame_Informations
+    (image             : in     Image_Descriptor;
+     dispose_operation :    out PNG_Defs.Dispose_Op_Type;
+     blend_operation   :    out PNG_Defs.Blend_Op_Type);
+
   ----------------------------------------------------------------
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String := "011 preview 2";
-  reference : constant String := "29-Nov-2023";
+  version   : constant String := "011";
+  reference : constant String := "02-Dec-2023";
   web       : constant String := "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..........^
   --  There is a mirror too @ https://github.com/zertovitch/gid
@@ -271,19 +292,6 @@ private
 
   subtype Natural_32  is Interfaces.Integer_32 range 0 .. Interfaces.Integer_32'Last;
   subtype Positive_32 is Interfaces.Integer_32 range 1 .. Interfaces.Integer_32'Last;
-
-  package PNG_Defs is
-
-    type Dispose_Op_Type is
-      (APNG_DISPOSE_OP_NONE,        --  No disposal done on this frame before rendering the next.
-       APNG_DISPOSE_OP_BACKGROUND,  --  To be cleared to fully transparent black.
-       APNG_DISPOSE_OP_PREVIOUS);   --  To be reverted to the previous contents.
-
-    type Blend_Op_Type is
-      (APNG_BLEND_OP_SOURCE,  --  Overwrite the current contents of the frame's output buffer.
-       APNG_BLEND_OP_OVER);   --  Composited onto the output buffer based on its alpha.
-
-  end PNG_Defs;
 
   type PNG_Stuff_Type is record
     --  APNG stuff:

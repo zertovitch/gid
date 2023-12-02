@@ -209,6 +209,16 @@ package body GID is
     return image.transparency;
   end Expect_transparency;
 
+  procedure Get_Next_Frame_Informations
+    (image             : in     Image_Descriptor;
+     dispose_operation :    out PNG_Defs.Dispose_Op_Type;
+     blend_operation   :    out PNG_Defs.Blend_Op_Type)
+  is
+  begin
+    dispose_operation := image.PNG_stuff.dispose_op;
+    blend_operation   := image.PNG_stuff.blend_op;
+  end Get_Next_Frame_Informations;
+
   overriding procedure Adjust (Object : in out Image_Descriptor) is
     use JPEG_Defs;
   begin
