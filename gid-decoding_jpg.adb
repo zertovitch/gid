@@ -1,18 +1,19 @@
---  Steps for decoding a JPEG image
---
---  1. Huffman decompression
---  2. Inverse quantization
---  3. Inverse cosine transform
---  4. Upsampling
---  5. Color transformation
---  6. Image reconstruction
---
---  The JPEG decoder is largely inspired
+--  The GID JPEG decoder is largely inspired
 --  by the NanoJPEG code by Martin J. Fiedler.
+--
 --  With the author's permission. Many thanks!
 --
 --  Other informations:
 --  http://en.wikipedia.org/wiki/JPEG
+
+--  Steps for decoding a JPEG image
+--
+--      1. Huffman decompression
+--      2. Inverse quantization
+--      3. Inverse cosine transform
+--      4. Upsampling
+--      5. Color transformation
+--      6. Image reconstruction
 
 --  !! ** Some optimizations to consider **
 --  !! ssx, ssy ,ssxmax, ssymax
@@ -31,16 +32,14 @@ package body GID.Decoding_JPG is
 
   generic
     type Number is mod <>;
-  procedure Big_endian_number (
-    from : in out Input_Buffer;
-    n    :    out Number
-  );
-  pragma Inline (Big_endian_number);
+  procedure Big_Endian_Number
+    (from : in out Input_Buffer;
+     n    :    out Number);
+  pragma Inline (Big_Endian_Number);
 
-  procedure Big_endian_number (
-    from : in out Input_Buffer;
-    n    :    out Number
-  )
+  procedure Big_Endian_Number
+    (from : in out Input_Buffer;
+     n    :    out Number)
   is
     b : U8;
   begin
@@ -49,13 +48,13 @@ package body GID.Decoding_JPG is
       Get_Byte (from, b);
       n := n * 256 + Number (b);
     end loop;
-  end Big_endian_number;
+  end Big_Endian_Number;
 
-  procedure Big_endian is new Big_endian_number (U16);
+  procedure Big_Endian is new Big_Endian_Number (U16);
 
-  procedure Read (image : in out Image_Descriptor; sh : out Segment_head) is
+  procedure Read (image : in out Image_Descriptor; sh : out Segment_Head) is
     b : U8;
-    id : constant array (JPEG_marker) of U8 :=
+    id : constant array (JPEG_Marker) of U8 :=
     (SOI      => 16#D8#,
       --
       SOF_0  => 16#C0#, SOF_1  => 16#C1#, SOF_2  => 16#C2#, SOF_3  => 16#C3#,
@@ -86,25 +85,24 @@ package body GID.Decoding_JPG is
     for m in id'Range loop
       if id (m) = b then
         sh.kind := m;
-        Big_endian (image.buffer, sh.length);
+        Big_Endian (image.buffer, sh.length);
         sh.length := sh.length - 2;
         --  We consider length of contents, without the FFxx marker.
         if some_trace then
-          Put_Line (
-            "Segment [" & JPEG_marker'Image (sh.kind) &
-            "], length:" & U16'Image (sh.length));
+          Put_Line
+            ("Segment [" & sh.kind'Image & "], length:" & sh.length'Image);
         end if;
         return;
       end if;
     end loop;
-    raise error_in_image_data with "JPEG: unknown marker here: FF, " & U8'Image (b);
+    raise error_in_image_data with "JPEG: unknown marker here: FF, " & b'Image;
   end Read;
 
   shift_arg : constant array (0 .. 15) of Integer :=
     (1 => 0, 2 => 1, 4 => 2, 8 => 3, others => -1);
 
   --  SOF - Start Of Frame (the real header)
-  procedure Read_SOF (image : in out Image_Descriptor; sh : Segment_head) is
+  procedure Read_SOF (image : in out Image_Descriptor; sh : Segment_Head) is
     use Bounded_255;
     b, bits_pp_primary, id_base : U8;
     w, h : U16;
@@ -118,16 +116,16 @@ package body GID.Decoding_JPG is
         image.interlaced := True;
       when others =>
         raise unsupported_image_subformat with
-          "JPEG: image type not yet supported: " & JPEG_marker'Image (sh.kind);
+          "JPEG: image type not yet supported: " & sh.kind'Image;
     end case;
     Get_Byte (image.buffer, bits_pp_primary);
     if bits_pp_primary /= 8 then
       raise unsupported_image_subformat with
-        "JPEG: bits per primary color=" & U8'Image (bits_pp_primary) & " (not supported)";
+        "JPEG: bits per primary color=" & bits_pp_primary'Image & " (not supported)";
     end if;
     image.bits_per_pixel := 3 * Positive (bits_pp_primary);
-    Big_endian (image.buffer, h);
-    Big_endian (image.buffer, w);
+    Big_Endian (image.buffer, h);
+    Big_Endian (image.buffer, w);
     if w = 0 then
       raise error_in_image_data with "JPEG: zero image width";
     end if;
@@ -153,7 +151,7 @@ package body GID.Decoding_JPG is
         id_base := 0;
       end if;
       if b - id_base > Component'Pos (Component'Last) then
-        raise error_in_image_data with "JPEG: SOF: invalid component ID: " & U8'Image (b);
+        raise error_in_image_data with "JPEG: SOF: invalid component ID: " & b'Image;
       end if;
       compo := JPEG_Defs.Component'Val (b - id_base);
       image.JPEG_stuff.components (compo) := True;
@@ -193,10 +191,7 @@ package body GID.Decoding_JPG is
     if some_trace then
       Put_Line ("Frame has following components:");
       for c in JPEG_Defs.Component loop
-        Put_Line (
-          JPEG_Defs.Component'Image (c) & " -> " &
-          Boolean'Image (image.JPEG_stuff.components (c))
-        );
+        Put_Line (c'Image & " -> " & image.JPEG_stuff.components (c)'Image);
       end loop;
     end if;
     if image.JPEG_stuff.components = YCbCr_set then
@@ -211,12 +206,9 @@ package body GID.Decoding_JPG is
         "JPEG: only YCbCr, Y_Grey and CMYK color spaces are currently supported";
     end if;
     image.detailed_format := image.detailed_format & ", " &
-      JPEG_Defs.Supported_color_space'Image (image.JPEG_stuff.color_space);
+      image.JPEG_stuff.color_space'Image;
     if some_trace then
-      Put_Line (
-        "Color space: " &
-        JPEG_Defs.Supported_color_space'Image (image.JPEG_stuff.color_space)
-      );
+      Put_Line ("Color space: " & image.JPEG_stuff.color_space'Image);
     end if;
     if image.JPEG_stuff.color_space = CMYK then
       raise unsupported_image_subformat with
@@ -225,7 +217,8 @@ package body GID.Decoding_JPG is
   end Read_SOF;
 
   procedure Read_DHT (image : in out Image_Descriptor; data_length : Natural) is
-    remaining : Integer_M32 := Integer_M32 (data_length); -- data remaining in segment
+    remaining : Integer_M32 := Integer_M32 (data_length);
+    --  ^ data remaining in segment
     b : U8;
     ht_idx : Natural;
     kind : AC_DC;
@@ -244,10 +237,9 @@ package body GID.Decoding_JPG is
       end if;
       ht_idx := Natural (b and 7);
       if some_trace then
-        Put_Line (
-          "Huffman Table (HT) #" &
-          Natural'Image (ht_idx) & ", " & AC_DC'Image (kind)
-        );
+        Put_Line
+          ("  Huffman Table (HT) #" & ht_idx'Image &
+           ", of kind (AC/DC): " & kind'Image);
       end if;
       if image.JPEG_stuff.vlc_defs (kind, ht_idx) = null then
         image.JPEG_stuff.vlc_defs (kind, ht_idx) := new VLC_table;
@@ -304,11 +296,11 @@ package body GID.Decoding_JPG is
       high_prec := b >= 8;
       qt_idx := Natural (b and 7);
       if some_trace then
-        Put_Line ("Quantization Table (QT) #" & U8'Image (b));
+        Put_Line ("  Quantization Table (QT) #" & b'Image);
       end if;
       for i in QT'Range loop
         if high_prec then
-          Big_endian (image.buffer, q16);
+          Big_Endian (image.buffer, q16);
           remaining := remaining - 2;
           image.JPEG_stuff.qt_list (qt_idx)(i) := Natural (q16);
         else
@@ -324,9 +316,9 @@ package body GID.Decoding_JPG is
   procedure Read_DRI (image : in out Image_Descriptor) is
     ri : U16;
   begin
-    Big_endian (image.buffer, ri);
+    Big_Endian (image.buffer, ri);
     if some_trace then
-      Put_Line ("  Restart interval set to:" & U16'Image (ri));
+      Put_Line ("  Restart interval set to:" & ri'Image);
     end if;
     image.JPEG_stuff.restart_interval := Natural (ri);
   end Read_DRI;
@@ -382,7 +374,7 @@ package body GID.Decoding_JPG is
         ifd0_entries := Natural (b) + 16#100# * ifd0_entries;
       end if;
       if some_trace then
-        Put_Line ("EXIF's IFD0 has" & Natural'Image (ifd0_entries) & " entries.");
+        Put_Line ("EXIF's IFD0 has" & ifd0_entries'Image & " entries.");
       end if;
       x := 17;
       while x <= data_length - 12 loop
@@ -426,10 +418,9 @@ package body GID.Decoding_JPG is
               image.display_orientation := Unchanged;
           end case;
           if some_trace then
-            Put_Line (
-              "IFD tag 0112: Orientation set to: " &
-              Orientation'Image (image.display_orientation)
-            );
+            Put_Line
+              ("IFD tag 0112: Orientation set to: " &
+               image.display_orientation'Image);
           end if;
           exit;
         end if;
@@ -452,7 +443,7 @@ package body GID.Decoding_JPG is
     buf : U32 := 0;
     bufbits : Natural := 0;
 
-    function Show_bits (bits : Natural) return Natural is
+    function Show_Bits (bits : Natural) return Natural is
       newbyte, marker : U8;
     begin
       if bits = 0 then
@@ -473,13 +464,13 @@ package body GID.Decoding_JPG is
                 --  2015-04-26: occured in one (of many) picture
                 --  taken by an Olympus VG120,D705. See test/img/bcase_1.jpg
               when 16#D9# =>  --  EOI here ?
-                null; -- !! signal end
+                null;  --  !! signal end
               when 16#D0# .. 16#D7# =>
                 bufbits := bufbits + 8;
                 buf := buf * 256 + U32 (marker);
               when others =>
                 raise error_in_image_data with
-                  "JPEG: Invalid code (bit buffer): " & U8'Image (marker);
+                  "JPEG: Invalid code (bit buffer): " & marker'Image;
             end case;
           end if;
         exception
@@ -489,31 +480,30 @@ package body GID.Decoding_JPG is
             buf := buf * 256 + U32 (newbyte);
         end;
       end loop;
-      return Natural (
-          Shift_Right (buf, bufbits - bits)
+      return Natural
+         (Shift_Right (buf, bufbits - bits)
         and
-          (Shift_Left (1, bits) - 1)
-      );
-    end Show_bits;
+          (Shift_Left (1, bits) - 1));
+    end Show_Bits;
 
-    procedure Skip_bits (bits : Natural) is
-    pragma Inline (Skip_bits);
+    procedure Skip_Bits (bits : Natural) is
+    pragma Inline (Skip_Bits);
       dummy : Integer;
       pragma Unreferenced (dummy);
     begin
       if bufbits < bits then
-        dummy := Show_bits (bits);
+        dummy := Show_Bits (bits);
       end if;
       bufbits := bufbits - bits;
-    end Skip_bits;
+    end Skip_Bits;
 
-    function Get_bits (bits : Natural) return Integer is
-    pragma Inline (Get_bits);
-      res : constant Integer := Show_bits (bits);
+    function Get_Bits (bits : Natural) return Integer is
+    pragma Inline (Get_Bits);
+      res : constant Integer := Show_Bits (bits);
     begin
-      Skip_bits (bits);
+      Skip_Bits (bits);
       return res;
-    end Get_bits;
+    end Get_Bits;
 
     --
 
@@ -521,32 +511,33 @@ package body GID.Decoding_JPG is
       ht_idx_AC : Natural;
       ht_idx_DC : Natural;
       width, height, stride : Natural;
-      dcpred : Integer := 0;
+      dc_predictor : Integer := 0;
     end record;
 
     info_A : Component_Info_A renames image.JPEG_stuff.info;
     info_B : array (Component) of Info_per_component_B;
 
-    procedure Get_VLC (
-      vlc : VLC_table;
-      code : out U8;
-      value_ret : out Integer
-    )
+    procedure Get_VLC
+      (vlc       : in     VLC_table;
+       code      :    out U8;
+       value_ret :    out Integer)
     is
-      --  Step 1 happens here: Huffman decompression
-      value : Integer := Show_bits (16);
+      --------------------------------------------------
+      --  Step 1 happens here: Huffman decompression  --
+      --------------------------------------------------
+      value : Integer := Show_Bits (16);
       bits : Natural := Natural (vlc (value).bits);
     begin
       if bits = 0 then
         raise error_in_image_data with "JPEG: VLC table: bits = 0";
       end if;
-      Skip_bits (bits);
+      Skip_Bits (bits);
       value := Integer (vlc (value).code);
       code := U8 (value);
       bits := Natural (U32 (value) and 15);
       value_ret := 0;
       if bits /= 0 then
-        value := Get_bits (bits);
+        value := Get_Bits (bits);
         if value < Integer (Shift_Left (U32'(1), bits - 1)) then
           value := value + 1 - Integer (Shift_Left (U32'(1), bits));
         end if;
@@ -570,13 +561,13 @@ package body GID.Decoding_JPG is
 
     --  Ordering within a 8x8 block, in zig-zag
     zig_zag : constant Block_8x8 :=
-     (0,  1,  8, 16,  9,  2,  3, 10, 17, 24, 32, 25, 18,
+      (0,  1,  8, 16,  9,  2,  3, 10, 17, 24, 32, 25, 18,
       11,  4,  5, 12, 19, 26, 33, 40, 48, 41, 34, 27, 20,
       13,  6,  7, 14, 21, 28, 35, 42, 49, 56, 57, 50, 43,
       36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 59, 52, 45,
       38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63);
 
-    procedure Decode_Block (c : Component; block : in out Block_8x8) is
+    procedure Decode_8x8_Block (c : Component; block : in out Block_8x8) is
       value, coef : Integer;
       code : U8;
       qt_local : JPEG_Defs.QT renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
@@ -686,17 +677,18 @@ package body GID.Decoding_JPG is
         end if;
       end Col_IDCT;
 
-    begin -- Decode_Block
-      --
-      --  Step 2 happens here: Inverse quantization
+    begin  --  Decode_8x8_Block
+      -------------------------------------------------
+      --  Step 2 happens here: Inverse quantization  --
+      -------------------------------------------------
       Get_VLC (image.JPEG_stuff.vlc_defs (DC, info_B (c).ht_idx_DC).all, code, value);
       --  First value in block (0: top left) uses a predictor.
-      info_B (c).dcpred := info_B (c).dcpred + value;
-      block := (0 => info_B (c).dcpred * qt_local (0), others => 0);
+      info_B (c).dc_predictor := info_B (c).dc_predictor + value;
+      block := (0 => info_B (c).dc_predictor * qt_local (0), others => 0);
       coef := 0;
       loop
         Get_VLC (image.JPEG_stuff.vlc_defs (AC, info_B (c).ht_idx_AC).all, code, value);
-        exit when code = 0; -- EOB
+        exit when code = 0;  --  EOB
         if (code and 16#0F#) = 0 and code /= 16#F0# then
           raise error_in_image_data with "JPEG: error in VLC AC code for de-quantization";
         end if;
@@ -707,68 +699,64 @@ package body GID.Decoding_JPG is
         block (zig_zag (coef)) := value * qt_local (coef);
         exit when coef = 63;
       end loop;
-      --  Step 3 happens here: Inverse cosine transform
+      -----------------------------------------------------
+      --  Step 3 happens here: Inverse cosine transform  --
+      -----------------------------------------------------
       for row in 0 .. 7 loop
         Row_IDCT (row * 8);
       end loop;
       for column in 0 .. 7 loop
         Col_IDCT (column);
       end loop;
-    end Decode_Block;
+    end Decode_8x8_Block;
 
-    type Macro_block is array (
-      Component range <>, -- component
-      Positive range <>,  -- x sample range
-      Positive range <>   -- y sample range
-    ) of Block_8x8;
-
-      procedure Out_Pixel_8 (br, bg, bb : U8) is
-      pragma Inline (Out_Pixel_8);
-        function Times_257 (x : Primary_color_range) return Primary_color_range is
-        pragma Inline (Times_257);
-        begin
-          return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
-          --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
-        end Times_257;
-        full_opaque : constant Primary_color_range := Primary_color_range'Last;
+    procedure Out_Pixel_8 (br, bg, bb : U8) is
+    pragma Inline (Out_Pixel_8);
+      function Times_257 (x : Primary_Color_Range) return Primary_Color_Range is
+      pragma Inline (Times_257);
       begin
-        case Primary_color_range'Modulus is
-          when 256 =>
-            Put_Pixel (
-              Primary_color_range (br),
-              Primary_color_range (bg),
-              Primary_color_range (bb),
-              full_opaque
-            );
-          when 65_536 =>
-            Put_Pixel (
-              Times_257 (Primary_color_range (br)),
-              Times_257 (Primary_color_range (bg)),
-              Times_257 (Primary_color_range (bb)),
-              full_opaque
-              --  Times_257 makes max intensity FF go to FFFF
-            );
-          when others =>
-            raise invalid_primary_color_range with "JPEG: color range not supported";
-        end case;
-      end Out_Pixel_8;
+        return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
+        --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
+      end Times_257;
+      full_opaque : constant Primary_Color_Range := Primary_Color_Range'Last;
+    begin
+      case Primary_Color_Range'Modulus is
+        when 256 =>
+          Put_Pixel
+            (Primary_Color_Range (br),
+             Primary_Color_Range (bg),
+             Primary_Color_Range (bb),
+             full_opaque);
+        when 65_536 =>
+          Put_Pixel
+            (Times_257 (Primary_Color_Range (br)),
+             Times_257 (Primary_Color_Range (bg)),
+             Times_257 (Primary_Color_Range (bb)),
+             full_opaque);
+             --  Times_257 makes max intensity FF go to FFFF
+        when others =>
+          raise invalid_primary_color_range with "JPEG: color range not supported";
+      end case;
+    end Out_Pixel_8;
 
-    --  !! might be generic parameters
     ssxmax : constant Natural := image.JPEG_stuff.max_samples_hor;
     ssymax : constant Natural := image.JPEG_stuff.max_samples_ver;
 
-    procedure Upsampling_and_output (
-      m : Macro_block;
-      x0, y0 : Natural
-    )
-    is
+    type Macro_8x8_Block is array
+      (Component range <>,  --  component
+       Positive range <>,   --  x sample range
+       Positive range <>)   --  y sample range
+    of Block_8x8;
+
+    procedure Upsampling_and_Output (m : Macro_8x8_Block; x0, y0 : Natural) is
+
       flat : array (Component, 0 .. 8 * ssxmax - 1, 0 .. 8 * ssymax - 1) of Integer;
 
       generic
         color_space : Supported_color_space;
-      procedure Color_transformation_and_output;
+      procedure Color_Transformation_and_Output;
       --
-      procedure Color_transformation_and_output is
+      procedure Color_Transformation_and_Output is
         y_val, cb_val, cr_val, c_val, m_val, w_val : Integer;
         y_val_8 : U8;
       begin
@@ -782,11 +770,10 @@ package body GID.Decoding_JPG is
                 y_val := flat (Y,  xmb, ymb) * 256;
                 cb_val := flat (Cb, xmb, ymb) - 128;
                 cr_val := flat (Cr, xmb, ymb) - 128;
-                Out_Pixel_8 (
-                  br => U8 (Clip ((y_val                + 359 * cr_val + 128) / 256)),
-                  bg => U8 (Clip ((y_val -  88 * cb_val - 183 * cr_val + 128) / 256)),
-                  bb => U8 (Clip ((y_val + 454 * cb_val                + 128) / 256))
-                );
+                Out_Pixel_8
+                  (br => U8 (Clip ((y_val                + 359 * cr_val + 128) / 256)),
+                   bg => U8 (Clip ((y_val -  88 * cb_val - 183 * cr_val + 128) / 256)),
+                   bb => U8 (Clip ((y_val + 454 * cb_val                + 128) / 256)));
               when Y_Grey =>
                 y_val_8 := U8 (flat (Y,  xmb, ymb));
                 Out_Pixel_8 (y_val_8, y_val_8, y_val_8);
@@ -798,24 +785,25 @@ package body GID.Decoding_JPG is
                 m_val := flat (Cb, xmb, ymb);
                 y_val := flat (Cr, xmb, ymb);
                 w_val := flat (I,  xmb, ymb) - 255;
-                Out_Pixel_8 (
-                  br => U8 (255 - Clip (c_val + w_val)),
-                  bg => U8 (255 - Clip (m_val + w_val)),
-                  bb => U8 (255 - Clip (y_val + w_val))
-                );
+                Out_Pixel_8
+                  (br => U8 (255 - Clip (c_val + w_val)),
+                   bg => U8 (255 - Clip (m_val + w_val)),
+                   bb => U8 (255 - Clip (y_val + w_val)));
             end case;
           end loop;
         end loop;
-      end Color_transformation_and_output;
+      end Color_Transformation_and_Output;
       --
-      procedure Ct_YCbCr  is new Color_transformation_and_output (YCbCr);
-      procedure Ct_Y_Grey is new Color_transformation_and_output (Y_Grey);
-      procedure Ct_CMYK   is new Color_transformation_and_output (CMYK);
+      procedure Ct_YCbCr  is new Color_Transformation_and_Output (YCbCr);
+      procedure Ct_Y_Grey is new Color_Transformation_and_Output (Y_Grey);
+      procedure Ct_CMYK   is new Color_Transformation_and_Output (CMYK);
 
       blk_idx : Integer;
       upsx, upsy : Natural;
     begin
-      --  Step 4 happens here: Upsampling
+      ---------------------------------------
+      --  Step 4 happens here: Upsampling  --
+      ---------------------------------------
       for c in Component loop
         if image.JPEG_stuff.components (c) then
           upsx := info_A (c).up_factor_x;
@@ -846,7 +834,9 @@ package body GID.Decoding_JPG is
           end loop;
         end if;
       end loop;
-      --  Step 5 and 6 happen here: Color transformation and output
+      -----------------------------------------------------------------
+      --  Step 5 and 6 happen here: Color transformation and output  --
+      -----------------------------------------------------------------
       case image.JPEG_stuff.color_space is
         when YCbCr =>
           Ct_YCbCr;
@@ -855,27 +845,100 @@ package body GID.Decoding_JPG is
         when CMYK =>
           Ct_CMYK;
       end case;
-    end Upsampling_and_output;
+    end Upsampling_and_Output;
+
+    mb_width, mb_height : Natural;
+
+    procedure Baseline_DCT_Decoding is
+      mb : Macro_8x8_Block (Component, 1 .. ssxmax, 1 .. ssymax);
+      x0, y0 : Integer := 0;
+      mb_x, mb_y : Natural := 0;
+      w : U16;
+      --  RST (restart) markers:
+      rst_count : Natural := image.JPEG_stuff.restart_interval;
+      next_rst : U16 := 0;
+    begin
+      macro_blocks_loop :
+      loop
+        components_loop :
+        for c in Component loop
+          if image.JPEG_stuff.components (c) then
+            samples_y_loop :
+            for sby in 1 .. info_A (c).samples_ver loop
+              samples_x_loop :
+              for sbx in 1 .. info_A (c).samples_hor loop
+                --  Steps 1, 2, 3 happen here:
+                Decode_8x8_Block (c, mb (c, sbx, sby));
+              end loop samples_x_loop;
+            end loop samples_y_loop;
+          end if;
+        end loop components_loop;
+        --  All components of the current macro-block are now decoded.
+        --  Steps 4, 5, 6 happen here:
+        Upsampling_and_Output (mb, x0, y0);
+        --
+        mb_x := mb_x + 1;
+        x0 := x0 + ssxmax * 8;
+        if mb_x >= mb_width then
+          mb_x := 0;
+          x0 := 0;
+          mb_y := mb_y + 1;
+          y0 := y0 + ssymax * 8;
+          Feedback ((100 * mb_y) / mb_height);
+          exit macro_blocks_loop when mb_y >= mb_height;
+        end if;
+        if image.JPEG_stuff.restart_interval > 0 then
+          rst_count := rst_count - 1;
+          if rst_count = 0 then
+            --  Here begins the restart.
+            bufbits := Natural (U32 (bufbits) and 16#F8#);  --  Byte alignment
+            --  Now the restart marker.
+            w := U16 (Get_Bits (16));
+            if some_trace then
+              Put_Line
+                ("  Restart #" & next_rst'Image &
+                 "  Code " & w'Image &
+                 " after" & image.JPEG_stuff.restart_interval'Image &
+                 " macro blocks");
+            end if;
+            if w not in 16#FFD0# .. 16#FFD7# or (w and 7) /= next_rst then
+              raise error_in_image_data with
+                "JPEG: expected RST (restart) marker Nb " & next_rst'Image;
+            end if;
+            next_rst := (next_rst + 1) and 7;
+            rst_count := image.JPEG_stuff.restart_interval;
+            --  Block-to-block predictor variables are reset.
+            for c in Component loop
+              info_B (c).dc_predictor := 0;
+            end loop;
+          end if;
+        end if;
+      end loop macro_blocks_loop;
+    end Baseline_DCT_Decoding;
+
+    --  Parameters for progressive decoding :
+    start_spectral_selection,
+    end_spectral_selection,
+    successive_approximation : U8;
+
+    procedure Progressive_DCT_Decoding is
+    --  NB: this procedure is normally called multiple times for a single image.
+    begin
+      raise unsupported_image_subformat
+        with "JPEG: progressive format not yet functional";
+    end Progressive_DCT_Decoding;
 
     --  Start Of Scan (and image data which follow)
     --
     procedure Read_SOS is
       components, b, id_base : U8;
       compo : Component := Component'First;
-      mbx, mby : Natural := 0;
-      mbsizex, mbsizey, mbwidth, mbheight : Natural;
-      rstcount : Natural := image.JPEG_stuff.restart_interval;
-      nextrst : U16 := 0;
-      w : U16;
-      start_spectral_selection,
-      end_spectral_selection,
-      successive_approximation : U8;
+      mb_size_x, mb_size_y : Natural;
     begin
       Get_Byte (image.buffer, components);
       if some_trace then
-        Put_Line (
-          "Start of Scan (SOS), with" & U8'Image (components) & " components"
-        );
+        Put_Line
+          ("  Start of Scan (SOS), with" & components'Image & " components");
       end if;
       if image.subformat_id /= Natural (components) then
         raise error_in_image_data with "JPEG: components mismatch in Scan segment";
@@ -888,12 +951,12 @@ package body GID.Decoding_JPG is
           id_base := 0;
         end if;
         if b - id_base > Component'Pos (Component'Last) then
-          raise error_in_image_data with "JPEG: Scan: invalid ID: " & U8'Image (b);
+          raise error_in_image_data with "JPEG: Scan: invalid ID: " & b'Image;
         end if;
         compo := Component'Val (b - id_base);
         if not image.JPEG_stuff.components (compo) then
           raise error_in_image_data with
-            "JPEG: component " & Component'Image (compo) &
+            "JPEG: component " & compo'Image &
             " has not been defined in the header (SOF) segment";
         end if;
         --  Huffman table selection
@@ -908,114 +971,64 @@ package body GID.Decoding_JPG is
       --
       --  End of SOS segment, image data follow.
       --
-      mbsizex := ssxmax * 8; -- pixels in a row of a macro-block
-      mbsizey := ssymax * 8; -- pixels in a column of a macro-block
-      mbwidth  := (Integer (image.width)  + mbsizex - 1) / mbsizex;
-      --  width in macro-blocks
-      mbheight := (Integer (image.height) + mbsizey - 1) / mbsizey;
-      --  height in macro-blocks
+      mb_size_x := ssxmax * 8;  --  Pixels in a row of a macro-block
+      mb_size_y := ssymax * 8;  --  Pixels in a column of a macro-block
+      --  Width in macro-blocks:
+      mb_width  := (Integer (image.width)  + mb_size_x - 1) / mb_size_x;
+      --  Height in macro-blocks:
+      mb_height := (Integer (image.height) + mb_size_y - 1) / mb_size_y;
+
       if some_trace then
-        Put_Line (" mbsizex = " & Integer'Image (mbsizex));
-        Put_Line (" mbsizey = " & Integer'Image (mbsizey));
-        Put_Line (" mbwidth  = " & Integer'Image (mbwidth));
-        Put_Line (" mbheight = " & Integer'Image (mbheight));
+        New_Line;
+        Put_Line ("    mb_size_x = " & mb_size_x'Image);
+        Put_Line ("    mb_size_y = " & mb_size_y'Image);
+        Put_Line ("    mb_width  = " & mb_width'Image);
+        Put_Line ("    mb_height = " & mb_height'Image);
+        if image.interlaced then
+          New_Line;
+          Put_Line ("    Progressive image parameters:");
+          Put_Line ("      start_spectral_selection = " & start_spectral_selection'Image);
+          Put_Line ("      end_spectral_selection   = " & end_spectral_selection'Image);
+          Put_Line ("      successive_approximation = " & successive_approximation'Image);
+        end if;
       end if;
+
       for c in Component loop
         if image.JPEG_stuff.components (c) then
           info_B (c).width := (Integer (image.width)  * info_A (c).samples_hor + ssxmax - 1) / ssxmax;
           info_B (c).height := (Integer (image.height) * info_A (c).samples_ver + ssymax - 1) / ssymax;
-          info_B (c).stride := (mbwidth * mbsizex * info_A (c).samples_hor) / ssxmax;
+          info_B (c).stride := (mb_width * mb_size_x * info_A (c).samples_hor) / ssxmax;
           if some_trace then
-            Put_Line ("  Details for component " & Component'Image (c));
-            Put_Line ("    samples in x " & Integer'Image (info_A (c).samples_hor));
-            Put_Line ("    samples in y " & Integer'Image (info_A (c).samples_ver));
-            Put_Line ("    width " & Integer'Image (info_B (c).width));
-            Put_Line ("    height " & Integer'Image (info_B (c).height));
-            Put_Line ("    stride " & Integer'Image (info_B (c).stride));
-            Put_Line (
-              "    AC/DC table index " &
-              Integer'Image (info_B (compo).ht_idx_AC) & ", " &
-              Integer'Image (info_B (compo).ht_idx_DC)
-            );
+            New_Line;
+            Put_Line ("    Details for component " & c'Image);
+            Put_Line ("      samples in x " & info_A (c).samples_hor'Image);
+            Put_Line ("      samples in y " & info_A (c).samples_ver'Image);
+            Put_Line ("      width  " & info_B (c).width'Image);
+            Put_Line ("      height " & info_B (c).height'Image);
+            Put_Line ("      stride " & info_B (c).stride'Image);
+            Put_Line
+              ("      AC/DC table index: " &
+               info_B (compo).ht_idx_AC'Image & ", " &
+               info_B (compo).ht_idx_DC'Image);
           end if;
           if (info_B (c).width < 3 and info_A (c).samples_hor /= ssxmax) or
              (info_B (c).height < 3 and info_A (c).samples_ver /= ssymax)
           then
             raise error_in_image_data with
-              "JPEG: component " & Component'Image (c) & ": sample dimension mismatch";
+              "JPEG: component " & c'Image & ": sample dimension mismatch";
           end if;
         end if;
       end loop;
-      --
+
       if image.interlaced then
-        raise unsupported_image_subformat
-          with "JPEG: progressive format not yet functional";
+        Progressive_DCT_Decoding;
+      else
+        Baseline_DCT_Decoding;
       end if;
-      declare
-        mb : Macro_block (Component, 1 .. ssxmax, 1 .. ssymax);
-        x0, y0 : Integer := 0;
-      begin
-        macro_blocks_loop :
-        loop
-          components_loop :
-          for c in Component loop
-            if image.JPEG_stuff.components (c) then
-              samples_y_loop :
-              for sby in 1 .. info_A (c).samples_ver loop
-                samples_x_loop :
-                for sbx in 1 .. info_A (c).samples_hor loop
-                  Decode_Block (c, mb (c, sbx, sby));
-                end loop samples_x_loop;
-              end loop samples_y_loop;
-            end if;
-          end loop components_loop;
-          --  All components of the current macro-block are decoded.
-          --  Step 4, 5, 6 happen here: Upsampling, color transformation, output
-          Upsampling_and_output (mb, x0, y0);
-          --
-          mbx := mbx + 1;
-          x0 := x0 + ssxmax * 8;
-          if mbx >= mbwidth then
-            mbx := 0;
-            x0 := 0;
-            mby := mby + 1;
-            y0 := y0 + ssymax * 8;
-            Feedback ((100 * mby) / mbheight);
-            exit macro_blocks_loop when mby >= mbheight;
-          end if;
-          if image.JPEG_stuff.restart_interval > 0 then
-            rstcount := rstcount - 1;
-            if rstcount = 0 then
-              --  Here begins the restart.
-              bufbits := Natural (U32 (bufbits) and 16#F8#); -- byte alignment
-              --  Now the restart marker. We expect a
-              w := U16 (Get_bits (16));
-              if some_trace then
-                Put_Line (
-                  "  Restart #" & U16'Image (nextrst) &
-                  "  Code " & U16'Image (w) &
-                  " after" & Natural'Image (image.JPEG_stuff.restart_interval) &
-                  " macro blocks"
-                );
-              end if;
-              if w not in 16#FFD0# .. 16#FFD7# or (w and 7) /= nextrst then
-                raise error_in_image_data with
-                  "JPEG: expected RST (restart) marker Nb " & U16'Image (nextrst);
-              end if;
-              nextrst := (nextrst + 1) and 7;
-              rstcount := image.JPEG_stuff.restart_interval;
-              --  Block-to-block predictor variables are reset.
-              for c in Component loop
-                info_B (c).dcpred := 0;
-              end loop;
-            end if;
-          end if;
-        end loop macro_blocks_loop;
-      end;
+
     end Read_SOS;
 
-    --
-    sh : Segment_head;
+    sh : Segment_Head;
     b : U8;
   begin  --  Load
     loop
@@ -1031,9 +1044,9 @@ package body GID.Decoding_JPG is
           exit;
         when SOS =>  --  Start Of Scan
           Read_SOS;
-          exit;
+          exit when not image.interlaced;
         when others =>
-          --  Skip segment data
+          --  Any other segment: skip segment data.
           for i in 1 .. sh.length loop
             Get_Byte (image.buffer, b);
           end loop;

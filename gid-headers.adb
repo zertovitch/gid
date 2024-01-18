@@ -378,8 +378,8 @@ package body GID.Headers is
 
   procedure Load_JPEG_Header (image : in out Image_Descriptor) is
     --  http://en.wikipedia.org/wiki/JPEG
-    use GID.Decoding_JPG, GID.Buffering;
-    sh : Segment_head;
+    use Decoding_JPG, Buffering;
+    sh : Segment_Head;
     b : U8;
   begin
     --  We have already passed the SOI (Start of Image) segment marker (FFD8).
@@ -388,15 +388,19 @@ package body GID.Headers is
     loop
       Read (image, sh);
       case sh.kind is
-        when DHT => -- Huffman Table
+        when DHT =>
+          --  Huffman Table
           Read_DHT (image, Natural (sh.length));
         when DQT =>
           Read_DQT (image, Natural (sh.length));
-        when DRI => -- Restart Interval
+        when DRI =>
+          --  Restart Interval
           Read_DRI (image);
         when SOF_0 .. SOF_15 =>
           Read_SOF (image, sh);
-          exit; -- we've got header-style informations, then it's time to quit
+            --  We've got frame-header-style informations (SOF),
+            --  then it's time to quit:
+          exit;
         when APP_1 =>
           Read_EXIF (image, Natural (sh.length));
         when others =>

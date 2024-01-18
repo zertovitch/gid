@@ -25,7 +25,7 @@
 --
 --     More credits in gid_work.xls, sheet "credits".
 --
---  Copyright (c) Gautier de Montmollin 2010 .. 2023
+--  Copyright (c) Gautier de Montmollin 2010 .. 2024
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -181,7 +181,7 @@ package GID is
   ----------------------------------------------------------------
 
   version   : constant String := "011";
-  reference : constant String := "02-Dec-2023";
+  reference : constant String := "18-Jan-2024";
   web       : constant String := "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..........^
   --  There is a mirror too @ https://github.com/zertovitch/gid
@@ -235,34 +235,33 @@ private
   package JPEG_Defs is
 
     type Component is
-      (Y,  -- brightness
-       Cb, -- hue
-       Cr, -- saturation
-       I,  -- ??
-       Q   -- ??
-      );
+      (Y,   --  brightness
+       Cb,  --  hue
+       Cr,  --  saturation
+       I,   --  ??
+       Q);  --  ??
 
     type QT is array (0 .. 63) of Natural;
     type QT_List is array (0 .. 7) of QT;
 
     type Compo_Set is array (Component) of Boolean;
 
-    type Info_per_Component_A is record -- B is defined inside the decoder
+    type Info_per_Component_A is record  --  B is defined inside the decoder
       qt_assoc    : Natural;
       samples_hor : Natural;
       samples_ver : Natural;
-      up_factor_x : Natural; -- how much we must repeat horizontally
-      up_factor_y : Natural; -- how much we must repeat vertically
-      shift_x     : Natural; -- shift for repeating pixels horizontally
-      shift_y     : Natural; -- shift for repeating pixels vertically
+      up_factor_x : Natural;  --  how much we must repeat horizontally
+      up_factor_y : Natural;  --  how much we must repeat vertically
+      shift_x     : Natural;  --  shift for repeating pixels horizontally
+      shift_y     : Natural;  --  shift for repeating pixels vertically
     end record;
 
     type Component_Info_A is array (Component) of Info_per_Component_A;
 
     type Supported_color_space is (
-      YCbCr,  -- 3-dim color space
-      Y_Grey, -- 1-dim greyscale
-      CMYK    -- 4-dim Cyan, Magenta, Yellow, blacK
+      YCbCr,  --  3-dim color space
+      Y_Grey, --  1-dim greyscale
+      CMYK    --  4-dim Cyan, Magenta, Yellow, blacK
     );
 
     type AC_DC is (AC, DC);
