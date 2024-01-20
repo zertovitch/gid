@@ -302,8 +302,9 @@ procedure All_RGB is
     Dispose (src);
     Dispose (dst);
     T1 := Clock;
-    Put (Standard_Error, " Time elapsed:" & Duration'Image (T1 - T0));
-    New_Line (Standard_Error);
+    Put_Line
+      (Standard_Error,
+       "Time elapsed:" & Duration'Image (T1 - T0) & " seconds.");
   end Process;
 
   Lx : Dist_Type := L2;

@@ -4,11 +4,14 @@
 --  Middle-size test/demo for the GID (Generic Image Decoder) package.
 --
 --  Supports:
---  - Transparency (blends transparent or partially opaque areas with a
---      background image, gid.gif, or a fixed, predefined colour)
---  - Display orientation (JPEG EXIF informations from digital cameras)
 --
---  For a smaller and simpler example, look for mini.adb .
+--  - Transparency: the program blends transparent or partially opaque
+--    areas with a background image, `gid.gif`, or a fixed,
+--    predefined colour.
+--  - Display orientation (JPEG EXIF informations from digital
+--    cameras): the result is rotated accordingly.
+--
+--  For a smaller and simpler example, look for `mini.adb` .
 --
 
 with GID;
@@ -47,7 +50,7 @@ procedure To_BMP is
     Put_Line (Standard_Error, "      (otherwise, trying with '" & default_bkg_name & "' or single color)");
     New_Line (Standard_Error);
     Put_Line (Standard_Error, "Output: "".dib"" is added the full input name(s)");
-    Put_Line (Standard_Error, "  Reason of "".dib"": unknown synonym of "".bmp"";");
+    Put_Line (Standard_Error, "  Reason of the "".dib"" extension: it is an unknown synonym of "".bmp"";");
     Put_Line (Standard_Error, "  just do ""del *.dib"" for cleanup");
     New_Line (Standard_Error);
   end Blurb;
@@ -408,8 +411,9 @@ procedure To_BMP is
     up_name : constant String := To_Upper (name);
     --
     next_frame, current_frame : Ada.Calendar.Day_Duration := 0.0;
-    use Ada.Strings, Ada.Strings.Fixed;
+    use Ada.Calendar, Ada.Strings, Ada.Strings.Fixed;
     use type GID.Image_Format_Type;
+    T0, T1 : Time;
   begin
     --
     --  Load the image in its original format
@@ -477,6 +481,9 @@ procedure To_BMP is
     Put_Line (Standard_Error, "1........10........20");
     Put_Line (Standard_Error, "         |         | ");
     --
+
+    T0 := Clock;
+
     if as_background then
       case GID.Display_Orientation (i) is
         when GID.Unchanged =>
@@ -490,36 +497,40 @@ procedure To_BMP is
       end case;
       bkg := i;
       New_Line (Standard_Error);
-      Close (f);
-      return;
+    else
+      mem_buffer_last := force_allocate;
+
+      Animation_Loop :
+      loop
+        case GID.Display_Orientation (i) is
+          when GID.Unchanged =>
+            Load_raw_image_0 (i, img_buf, next_frame);
+          when GID.Rotation_90 =>
+            Load_raw_image_90 (i, img_buf, next_frame);
+          when GID.Rotation_180 =>
+            Load_raw_image_180 (i, img_buf, next_frame);
+          when GID.Rotation_270 =>
+            Load_raw_image_270 (i, img_buf, next_frame);
+        end case;
+        if not test_only then
+          Dump_BMP_24 (name & '_' & Trim (current_frame'Image, Left), i);
+        end if;
+        New_Line (Standard_Error);
+        if in_error then
+          Put_Line (Standard_Error, "Error!");
+        end if;
+        exit Animation_Loop when next_frame = 0.0;
+        current_frame := next_frame;
+      end loop Animation_Loop;
     end if;
 
-    mem_buffer_last := force_allocate;
-
-    Animation_Loop :
-    loop
-      case GID.Display_Orientation (i) is
-        when GID.Unchanged =>
-          Load_raw_image_0 (i, img_buf, next_frame);
-        when GID.Rotation_90 =>
-          Load_raw_image_90 (i, img_buf, next_frame);
-        when GID.Rotation_180 =>
-          Load_raw_image_180 (i, img_buf, next_frame);
-        when GID.Rotation_270 =>
-          Load_raw_image_270 (i, img_buf, next_frame);
-      end case;
-      if not test_only then
-        Dump_BMP_24 (name & '_' & Trim (current_frame'Image, Left), i);
-      end if;
-      New_Line (Standard_Error);
-      if in_error then
-        Put_Line (Standard_Error, "Error!");
-      end if;
-      exit Animation_Loop when next_frame = 0.0;
-      current_frame := next_frame;
-    end loop Animation_Loop;
+    T1 := Clock;
 
     Close (f);
+    Put_Line
+      (Standard_Error,
+       "Time elapsed:" & Duration'Image (T1 - T0) & " seconds.");
+
   exception
     when GID.unknown_image_format =>
       Put_Line (Standard_Error, "  Image format is unknown!");
