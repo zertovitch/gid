@@ -179,35 +179,35 @@ package body GID is
     return image.subformat_id;
   end Subformat;
 
-  function Bits_per_pixel (image : Image_Descriptor) return Positive is
+  function Bits_per_Pixel (image : Image_Descriptor) return Positive is
   begin
     return image.bits_per_pixel;
-  end Bits_per_pixel;
+  end Bits_per_Pixel;
 
-  function Is_RLE_encoded (image : Image_Descriptor) return Boolean is
+  function Is_RLE_Encoded (image : Image_Descriptor) return Boolean is
   begin
     return image.RLE_encoded;
-  end Is_RLE_encoded;
+  end Is_RLE_Encoded;
 
-  function Is_Interlaced (image : Image_Descriptor) return Boolean is
+  function Is_Progressive (image : Image_Descriptor) return Boolean is
   begin
-    return image.interlaced;
-  end Is_Interlaced;
+    return image.progressive;
+  end Is_Progressive;
 
   function Greyscale (image : Image_Descriptor) return Boolean is
   begin
     return image.greyscale;
   end Greyscale;
 
-  function Has_palette (image : Image_Descriptor) return Boolean is
+  function Has_Palette (image : Image_Descriptor) return Boolean is
   begin
     return image.palette /= null;
-  end Has_palette;
+  end Has_Palette;
 
-  function Expect_transparency (image : Image_Descriptor) return Boolean is
+  function Expect_Transparency (image : Image_Descriptor) return Boolean is
   begin
     return image.transparency;
-  end Expect_transparency;
+  end Expect_Transparency;
 
   procedure Get_Next_Frame_Informations
     (image             : in     Image_Descriptor;

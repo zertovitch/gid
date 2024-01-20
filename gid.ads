@@ -99,7 +99,8 @@ package GID is
 
   type Display_Mode is (fast, nice);
   --  For bitmap pictures, the result is exactly the same, but
-  --  interlaced images' larger pixels are drawn in full during decoding.
+  --  progressive or interlaced images' larger pixels are drawn
+  --  in full during decoding.
 
   generic
     type Primary_Color_Range is mod <>;
@@ -146,12 +147,14 @@ package GID is
   function Subformat (image : Image_Descriptor) return Integer;
   --  example the 'color type' in PNG
 
-  function Bits_per_pixel (image : Image_Descriptor) return Positive;
-  function Is_RLE_encoded (image : Image_Descriptor) return Boolean;
-  function Is_Interlaced (image : Image_Descriptor) return Boolean;
+  function Bits_per_Pixel (image : Image_Descriptor) return Positive;
+  function Is_RLE_Encoded (image : Image_Descriptor) return Boolean;
+  function Is_Progressive (image : Image_Descriptor) return Boolean;
+  function Is_Interlaced (image : Image_Descriptor) return Boolean
+    renames Is_Progressive;
   function Greyscale (image : Image_Descriptor) return Boolean;
-  function Has_palette (image : Image_Descriptor) return Boolean;
-  function Expect_transparency (image : Image_Descriptor) return Boolean;
+  function Has_Palette (image : Image_Descriptor) return Boolean;
+  function Expect_Transparency (image : Image_Descriptor) return Boolean;
 
   ---------------------------------------------------------------------
   --  Information about frame-to-frame handling in animations.       --
@@ -315,7 +318,7 @@ private
     RLE_encoded         : Boolean := False;
     transparency        : Boolean := False;
     greyscale           : Boolean := False;
-    interlaced          : Boolean := False;  --  GIF, JPEG or PNG; also called progressive
+    progressive         : Boolean := False;  --  JPEG, PNG; for GIF: per frame
     endianess           : Endianess_Type;    --  TIFF
     JPEG_stuff          : JPEG_Stuff_Type;
     stream              : Stream_Access;

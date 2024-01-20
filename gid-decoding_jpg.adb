@@ -55,7 +55,7 @@ package body GID.Decoding_JPG is
   procedure Read (image : in out Image_Descriptor; sh : out Segment_Head) is
     b : U8;
     id : constant array (JPEG_Marker) of U8 :=
-    (SOI      => 16#D8#,
+     (SOI      => 16#D8#,
       --
       SOF_0  => 16#C0#, SOF_1  => 16#C1#, SOF_2  => 16#C2#, SOF_3  => 16#C3#,
       SOF_5  => 16#C5#, SOF_6  => 16#C6#, SOF_7  => 16#C7#, SOF_8  => 16#C8#,
@@ -74,12 +74,11 @@ package body GID.Decoding_JPG is
       --
       COM      => 16#FE#,
       SOS      => 16#DA#,
-      EOI      => 16#D9#
-    );
+      EOI      => 16#D9#);
   begin
     Get_Byte (image.buffer, b);
     if b /= 16#FF# then
-      raise error_in_image_data with "JPEG: expected marker here";
+      raise error_in_image_data with "JPEG: expected marker (16#FF#) here";
     end if;
     Get_Byte (image.buffer, b);
     for m in id'Range loop
@@ -95,7 +94,8 @@ package body GID.Decoding_JPG is
         return;
       end if;
     end loop;
-    raise error_in_image_data with "JPEG: unknown marker here: FF, " & b'Image;
+    raise error_in_image_data
+      with "JPEG: unknown marker here: 16#FF#, then" & b'Image;
   end Read;
 
   shift_arg : constant array (0 .. 15) of Integer :=
@@ -113,7 +113,7 @@ package body GID.Decoding_JPG is
         image.detailed_format := To_Bounded_String ("JPEG, Baseline DCT (SOF_0)");
       when SOF_2 =>
         image.detailed_format := To_Bounded_String ("JPEG, Progressive DCT (SOF_2)");
-        image.interlaced := True;
+        image.progressive := True;
       when others =>
         raise unsupported_image_subformat with
           "JPEG: image type not yet supported: " & sh.kind'Image;
@@ -480,10 +480,11 @@ package body GID.Decoding_JPG is
             buf := buf * 256 + U32 (newbyte);
         end;
       end loop;
-      return Natural
-         (Shift_Right (buf, bufbits - bits)
-        and
-          (Shift_Left (1, bits) - 1));
+      return
+        Natural
+          (Shift_Right (buf, bufbits - bits)
+           and
+           (Shift_Left (1, bits) - 1));
     end Show_Bits;
 
     procedure Skip_Bits (bits : Natural) is
@@ -681,12 +682,14 @@ package body GID.Decoding_JPG is
       -------------------------------------------------
       --  Step 2 happens here: Inverse quantization  --
       -------------------------------------------------
+      --  DC value:
       Get_VLC (image.JPEG_stuff.vlc_defs (DC, info_B (c).ht_idx_DC).all, code, value);
       --  First value in block (0: top left) uses a predictor.
       info_B (c).dc_predictor := info_B (c).dc_predictor + value;
       block := (0 => info_B (c).dc_predictor * qt_local (0), others => 0);
       coef := 0;
       loop
+        --  AC value:
         Get_VLC (image.JPEG_stuff.vlc_defs (AC, info_B (c).ht_idx_AC).all, code, value);
         exit when code = 0;  --  EOB
         if (code and 16#0F#) = 0 and code /= 16#F0# then
@@ -696,6 +699,7 @@ package body GID.Decoding_JPG is
         if coef > 63 then
           raise error_in_image_data with "JPEG: coefficient for de-quantization is > 63";
         end if;
+        --  Undo the zigzag scan and apply de-quantization:
         block (zig_zag (coef)) := value * qt_local (coef);
         exit when coef = 63;
       end loop;
@@ -715,8 +719,10 @@ package body GID.Decoding_JPG is
       function Times_257 (x : Primary_Color_Range) return Primary_Color_Range is
       pragma Inline (Times_257);
       begin
-        return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
-        --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
+        --  Returns x if type Primary_Color_Range is mod 2**8.
+        return 16 * (16 * x) + x;
+        --  ^ This is 257 * x, thst is 16#0101# * x
+        --  All literal numbers are 8-bit -> no OA warning at instanciation.
       end Times_257;
       full_opaque : constant Primary_Color_Range := Primary_Color_Range'Last;
     begin
@@ -735,7 +741,8 @@ package body GID.Decoding_JPG is
              full_opaque);
              --  Times_257 makes max intensity FF go to FFFF
         when others =>
-          raise invalid_primary_color_range with "JPEG: color range not supported";
+          raise invalid_primary_color_range
+            with "JPEG: color range not supported";
       end case;
     end Out_Pixel_8;
 
@@ -849,7 +856,7 @@ package body GID.Decoding_JPG is
 
     mb_width, mb_height : Natural;
 
-    procedure Baseline_DCT_Decoding is
+    procedure Baseline_DCT_Decoding_Scan is
       mb : Macro_8x8_Block (Component, 1 .. ssxmax, 1 .. ssymax);
       x0, y0 : Integer := 0;
       mb_x, mb_y : Natural := 0;
@@ -914,44 +921,79 @@ package body GID.Decoding_JPG is
           end if;
         end if;
       end loop macro_blocks_loop;
-    end Baseline_DCT_Decoding;
+    end Baseline_DCT_Decoding_Scan;
+
+    components_amount : U8;
+
+    procedure Progressive_DC_Scan is
+    begin
+      --  !!  TBD
+      raise unsupported_image_subformat
+        with "JPEG: progressive format not yet functional";
+    end Progressive_DC_Scan;
+
+    procedure Progressive_AC_Scan is
+    begin
+      if components_amount > 1 then
+        raise error_in_image_data with
+          "JPEG, progressive: an AC progressive scan can only" &
+          " have a single color component";
+      end if;
+      --  !!  TBD
+      raise unsupported_image_subformat
+        with "JPEG: progressive format not yet functional";
+    end Progressive_AC_Scan;
 
     --  Parameters for progressive decoding :
     start_spectral_selection,
     end_spectral_selection,
     successive_approximation : U8;
 
-    procedure Progressive_DCT_Decoding is
-    --  NB: this procedure is normally called multiple times for a single image.
+    procedure Progressive_DCT_Decoding_Scan is
+    --  NB: this procedure is normally called multiple times for
+    --      a single image encoded as progressive JPEG.
+      kind : AC_DC;
     begin
-      raise unsupported_image_subformat
-        with "JPEG: progressive format not yet functional";
-    end Progressive_DCT_Decoding;
+      if start_spectral_selection = 0 and then end_spectral_selection = 0 then
+        kind := DC;
+      elsif start_spectral_selection > 0
+        and then end_spectral_selection >= start_spectral_selection
+      then
+        kind := AC;
+      else
+        raise error_in_image_data with
+          "JPEG, progressive: invalid spectral selection values";
+      end if;
+      case kind is
+        when DC => Progressive_DC_Scan;  --  First scan
+        when AC => Progressive_AC_Scan;  --  Further scans
+      end case;
+    end Progressive_DCT_Decoding_Scan;
 
     --  Start Of Scan (and image data which follow)
     --
     procedure Read_SOS is
-      components, b, id_base : U8;
+      b, id_base : U8;
       compo : Component := Component'First;
       mb_size_x, mb_size_y : Natural;
     begin
-      Get_Byte (image.buffer, components);
+      Get_Byte (image.buffer, components_amount);
       if some_trace then
         Put_Line
-          ("  Start of Scan (SOS), with" & components'Image & " components");
+          ("  Start of Scan (SOS), with" & components_amount'Image & " components");
       end if;
-      if image.subformat_id /= Natural (components) then
+      if image.subformat_id /= Natural (components_amount) then
         raise error_in_image_data with "JPEG: components mismatch in Scan segment";
       end if;
       id_base := 1;
-      for i in 1 .. components loop
+      for i in 1 .. components_amount loop
         Get_Byte (image.buffer, b);
         if b = 0 then
           --  Workaround for bugged encoder (see above)
           id_base := 0;
         end if;
         if b - id_base > Component'Pos (Component'Last) then
-          raise error_in_image_data with "JPEG: Scan: invalid ID: " & b'Image;
+          raise error_in_image_data with "JPEG: Scan: invalid ID:" & b'Image;
         end if;
         compo := Component'Val (b - id_base);
         if not image.JPEG_stuff.components (compo) then
@@ -984,7 +1026,7 @@ package body GID.Decoding_JPG is
         Put_Line ("    mb_size_y = " & mb_size_y'Image);
         Put_Line ("    mb_width  = " & mb_width'Image);
         Put_Line ("    mb_height = " & mb_height'Image);
-        if image.interlaced then
+        if image.progressive then
           New_Line;
           Put_Line ("    Progressive image parameters:");
           Put_Line ("      start_spectral_selection = " & start_spectral_selection'Image);
@@ -1020,10 +1062,10 @@ package body GID.Decoding_JPG is
         end if;
       end loop;
 
-      if image.interlaced then
-        Progressive_DCT_Decoding;
+      if image.progressive then
+        Progressive_DCT_Decoding_Scan;
       else
-        Baseline_DCT_Decoding;
+        Baseline_DCT_Decoding_Scan;
       end if;
 
     end Read_SOS;
@@ -1044,7 +1086,17 @@ package body GID.Decoding_JPG is
           exit;
         when SOS =>  --  Start Of Scan
           Read_SOS;
-          exit when not image.interlaced;
+          exit when no_trace and not image.progressive;
+        when COM =>  --  Comment
+          if some_trace then
+            New_Line;
+            Put_Line ("JPEG Comment:  --------");
+            for i in 1 .. sh.length loop
+              Get_Byte (image.buffer, b);
+              Put (Character'Val (b));
+            end loop;
+            New_Line;
+          end if;
         when others =>
           --  Any other segment: skip segment data.
           for i in 1 .. sh.length loop

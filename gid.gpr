@@ -64,12 +64,7 @@ project GID is
      "-gnatyt",      --  Style: check t:token separation rules
      "-gnatyc");     --  Style: check c:comment format (two spaces)
 
-   Fast_Options := (
-     "-O2",
-     "-funroll-loops", "-fpeel-loops", "-funswitch-loops",
-     "-ftracer", "-fweb", "-frename-registers",
-     "-ftree-vectorize", "-fipa-cp-clone", "-fgcse-after-reload"
-   );
+   Fast_Options := ("-Ofast");
 
    Debug_Options  := (
      --  "-gnateV",  --  Validity check for parameters, GNAT > 4.6, redundant with -gnatVim ?

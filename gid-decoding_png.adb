@@ -1465,7 +1465,7 @@ package body GID.Decoding_PNG is
     --
     procedure Load_Frame_Dynamic_Parameters is new
       Load_specialized
-        (interlaced         => image.interlaced,
+        (interlaced         => image.progressive,
          png_bits_per_pixel => image.bits_per_pixel,
          bytes_to_unfilter  => Integer'Max (1, image.bits_per_pixel / 8),
          subformat_id       => image.subformat_id);
@@ -1483,7 +1483,7 @@ package body GID.Decoding_PNG is
         when 2 =>  --  RGB
           case image.bits_per_pixel is
             when 24 =>
-              if image.interlaced then
+              if image.progressive then
                 Load_interlaced_24;
               else
                 Load_straight_24;
@@ -1494,25 +1494,25 @@ package body GID.Decoding_PNG is
         when 3 =>  --  Palette
           case image.bits_per_pixel is
             when 1 =>
-              if image.interlaced then
+              if image.progressive then
                 Load_interlaced_1pal;
               else
                 Load_straight_1pal;
               end if;
             when 2 =>
-              if image.interlaced then
+              if image.progressive then
                 Load_interlaced_2pal;
               else
                 Load_straight_2pal;
               end if;
             when 4 =>
-              if image.interlaced then
+              if image.progressive then
                 Load_interlaced_4pal;
               else
                 Load_straight_4pal;
               end if;
             when 8 =>
-              if image.interlaced then
+              if image.progressive then
                 Load_interlaced_8pal;
               else
                 Load_straight_8pal;
@@ -1523,7 +1523,7 @@ package body GID.Decoding_PNG is
         when 6 =>  --  RGBA
           case image.bits_per_pixel is
             when 32 =>
-              if image.interlaced then
+              if image.progressive then
                 Load_interlaced_32;
               else
                 Load_straight_32;

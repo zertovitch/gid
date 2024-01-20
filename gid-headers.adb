@@ -555,7 +555,7 @@ package body GID.Headers is
         "PNG: unknown filtering; ISO/IEC 15948:2003 knows only 'method 0'";
     end if;
     Get_Byte (image.buffer, b);
-    image.interlaced := b = 1;  --  Adam7
+    image.progressive := b = 1;  --  Adam7
     Big_endian_buffered (image.buffer, dummy);  --  Chunk's CRC
     if palette then
       Read_Palette;
