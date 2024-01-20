@@ -4,8 +4,14 @@
 --  With the author's permission. Many thanks!
 --
 --  Other informations:
---  http://en.wikipedia.org/wiki/JPEG
---  https://github.com/tbpaolini/PyJpegDecoder
+--    JPEG standard
+--      ISO/IEC 10918-1 : 1993(E)
+--      CCITT Rec. T.81 (1992 E)
+--      https://www.w3.org/Graphics/JPEG/itu-t81.pdf
+--
+--    http://en.wikipedia.org/wiki/JPEG
+--
+--    https://github.com/tbpaolini/PyJpegDecoder
 
 --  Steps for decoding a JPEG image
 --
@@ -1096,7 +1102,7 @@ package body GID.Decoding_JPG is
           --     When the image is progressive we need to
           --     continue because there are multiple scans.
         when COM =>
-          --  Comment
+          --  B.2.4.5 Comment
           if some_trace then
             New_Line;
             Put_Line ("JPEG Comment:  --------");

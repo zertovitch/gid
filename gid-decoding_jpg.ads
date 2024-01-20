@@ -4,7 +4,7 @@ private package GID.Decoding_JPG is
 
   type JPEG_Marker is
   (
-    SOI, --  Start Of Image
+    SOI,  --  Start Of Image
     --
     SOF_0,   --  Start Of Frame - Baseline DCT
     SOF_1,   --  Extended sequential DCT
