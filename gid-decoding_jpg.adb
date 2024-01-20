@@ -5,6 +5,7 @@
 --
 --  Other informations:
 --  http://en.wikipedia.org/wiki/JPEG
+--  https://github.com/tbpaolini/PyJpegDecoder
 
 --  Steps for decoding a JPEG image
 --
@@ -55,26 +56,26 @@ package body GID.Decoding_JPG is
   procedure Read (image : in out Image_Descriptor; sh : out Segment_Head) is
     b : U8;
     id : constant array (JPEG_Marker) of U8 :=
-     (SOI      => 16#D8#,
+     (SOI => 16#D8#,
       --
       SOF_0  => 16#C0#, SOF_1  => 16#C1#, SOF_2  => 16#C2#, SOF_3  => 16#C3#,
       SOF_5  => 16#C5#, SOF_6  => 16#C6#, SOF_7  => 16#C7#, SOF_8  => 16#C8#,
       SOF_9  => 16#C9#, SOF_10 => 16#CA#, SOF_11 => 16#CB#, SOF_13 => 16#CD#,
       SOF_14 => 16#CE#, SOF_15 => 16#CF#,
       --
-      DHT      => 16#C4#,
-      DAC      => 16#CC#,
-      DQT      => 16#DB#,
-      DRI      => 16#DD#,
+      DHT => 16#C4#,
+      DAC => 16#CC#,
+      DQT => 16#DB#,
+      DRI => 16#DD#,
       --
       APP_0  => 16#E0#, APP_1  => 16#E1#, APP_2  => 16#E2#, APP_3  => 16#E3#,
       APP_4  => 16#E4#, APP_5  => 16#E5#, APP_6  => 16#E6#, APP_7  => 16#E7#,
       APP_8  => 16#E8#, APP_9  => 16#E9#, APP_10 => 16#EA#, APP_11 => 16#EB#,
       APP_12 => 16#EC#, APP_13 => 16#ED#, APP_14 => 16#EE#,
       --
-      COM      => 16#FE#,
-      SOS      => 16#DA#,
-      EOI      => 16#D9#);
+      COM => 16#FE#,
+      SOS => 16#DA#,
+      EOI => 16#D9#);
   begin
     Get_Byte (image.buffer, b);
     if b /= 16#FF# then
@@ -854,7 +855,7 @@ package body GID.Decoding_JPG is
       end case;
     end Upsampling_and_Output;
 
-    mb_width, mb_height : Natural;
+    mcu_count_h, mcu_count_v : Natural;
 
     procedure Baseline_DCT_Decoding_Scan is
       mb : Macro_8x8_Block (Component, 1 .. ssxmax, 1 .. ssymax);
@@ -886,13 +887,13 @@ package body GID.Decoding_JPG is
         --
         mb_x := mb_x + 1;
         x0 := x0 + ssxmax * 8;
-        if mb_x >= mb_width then
+        if mb_x >= mcu_count_h then
           mb_x := 0;
           x0 := 0;
           mb_y := mb_y + 1;
           y0 := y0 + ssymax * 8;
-          Feedback ((100 * mb_y) / mb_height);
-          exit macro_blocks_loop when mb_y >= mb_height;
+          Feedback ((100 * mb_y) / mcu_count_v);
+          exit macro_blocks_loop when mb_y >= mcu_count_v;
         end if;
         if image.JPEG_stuff.restart_interval > 0 then
           rst_count := rst_count - 1;
@@ -975,7 +976,7 @@ package body GID.Decoding_JPG is
     procedure Read_SOS is
       b, id_base : U8;
       compo : Component := Component'First;
-      mb_size_x, mb_size_y : Natural;
+      mcu_width, mcu_height : Natural;
     begin
       Get_Byte (image.buffer, components_amount);
       if some_trace then
@@ -1013,19 +1014,17 @@ package body GID.Decoding_JPG is
       --
       --  End of SOS segment, image data follow.
       --
-      mb_size_x := ssxmax * 8;  --  Pixels in a row of a macro-block
-      mb_size_y := ssymax * 8;  --  Pixels in a column of a macro-block
-      --  Width in macro-blocks:
-      mb_width  := (Integer (image.width)  + mb_size_x - 1) / mb_size_x;
-      --  Height in macro-blocks:
-      mb_height := (Integer (image.height) + mb_size_y - 1) / mb_size_y;
+      mcu_width := ssxmax * 8;   --  Pixels in a row of a MCU (Minimum Coded Unit) block
+      mcu_height := ssymax * 8;  --  Pixels in a column of a MCU block
+      mcu_count_h := (Integer (image.width)  + mcu_width - 1) / mcu_width;
+      mcu_count_v := (Integer (image.height) + mcu_height - 1) / mcu_height;
 
       if some_trace then
         New_Line;
-        Put_Line ("    mb_size_x = " & mb_size_x'Image);
-        Put_Line ("    mb_size_y = " & mb_size_y'Image);
-        Put_Line ("    mb_width  = " & mb_width'Image);
-        Put_Line ("    mb_height = " & mb_height'Image);
+        Put_Line ("    mcu_width   = " & mcu_width'Image);
+        Put_Line ("    mcu_height  = " & mcu_height'Image);
+        Put_Line ("    mcu_count_h = " & mcu_count_h'Image);
+        Put_Line ("    mcu_count_v = " & mcu_count_v'Image);
         if image.progressive then
           New_Line;
           Put_Line ("    Progressive image parameters:");
@@ -1039,7 +1038,7 @@ package body GID.Decoding_JPG is
         if image.JPEG_stuff.components (c) then
           info_B (c).width := (Integer (image.width)  * info_A (c).samples_hor + ssxmax - 1) / ssxmax;
           info_B (c).height := (Integer (image.height) * info_A (c).samples_ver + ssymax - 1) / ssymax;
-          info_B (c).stride := (mb_width * mb_size_x * info_A (c).samples_hor) / ssxmax;
+          info_B (c).stride := (mcu_count_h * mcu_width * info_A (c).samples_hor) / ssxmax;
           if some_trace then
             New_Line;
             Put_Line ("    Details for component " & c'Image);
@@ -1076,18 +1075,28 @@ package body GID.Decoding_JPG is
     loop
       Read (image, sh);
       case sh.kind is
-        when DQT =>  --  Quantization Table
+        when DQT =>
+          --  Quantization Table
           Read_DQT (image, Natural (sh.length));
-        when DHT =>  --  Huffman Table
+        when DHT =>
+          --  Huffman Table
           Read_DHT (image, Natural (sh.length));
-        when DRI =>  --  Restart Interval
+        when DRI =>
+          --  Restart Interval
           Read_DRI (image);
-        when EOI =>  --  End Of Input
+        when EOI =>
+          --  End Of Input
           exit;
-        when SOS =>  --  Start Of Scan
+        when SOS =>
+          --  Start Of Scan
           Read_SOS;
           exit when no_trace and not image.progressive;
-        when COM =>  --  Comment
+          --  ^  When there is a trace we are interested in
+          --     what appears after the scan.
+          --     When the image is progressive we need to
+          --     continue because there are multiple scans.
+        when COM =>
+          --  Comment
           if some_trace then
             New_Line;
             Put_Line ("JPEG Comment:  --------");
