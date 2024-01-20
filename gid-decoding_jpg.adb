@@ -721,7 +721,7 @@ package body GID.Decoding_JPG is
       begin
         --  Returns x if type Primary_Color_Range is mod 2**8.
         return 16 * (16 * x) + x;
-        --  ^ This is 257 * x, thst is 16#0101# * x
+        --  ^ This is 257 * x, that is 16#0101# * x
         --  All literal numbers are 8-bit -> no OA warning at instanciation.
       end Times_257;
       full_opaque : constant Primary_Color_Range := Primary_Color_Range'Last;
