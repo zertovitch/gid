@@ -7,16 +7,18 @@
 
 with GID;
 
-with Ada.Calendar;
-with Ada.Characters.Handling;           use Ada.Characters.Handling;
-with Ada.Command_Line;                  use Ada.Command_Line;
-with Ada.Streams.Stream_IO;             use Ada.Streams.Stream_IO;
-with Ada.Text_IO;                       use Ada.Text_IO;
-with Ada.Unchecked_Deallocation;
+with Ada.Calendar,
+     Ada.Characters.Handling,
+     Ada.Command_Line,
+     Ada.Streams.Stream_IO,
+     Ada.Text_IO,
+     Ada.Unchecked_Deallocation;
 
 with Interfaces;
 
 procedure Mini is
+
+  use Ada.Characters.Handling, Ada.Streams.Stream_IO, Ada.Text_IO;
 
   procedure Blurb is
   begin
@@ -144,6 +146,8 @@ procedure Mini is
     --
     Close (f);
   end Process;
+
+  use Ada.Command_Line;
 
 begin
   if Argument_Count = 0 then

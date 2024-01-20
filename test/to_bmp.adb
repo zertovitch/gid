@@ -13,20 +13,22 @@
 
 with GID;
 
-with Ada.Calendar;
-with Ada.Characters.Handling;           use Ada.Characters.Handling;
-with Ada.Command_Line;                  use Ada.Command_Line;
-with Ada.Streams.Stream_IO;             use Ada.Streams.Stream_IO;
-with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;             use Ada.Strings.Unbounded;
-with Ada.Text_IO;                       use Ada.Text_IO;
-with Ada.Unchecked_Deallocation;
+with Ada.Calendar,
+     Ada.Characters.Handling,
+     Ada.Command_Line,
+     Ada.Streams.Stream_IO,
+     Ada.Strings.Fixed,
+     Ada.Strings.Unbounded,
+     Ada.Text_IO,
+     Ada.Unchecked_Deallocation;
 
 with Interfaces;
 
 procedure To_BMP is
 
   default_bkg_name : constant String := "gid.gif";
+
+  use Ada.Characters.Handling, Ada.Streams.Stream_IO, Ada.Strings.Unbounded, Ada.Text_IO;
 
   procedure Blurb is
   begin
@@ -252,7 +254,7 @@ procedure To_BMP is
       buffer := new Byte_Array (0 .. buffer_last);
       mem_buffer_last := buffer_last;
     end if;
-    if GID.Expect_transparency (image) then
+    if GID.Expect_Transparency (image) then
       if background_image_name = Null_Unbounded_String then
         BMP24_Load_with_unicolor_bkg (image, next_frame);
       else
@@ -424,13 +426,13 @@ procedure To_BMP is
     --
     Put_Line
       (Standard_Error,
-       "  Image format: " & GID.Image_Format_Type'Image (GID.Format (i)));
+       "  Image format: " & GID.Format (i)'Image);
     Put_Line
       (Standard_Error,
        "  Image detailed format: " & GID.Detailed_format (i));
     Put_Line
       (Standard_Error,
-       "  Image sub-format ID (if any):" & Integer'Image (GID.Subformat (i)));
+       "  Image sub-format ID (if any):" & GID.Subformat (i)'Image);
     Put_Line
       (Standard_Error,
        "  Dimensions in pixels:" &
@@ -438,42 +440,38 @@ procedure To_BMP is
        GID.Pixel_Height (i)'Image);
     Put_Line
       (Standard_Error,
-       "  Display orientation: " &
-       GID.Orientation'Image (GID.Display_Orientation (i)));
+       "  Display orientation: " & GID.Display_Orientation (i)'Image);
     Put
       (Standard_Error,
-       "  Color depth:" &
-       Integer'Image (GID.Bits_per_pixel (i)) & " bits");
+       "  Color depth:" & GID.Bits_per_Pixel (i)'Image & " bits");
 
-    if GID.Bits_per_pixel (i) <= 24 then
+    if GID.Bits_per_Pixel (i) <= 24 then
       Put_Line
         (Standard_Error,
-         ',' & Integer'Image (2**GID.Bits_per_pixel (i)) & " colors");
+         ',' & Integer'Image (2**GID.Bits_per_Pixel (i)) & " colors");
     else
       New_Line (Standard_Error);
     end if;
 
     Put_Line
       (Standard_Error,
-       "  Palette: " & Boolean'Image (GID.Has_palette (i)));
+       "  Palette: " & GID.Has_Palette (i)'Image);
     Put_Line
       (Standard_Error,
-       "  Greyscale: " & Boolean'Image (GID.Greyscale (i)));
+       "  Greyscale: " & GID.Greyscale (i)'Image);
     Put_Line
       (Standard_Error,
-       "  RLE encoding (if any): " & Boolean'Image (GID.Is_RLE_encoded (i)));
+       "  RLE encoding (if any): " & GID.Is_RLE_Encoded (i)'Image);
     Put_Line
       (Standard_Error,
-       "  Expect transparency: " &
-       Boolean'Image (GID.Expect_transparency (i)));
+       "  Expect transparency: " & GID.Expect_Transparency (i)'Image);
 
     if GID.Format (i) = GID.GIF then
       null;  --  Interlaced-or-not choice is per frame in the GIF format.
     else
       Put_Line
         (Standard_Error,
-         "  Interlaced / Progressive: " &
-         Boolean'Image (GID.Is_Interlaced (i)));
+         "  Interlaced / Progressive: " & GID.Is_Progressive (i)'Image);
     end if;
 
     Put_Line (Standard_Error, "1........10........20");
@@ -531,6 +529,8 @@ procedure To_BMP is
   end Process;
 
   test_only : Boolean := False;
+
+  use Ada.Command_Line;
 
 begin
   if Argument_Count = 0 then

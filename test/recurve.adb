@@ -1,6 +1,7 @@
 --  Recurve  -  recover curves from a chart (in JPEG, PNG, or other image format)
 --
 --  Currently supports only charts on a white background
+--  Test images in ./img/recurve_test_*.png
 --
 --  By David Malinge and Gautier de Montmollin
 --
@@ -8,12 +9,12 @@
 
 with GID;
 
-with Ada.Calendar;
-with Ada.Characters.Handling;           use Ada.Characters.Handling;
-with Ada.Command_Line;                  use Ada.Command_Line;
-with Ada.Streams.Stream_IO;
-with Ada.Text_IO;                       use Ada.Text_IO;
-with Ada.Unchecked_Deallocation;
+with Ada.Calendar,
+     Ada.Characters.Handling,
+     Ada.Command_Line,
+     Ada.Streams.Stream_IO,
+     Ada.Text_IO,
+     Ada.Unchecked_Deallocation;
 
 with Interfaces;
 
@@ -40,6 +41,8 @@ procedure Recurve is
   --  CSV (Comma-Separated-Values) file separator.
   --  Normally a comma except, when Excel decides to use another separator...
   sep : constant Character := ';';
+
+  use Ada.Characters.Handling, Ada.Text_IO;
 
   procedure Blurb is
   begin
@@ -418,6 +421,8 @@ procedure Recurve is
     New_Line (Standard_Error);
     Close (f);
   end Process;
+
+  use Ada.Command_Line;
 
 begin
   if Argument_Count = 0 then

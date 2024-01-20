@@ -208,8 +208,8 @@ procedure All_RGB is
         --  However, pixel at (x1, y1), or at (x2, y2), might
         --  have *individually*, after the swap, colours that are
         --  more different from the source's than before the swap.
-        --  A consequence is that we do not risk having pixels that
-        --  are prematurely stuck in a local optimum.
+        --  A consequence is that we do not have the risk having pixels
+        --  that are prematurely stuck in a local optimum.
       end if;
       if do_swap  then
         Swap (dst (x1, y1), dst (x2, y2));

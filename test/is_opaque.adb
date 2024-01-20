@@ -7,15 +7,17 @@
 
 with GID;
 
-with Ada.Calendar;
-with Ada.Characters.Handling;           use Ada.Characters.Handling;
-with Ada.Command_Line;                  use Ada.Command_Line;
-with Ada.Streams.Stream_IO;             use Ada.Streams.Stream_IO;
-with Ada.Text_IO;                       use Ada.Text_IO;
+with Ada.Calendar,
+     Ada.Characters.Handling,
+     Ada.Command_Line,
+     Ada.Streams.Stream_IO,
+     Ada.Text_IO;
 
 with Interfaces;
 
 procedure Is_opaque is
+
+  use Ada.Characters.Handling, Ada.Streams.Stream_IO, Ada.Text_IO;
 
   procedure Blurb is
   begin
@@ -36,21 +38,20 @@ procedure Is_opaque is
   )
   is
     use Interfaces;
-    subtype Primary_color_range is Unsigned_8;
+    subtype Primary_Color_Range is Unsigned_8;
     --
     procedure Set_X_Y (x, y : Natural) is
     begin
       null;
     end Set_X_Y;
     --
-    procedure Put_Pixel (
-      red, green, blue : Primary_color_range;
-      alpha            : Primary_color_range
-    )
+    procedure Put_Pixel
+      (red, green, blue : Primary_Color_Range;
+       alpha            : Primary_Color_Range)
     is
     pragma Unreferenced (blue, green, red);
     begin
-      opaque := opaque and alpha = Primary_color_range'Last;
+      opaque := opaque and alpha = Primary_Color_Range'Last;
     end Put_Pixel;
 
     stars : Natural := 0;
@@ -64,10 +65,9 @@ procedure Is_opaque is
     end Feedback;
 
     procedure Load_image is
-      new GID.Load_Image_Contents (
-        Primary_color_range, Set_X_Y,
-        Put_Pixel, Feedback, GID.fast
-      );
+      new GID.Load_Image_Contents
+        (Primary_Color_Range, Set_X_Y,
+         Put_Pixel, Feedback, GID.fast);
 
   begin
     opaque := True;
@@ -95,7 +95,7 @@ procedure Is_opaque is
         image_name'Length >= 4 and then
         up_name (up_name'Last - 3 .. up_name'Last) = ".TGA"
     );
-    if GID.Expect_transparency (i) then
+    if GID.Expect_Transparency (i) then
       Put_Line (Current_Error, ".........v.........v");
       --
       loop
@@ -113,6 +113,8 @@ procedure Is_opaque is
     end if;
     Close (f);
   end Process;
+
+  use Ada.Command_Line;
 
 begin
   if Argument_Count = 0 then
