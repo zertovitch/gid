@@ -244,14 +244,6 @@ private
   --  have to make the image descriptor store that information, alas...  --
   -------------------------------------------------------------------------
 
-  --  For the Progressive JPEG format, we need to store the entire bitmap
-  --  in the selected colour space (usually, YCbCr).
-
-  type Progressive_Bitmap is
-    array (Natural_32 range <>, Natural_32 range <>, Positive range <>) of U8;
-
-  type Progressive_Bitmap_Access is access Progressive_Bitmap;
-
   package JPEG_Defs is
 
     type Component is

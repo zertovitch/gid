@@ -955,6 +955,14 @@ package body GID.Decoding_JPG is
       end loop macro_blocks_loop;
     end Baseline_DCT_Decoding_Scan;
 
+    --  For the Progressive JPEG format, we need to store the entire bitmap
+    --  in the selected colour space (usually, YCbCr).
+
+    type Progressive_Bitmap is
+      array (Natural_32 range <>, Natural_32 range <>, Positive range <>) of Integer;
+
+    type Progressive_Bitmap_Access is access Progressive_Bitmap;
+
     image_array : Progressive_Bitmap_Access := null;
 
     components_amount : U8;
@@ -1012,8 +1020,8 @@ package body GID.Decoding_JPG is
                     --  Refining scan for the DC values
                     new_bit := Get_Bits (1);
                     image_array (x + delta_x, y + delta_y, compo_idx) :=
-                      image_array (x + delta_x, y + delta_y, compo_idx) or
-                        Shift_Left (U8 (new_bit), bit_position_low);
+                      image_array (x + delta_x, y + delta_y, compo_idx) +
+                        new_bit * (2 ** bit_position_low);
                   else
                     --  Decode DC value
                     Get_VLC
@@ -1023,20 +1031,21 @@ package body GID.Decoding_JPG is
                     dc_value := dc_value + info_B (c).dc_predictor;
                     info_B (c).dc_predictor := dc_value;
                     --  Store the partial DC value on the image array
+                    --  Note that dc_value can be (and is often) negative.
                     image_array (x + delta_x, y + delta_y, compo_idx) :=
-                      Shift_Left (U8 (dc_value), bit_position_low);
+                      dc_value * (2 ** bit_position_low);
                   end if;
                 end loop;
               end;
-              Check_Restart (not refining);
               compo_idx := compo_idx + 1;
             end if;
           end loop;
+          Check_Restart (not refining);
         end loop;
       end Progressive_DC_Scan;
 
       procedure Progressive_AC_Scan is
-        -- LINE 1075 of jpeg.py
+        --  !! LINE 1075 of jpeg.py
       begin
         if components_amount > 1 then
           raise error_in_image_data with
@@ -1051,6 +1060,11 @@ package body GID.Decoding_JPG is
       kind : AC_DC;
 
     begin
+      if no_trace then  --  !! Temporary, until the progressive decoding works...
+        raise unsupported_image_subformat
+          with "JPEG: progressive format not yet functional";
+      end if;
+
       rst_count := image.JPEG_stuff.restart_interval;
       next_rst := 0;
 
@@ -1076,6 +1090,11 @@ package body GID.Decoding_JPG is
           --    "Each scan which follows the first scan for a given band
           --     progressively improves the precision of the coefficients
           --     by one bit, until full precision is reached."
+      end if;
+      if full_trace then
+        New_Line;
+        Put_Line ("Bit position high =" & bit_position_high'Image);
+        Put_Line ("Bit position low  =" & bit_position_low'Image);
       end if;
 
       case kind is
