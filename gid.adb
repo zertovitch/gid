@@ -49,9 +49,6 @@ package body GID is
       new Ada.Unchecked_Deallocation
         (JPEG_Defs.VLC_table,
          JPEG_Defs.p_VLC_table);
-    procedure Dispose is
-      new Ada.Unchecked_Deallocation
-        (Progressive_Bitmap, Progressive_Bitmap_Access);
   begin
     --  Deterministic garbage collection of heap allocated objects.
     --  -> Palette
@@ -62,7 +59,6 @@ package body GID is
         Dispose (Object.JPEG_stuff.vlc_defs (ad, idx));
       end loop;
     end loop;
-    Dispose (Object.JPEG_stuff.image_array);
   end Clear_Heap_Allocated_Memory;
 
   -----------------------

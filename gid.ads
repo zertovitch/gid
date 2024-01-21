@@ -264,12 +264,15 @@ private
     type QT is array (0 .. 63) of Natural;
     type QT_List is array (0 .. 7) of QT;
 
-    type Compo_Set is array (Component) of Boolean;
+    type Compo_Set_Type is array (Component) of Boolean;
 
     type Info_per_Component_A is record  --  B is defined inside the decoder
       qt_assoc    : Natural;
       samples_hor : Natural;
       samples_ver : Natural;
+      repeat      : Natural;
+      shape_x     : Natural;  --  x dimension (in pixels) of the MCU
+      shape_y     : Natural;  --  y dimension (in pixels) of the MCU
       up_factor_x : Natural;  --  how much we must repeat horizontally
       up_factor_y : Natural;  --  how much we must repeat vertically
       shift_x     : Natural;  --  shift for repeating pixels horizontally
@@ -278,11 +281,10 @@ private
 
     type Component_Info_A is array (Component) of Info_per_Component_A;
 
-    type Supported_color_space is (
-      YCbCr,  --  3-dim color space
-      Y_Grey, --  1-dim greyscale
-      CMYK    --  4-dim Cyan, Magenta, Yellow, blacK
-    );
+    type Supported_color_space is
+      (YCbCr,   --  3-dim color space
+       Y_Grey,  --  1-dim greyscale
+       CMYK);   --  4-dim Cyan, Magenta, Yellow, blacK
 
     type AC_DC is (AC, DC);
 
@@ -299,7 +301,7 @@ private
   end JPEG_Defs;
 
   type JPEG_Stuff_Type is record
-    components       : JPEG_Defs.Compo_Set := (others => False);
+    compo_set        : JPEG_Defs.Compo_Set_Type := (others => False);
     color_space      : JPEG_Defs.Supported_color_space;
     info             : JPEG_Defs.Component_Info_A;
     max_samples_hor  : Natural;
@@ -307,7 +309,6 @@ private
     qt_list          : JPEG_Defs.QT_List;
     vlc_defs         : JPEG_Defs.VLC_defs_type := (others => (others => null));
     restart_interval : Natural;  --  Predictor restarts every... (0: never)
-    image_array      : Progressive_Bitmap_Access := null;
   end record;
 
   type PNG_Stuff_Type is record
