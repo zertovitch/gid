@@ -42,13 +42,16 @@ package body GID is
   --  are heap allocated; we need to release them upon finalization
   --  or descriptor reuse.
 
-  procedure Clear_heap_allocated_memory (Object : in out Image_Descriptor) is
+  procedure Clear_Heap_Allocated_Memory (Object : in out Image_Descriptor) is
     procedure Dispose is
       new Ada.Unchecked_Deallocation (Color_Table, p_Color_Table);
     procedure Dispose is
       new Ada.Unchecked_Deallocation
         (JPEG_Defs.VLC_table,
          JPEG_Defs.p_VLC_table);
+    procedure Dispose is
+      new Ada.Unchecked_Deallocation
+        (Progressive_Bitmap, Progressive_Bitmap_Access);
   begin
     --  Deterministic garbage collection of heap allocated objects.
     --  -> Palette
@@ -59,7 +62,8 @@ package body GID is
         Dispose (Object.JPEG_stuff.vlc_defs (ad, idx));
       end loop;
     end loop;
-  end Clear_heap_allocated_memory;
+    Dispose (Object.JPEG_stuff.image_array);
+  end Clear_Heap_Allocated_Memory;
 
   -----------------------
   -- Load_image_header --
@@ -71,7 +75,7 @@ package body GID is
      try_tga :        Boolean := False)
   is
   begin
-    Clear_heap_allocated_memory (image);
+    Clear_Heap_Allocated_Memory (image);
     image.stream := from'Unchecked_Access;
     --
     --  Load the very first symbols of the header,
@@ -240,7 +244,7 @@ package body GID is
 
   overriding procedure Finalize (Object : in out Image_Descriptor) is
   begin
-    Clear_heap_allocated_memory (Object);
+    Clear_Heap_Allocated_Memory (Object);
   end Finalize;
 
 end GID;

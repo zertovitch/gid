@@ -232,8 +232,25 @@ private
   end record;
   --  Initial values ensure call to Fill_Buffer on first Get_Byte
 
-  --  JPEG may store data _before_ any image header (SOF), then we have
-  --  to make the image descriptor store that information, alas...
+  subtype Natural_32  is Interfaces.Integer_32
+    range 0 .. Interfaces.Integer_32'Last;
+
+  subtype Positive_32 is Interfaces.Integer_32
+    range 1 .. Interfaces.Integer_32'Last;
+
+  -------------------------------------------------------------------------
+  --  JPEG-Specific stuff.                                               --
+  --  NB: JPEG may store data _before_ any image header (SOF), then we   --
+  --  have to make the image descriptor store that information, alas...  --
+  -------------------------------------------------------------------------
+
+  --  For the Progressive JPEG format, we need to store the entire bitmap
+  --  in the selected colour space (usually, YCbCr).
+
+  type Progressive_Bitmap is
+    array (Natural_32 range <>, Natural_32 range <>, Positive range <>) of U8;
+
+  type Progressive_Bitmap_Access is access Progressive_Bitmap;
 
   package JPEG_Defs is
 
@@ -290,10 +307,8 @@ private
     qt_list          : JPEG_Defs.QT_List;
     vlc_defs         : JPEG_Defs.VLC_defs_type := (others => (others => null));
     restart_interval : Natural;  --  Predictor restarts every... (0: never)
+    image_array      : Progressive_Bitmap_Access := null;
   end record;
-
-  subtype Natural_32  is Interfaces.Integer_32 range 0 .. Interfaces.Integer_32'Last;
-  subtype Positive_32 is Interfaces.Integer_32 range 1 .. Interfaces.Integer_32'Last;
 
   type PNG_Stuff_Type is record
     --  APNG stuff:

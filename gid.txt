@@ -155,9 +155,13 @@ Memory requirements and usage
 =============================
 GID uses only memory for decoding purposes (e.g. decompression
 structures, color tables) and doesn't store the image itself.
-As a result, memory will be reserved for at most only one copy of
+As a result, memory will be reserved for *at most* only one copy of
 the output bitmap, and this under the format you want or need to have.
-As an example, the to_bmp demo stores the image as a packed
+The exception to that is progressive JPEG, where the whole
+bitmap in a special colour space has to be stored and updated
+over multiple scans.
+
+As an example, the `to_bmp` demo stores the image as a packed
 RBG byte array with a 4-byte padding which is the appropriate
 format for dumping a BMP file in the end. But there are many
 other possible storage formats, and GID lets you the total
@@ -165,11 +169,16 @@ freedom about it. It can be even the case that the bitmap
 storage is more appropriate through an operating system or
 a specific library; in such a case you would not store the
 bitmap within the Ada progam at all and Put_Pixel would be used
-to transmit the pixels further.
+to transmit the pixels further. In some more exotic cases,
+you don't want to store the bitmap at all, but use it as
+some sort of data in floating-point values, or do a statistic
+of the image.
+
 All memory used by GID is taken on the stack, with the exception
-of palettes and JPEG's DHT tables. Those are dynamically allocated
-on the heap and deallocated upon scope end of a variable of the
-Image_descriptor type. It means there is no possible memory leak. 
+of palettes, JPEG's DHT tables and JPEG progressive temporary image.
+Those are dynamically allocated on the heap and deallocated upon
+the scope's end of a variable of the Image_descriptor type.
+It means there is no possible memory leak. 
 The use of heap allocation is justified there because of the
 relatively large size of those objects. They could very well
 be also part of the descriptor record, with a maximal size for

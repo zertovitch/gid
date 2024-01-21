@@ -35,7 +35,8 @@
 --  !! Col_IDCT output direct to "flat", or something similar to NanoJPEG
 
 with GID.Buffering;
-with Ada.Text_IO, Ada.Integer_Text_IO, Ada.IO_Exceptions;
+
+with Ada.Integer_Text_IO, Ada.IO_Exceptions, Ada.Text_IO;
 
 package body GID.Decoding_JPG is
 
@@ -148,6 +149,13 @@ package body GID.Decoding_JPG is
     --  Number of components:
     Get_Byte (image.buffer, b);
     image.subformat_id := Integer (b);
+    if image.progressive then
+      image.JPEG_stuff.image_array :=
+        new Progressive_Bitmap
+          (0 .. image.width  - 1,
+           0 .. image.height - 1,
+           1 .. image.subformat_id);
+    end if;
     --
     image.JPEG_stuff.max_samples_hor := 0;
     image.JPEG_stuff.max_samples_ver := 0;
@@ -1107,6 +1115,7 @@ package body GID.Decoding_JPG is
 
     sh : Segment_Head;
     b : U8;
+
   begin  --  Load
     loop
       Read (image, sh);

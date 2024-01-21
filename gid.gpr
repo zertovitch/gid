@@ -17,7 +17,7 @@ project GID is
    type GID_Build_Mode_Type is
       ("Debug",
        "Fast_but_checked", 
-       "Fast", 
+       "Fast_unchecked", 
        "Small",
        "Smallest",
        "Profiling"
@@ -36,7 +36,7 @@ project GID is
    case GID_Build_Mode is
       when "Debug" =>
          for Object_Dir use "obj_debug";
-      when "Fast" =>
+      when "Fast_unchecked" =>
          for Object_Dir use "obj_fast";
       when "Fast_but_checked" =>
          for Object_Dir use "obj_safer";
@@ -79,7 +79,7 @@ project GID is
          when "Debug" =>
             for Local_Configuration_Pragmas use project'Project_Dir & "debug.pra";
             for Default_Switches ("ada") use Common_Options & Debug_Options ;
-         when "Fast" =>
+         when "Fast_unchecked" =>
             for Default_Switches ("ada") use Common_Options & Fast_Options & ("-gnatpn", "-ffunction-sections");
          when "Profiling" =>
             for Default_Switches ("ada") use Common_Options & Fast_Options & ("-gnatp",  "-fno-inline", "-g", "-pg");
@@ -96,7 +96,7 @@ project GID is
       case GID_Build_Mode is
          when "Debug" =>
             for Default_Switches ("ada") use ("-g");
-         when "Fast" | "Fast_but_checked" | "Small" | "Smallest" =>
+         when "Fast_unchecked" | "Fast_but_checked" | "Small" | "Smallest" =>
             for Default_Switches ("ada") use ("-g", "-s", "-Wl,--gc-sections");
          when "Profiling" =>
             for Default_Switches ("ada") use ("-g", "-pg");
