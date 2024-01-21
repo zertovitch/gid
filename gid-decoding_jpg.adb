@@ -1,7 +1,12 @@
 --  The GID JPEG decoder is largely inspired
 --  by the NanoJPEG code by Martin J. Fiedler.
---
 --  With the author's permission. Many thanks!
+--
+--  The progressive decoding is largely inspired
+--  by the PyJpegDecoder by Tiago Becerra Paolini,
+--  available under MIT Licence:
+--  https://github.com/tbpaolini/PyJpegDecoder
+--
 --
 --  Other informations:
 --    JPEG standard
@@ -932,45 +937,63 @@ package body GID.Decoding_JPG is
 
     components_amount : U8;
 
-    procedure Progressive_DC_Scan is
-    begin
-      --  !!  TBD
-      raise unsupported_image_subformat
-        with "JPEG: progressive format not yet functional";
-    end Progressive_DC_Scan;
+    procedure Progressive_DCT_Decoding_Scan
+      (spectral_selection_start,
+       spectral_selection_end,
+       bit_position_high,
+       bit_position_low : Integer)
 
-    procedure Progressive_AC_Scan is
-    begin
-      if components_amount > 1 then
-        raise error_in_image_data with
-          "JPEG, progressive: an AC progressive scan can only" &
-          " have a single color component";
-      end if;
-      --  !!  TBD
-      raise unsupported_image_subformat
-        with "JPEG: progressive format not yet functional";
-    end Progressive_AC_Scan;
-
-    --  Parameters for progressive decoding :
-    start_spectral_selection,
-    end_spectral_selection,
-    successive_approximation : U8;
-
-    procedure Progressive_DCT_Decoding_Scan is
-    --  NB: this procedure is normally called multiple times for
+    --  NB: this procedure is called multiple times for
     --      a single image encoded as progressive JPEG.
+    is
+      refining : Boolean;
+
+      procedure Progressive_DC_Scan is
+      begin
+        --  !!  TBD
+        raise unsupported_image_subformat
+          with "JPEG: progressive format not yet functional";
+      end Progressive_DC_Scan;
+
+      procedure Progressive_AC_Scan is
+      begin
+        if components_amount > 1 then
+          raise error_in_image_data with
+            "JPEG, progressive: an AC progressive scan can only" &
+            " have a single color component";
+        end if;
+        --  !!  TBD
+        raise unsupported_image_subformat
+          with "JPEG: progressive format not yet functional";
+      end Progressive_AC_Scan;
+
       kind : AC_DC;
+
     begin
-      if start_spectral_selection = 0 and then end_spectral_selection = 0 then
+      if spectral_selection_start = 0 and then spectral_selection_end = 0 then
         kind := DC;
-      elsif start_spectral_selection > 0
-        and then end_spectral_selection >= start_spectral_selection
+      elsif spectral_selection_start > 0
+        and then spectral_selection_end >= spectral_selection_start
       then
         kind := AC;
       else
         raise error_in_image_data with
           "JPEG, progressive: invalid spectral selection values";
       end if;
+
+      if bit_position_high = 0 then
+        refining := False;
+      elsif bit_position_high - bit_position_low = 1 then
+        refining := True;
+      else
+        raise error_in_image_data with
+          "JPEG, progressive: precision improvement has to be by one bit.";
+          --  G.1.1.1.2 Successive approximation control:
+          --    "Each scan which follows the first scan for a given band
+          --     progressively improves the precision of the coefficients
+          --     by one bit, until full precision is reached."
+      end if;
+
       case kind is
         when DC => Progressive_DC_Scan;  --  First scan
         when AC => Progressive_AC_Scan;  --  Further scans
@@ -983,6 +1006,10 @@ package body GID.Decoding_JPG is
       b, id_base : U8;
       compo : Component := Component'First;
       mcu_width, mcu_height : Natural;
+      --  Parameters for progressive decoding :
+      start_spectral_selection,
+      end_spectral_selection,
+      successive_approximation : U8;
     begin
       Get_Byte (image.buffer, components_amount);
       if some_trace then
@@ -1068,7 +1095,11 @@ package body GID.Decoding_JPG is
       end loop;
 
       if image.progressive then
-        Progressive_DCT_Decoding_Scan;
+        Progressive_DCT_Decoding_Scan
+          (Integer (start_spectral_selection),
+           Integer (end_spectral_selection),
+           Integer (successive_approximation / 16),
+           Integer (successive_approximation and 15));
       else
         Baseline_DCT_Decoding_Scan;
       end if;
