@@ -147,7 +147,9 @@ We assume here you have GID unpacked "out of the box", with directories.
 Installing the free GNAT Ada compiler
 =====================================
    - Linux: apt install gnat (or an equivalent command like yum)
-   - Other systems: download GNAT @ https://www.adacore.com/community
+   - Other systems: download GNAT @
+       https://www.adacore.com/community  or
+       https://www.adacore.com/download
    
 Memory requirements and usage
 =============================

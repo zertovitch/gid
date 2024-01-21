@@ -116,27 +116,27 @@ package body GID.Decoding_TGA is
 
     procedure Output_Pixel is
     pragma Inline (Output_Pixel);
-      function Times_257 (x : Primary_color_range) return Primary_color_range is
+      function Times_257 (x : Primary_Color_Range) return Primary_Color_Range is
       pragma Inline (Times_257);
       begin
         return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
         --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
       end Times_257;
     begin
-      case Primary_color_range'Modulus is
+      case Primary_Color_Range'Modulus is
         when 256 =>
           Put_Pixel (
-            Primary_color_range (pix.color.red),
-            Primary_color_range (pix.color.green),
-            Primary_color_range (pix.color.blue),
-            Primary_color_range (pix.alpha)
+            Primary_Color_Range (pix.color.red),
+            Primary_Color_Range (pix.color.green),
+            Primary_Color_Range (pix.color.blue),
+            Primary_Color_Range (pix.alpha)
           );
         when 65_536 =>
           Put_Pixel (
-            Times_257 (Primary_color_range (pix.color.red)),
-            Times_257 (Primary_color_range (pix.color.green)),
-            Times_257 (Primary_color_range (pix.color.blue)),
-            Times_257 (Primary_color_range (pix.alpha))
+            Times_257 (Primary_Color_Range (pix.color.red)),
+            Times_257 (Primary_Color_Range (pix.color.green)),
+            Times_257 (Primary_Color_Range (pix.color.blue)),
+            Times_257 (Primary_Color_Range (pix.alpha))
             --  Times_257 makes max intensity FF go to FFFF
           );
         when others =>

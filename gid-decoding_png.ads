@@ -73,11 +73,11 @@ private package GID.Decoding_PNG is
   --------------------
 
   generic
-    type Primary_color_range is mod <>;
+    type Primary_Color_Range is mod <>;
     with procedure Set_X_Y (x, y : Natural);
     with procedure Put_Pixel
-      (red, green, blue : Primary_color_range;
-       alpha            : Primary_color_range);
+      (red, green, blue : Primary_Color_Range;
+       alpha            : Primary_Color_Range);
     with procedure Feedback (percents : Natural);
   --
   procedure Load

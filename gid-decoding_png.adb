@@ -354,27 +354,27 @@ package body GID.Decoding_PNG is
         --  Display of pixels coded on 8 bits per channel in the PNG stream
         procedure Out_Pixel_8 (br, bg, bb, ba : U8) is
         pragma Inline (Out_Pixel_8);
-          function Times_257 (x : Primary_color_range) return Primary_color_range is
+          function Times_257 (x : Primary_Color_Range) return Primary_Color_Range is
           pragma Inline (Times_257);
           begin
             return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
             --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
           end Times_257;
         begin
-          case Primary_color_range'Modulus is
+          case Primary_Color_Range'Modulus is
             when 256 =>
               Put_Pixel (
-                Primary_color_range (br),
-                Primary_color_range (bg),
-                Primary_color_range (bb),
-                Primary_color_range (ba)
+                Primary_Color_Range (br),
+                Primary_Color_Range (bg),
+                Primary_Color_Range (bb),
+                Primary_Color_Range (ba)
               );
             when 65_536 =>
               Put_Pixel (
-                Times_257 (Primary_color_range (br)),
-                Times_257 (Primary_color_range (bg)),
-                Times_257 (Primary_color_range (bb)),
-                Times_257 (Primary_color_range (ba))
+                Times_257 (Primary_Color_Range (br)),
+                Times_257 (Primary_Color_Range (bg)),
+                Times_257 (Primary_Color_Range (bb)),
+                Times_257 (Primary_Color_Range (ba))
                 --  Times_257 makes max intensity FF go to FFFF
               );
             when others =>
@@ -398,20 +398,20 @@ package body GID.Decoding_PNG is
         procedure Out_Pixel_16 (br, bg, bb, ba : U16) is
         pragma Inline (Out_Pixel_16);
         begin
-          case Primary_color_range'Modulus is
+          case Primary_Color_Range'Modulus is
             when 256 =>
               Put_Pixel (
-                Primary_color_range (br / 256),
-                Primary_color_range (bg / 256),
-                Primary_color_range (bb / 256),
-                Primary_color_range (ba / 256)
+                Primary_Color_Range (br / 256),
+                Primary_Color_Range (bg / 256),
+                Primary_Color_Range (bb / 256),
+                Primary_Color_Range (ba / 256)
               );
             when 65_536 =>
               Put_Pixel (
-                Primary_color_range (br),
-                Primary_color_range (bg),
-                Primary_color_range (bb),
-                Primary_color_range (ba)
+                Primary_Color_Range (br),
+                Primary_Color_Range (bg),
+                Primary_Color_Range (bb),
+                Primary_Color_Range (ba)
               );
             when others =>
               raise invalid_primary_color_range with "PNG: color range not supported";

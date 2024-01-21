@@ -8,30 +8,30 @@ package body GID.Decoding_BMP is
     b01, b, br, bg, bb : U8 := 0;
     x, x_max, y : Natural;
     --
-    function Times_257 (x : Primary_color_range) return Primary_color_range is
+    function Times_257 (x : Primary_Color_Range) return Primary_Color_Range is
     pragma Inline (Times_257);
     begin
       return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
       --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
     end Times_257;
-    full_opaque : constant Primary_color_range := Primary_color_range'Last;
+    full_opaque : constant Primary_Color_Range := Primary_Color_Range'Last;
     --
     procedure Pixel_with_palette is
     pragma Inline (Pixel_with_palette);
     begin
-      case Primary_color_range'Modulus is
+      case Primary_Color_Range'Modulus is
         when 256 =>
           Put_Pixel (
-            Primary_color_range (image.palette (Integer (b)).red),
-            Primary_color_range (image.palette (Integer (b)).green),
-            Primary_color_range (image.palette (Integer (b)).blue),
+            Primary_Color_Range (image.palette (Integer (b)).red),
+            Primary_Color_Range (image.palette (Integer (b)).green),
+            Primary_Color_Range (image.palette (Integer (b)).blue),
             full_opaque
           );
         when 65_536 =>
           Put_Pixel (
-            Times_257 (Primary_color_range (image.palette (Integer (b)).red)),
-            Times_257 (Primary_color_range (image.palette (Integer (b)).green)),
-            Times_257 (Primary_color_range (image.palette (Integer (b)).blue)),
+            Times_257 (Primary_Color_Range (image.palette (Integer (b)).red)),
+            Times_257 (Primary_Color_Range (image.palette (Integer (b)).green)),
+            Times_257 (Primary_Color_Range (image.palette (Integer (b)).blue)),
             --  Times_257 makes max intensity FF go to FFFF
             full_opaque
           );
@@ -98,19 +98,19 @@ package body GID.Decoding_BMP is
             Get_Byte (image.buffer, bb);
             Get_Byte (image.buffer, bg);
             Get_Byte (image.buffer, br);
-            case Primary_color_range'Modulus is
+            case Primary_Color_Range'Modulus is
               when 256 =>
                 Put_Pixel (
-                  Primary_color_range (br),
-                  Primary_color_range (bg),
-                  Primary_color_range (bb),
+                  Primary_Color_Range (br),
+                  Primary_Color_Range (bg),
+                  Primary_Color_Range (bb),
                   full_opaque
                 );
               when 65_536 =>
                 Put_Pixel (
-                  Times_257 (Primary_color_range (br)),
-                  Times_257 (Primary_color_range (bg)),
-                  Times_257 (Primary_color_range (bb)),
+                  Times_257 (Primary_Color_Range (br)),
+                  Times_257 (Primary_Color_Range (bg)),
+                  Times_257 (Primary_Color_Range (bb)),
                   --  Times_257 makes max intensity FF go to FFFF
                   full_opaque
                 );

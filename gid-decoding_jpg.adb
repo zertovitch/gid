@@ -1,22 +1,21 @@
 --  The GID JPEG decoder is largely inspired
 --  by the NanoJPEG code by Martin J. Fiedler.
---  With the author's permission. Many thanks!
+--  With the author's permission. Web link:
+--  https://keyj.emphy.de/nanojpeg/
 --
 --  The progressive decoding is largely inspired
 --  by the PyJpegDecoder by Tiago Becerra Paolini,
---  available under MIT Licence:
+--  available under MIT Licence. Web link:
 --  https://github.com/tbpaolini/PyJpegDecoder
---
---
+
 --  Other informations:
 --    JPEG standard
 --      ISO/IEC 10918-1 : 1993(E)
 --      CCITT Rec. T.81 (1992 E)
 --      https://www.w3.org/Graphics/JPEG/itu-t81.pdf
 --
---    http://en.wikipedia.org/wiki/JPEG
---
---    https://github.com/tbpaolini/PyJpegDecoder
+--    General information:
+--      http://en.wikipedia.org/wiki/JPEG
 
 --  Steps for decoding a JPEG image
 --
@@ -786,7 +785,7 @@ package body GID.Decoding_JPG is
             exit when x0 + xmb >= Integer (image.width);
             case color_space is
               when YCbCr =>
-                y_val := flat (Y,  xmb, ymb) * 256;
+                y_val  := flat (Y,  xmb, ymb) * 256;
                 cb_val := flat (Cb, xmb, ymb) - 128;
                 cr_val := flat (Cr, xmb, ymb) - 128;
                 Out_Pixel_8
@@ -1098,8 +1097,8 @@ package body GID.Decoding_JPG is
         Progressive_DCT_Decoding_Scan
           (Integer (start_spectral_selection),
            Integer (end_spectral_selection),
-           Integer (successive_approximation / 16),
-           Integer (successive_approximation and 15));
+           Integer (successive_approximation  /  16),
+           Integer (successive_approximation mod 16));
       else
         Baseline_DCT_Decoding_Scan;
       end if;

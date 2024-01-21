@@ -25,7 +25,7 @@ package body GID.Decoding_QOI is
 
     procedure Output_Pixel is
     pragma Inline (Output_Pixel);
-      function Times_257 (x : Primary_color_range) return Primary_color_range is
+      function Times_257 (x : Primary_Color_Range) return Primary_Color_Range is
       pragma Inline (Times_257);
       begin
         return 16 * (16 * x) + x;  --  this is 257 * x, equal to 16#0101# * x
@@ -33,20 +33,20 @@ package body GID.Decoding_QOI is
         --  Returns x if type Primary_color_range is mod 2**8.
       end Times_257;
     begin
-      case Primary_color_range'Modulus is
+      case Primary_Color_Range'Modulus is
         when 256 =>
           Put_Pixel (
-            Primary_color_range (px.r),
-            Primary_color_range (px.g),
-            Primary_color_range (px.b),
-            Primary_color_range (px.a)
+            Primary_Color_Range (px.r),
+            Primary_Color_Range (px.g),
+            Primary_Color_Range (px.b),
+            Primary_Color_Range (px.a)
           );
         when 65_536 =>
           Put_Pixel (
-            Times_257 (Primary_color_range (px.r)),
-            Times_257 (Primary_color_range (px.g)),
-            Times_257 (Primary_color_range (px.b)),
-            Times_257 (Primary_color_range (px.a))
+            Times_257 (Primary_Color_Range (px.r)),
+            Times_257 (Primary_Color_Range (px.g)),
+            Times_257 (Primary_Color_Range (px.b)),
+            Times_257 (Primary_Color_Range (px.a))
             --  Times_257 makes max intensity FF go to FFFF
           );
         when others =>
