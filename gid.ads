@@ -191,7 +191,7 @@ package GID is
   ----------------------------------------------------------------
 
   version   : constant String := "011";
-  reference : constant String := "18-Jan-2024";
+  reference : constant String := "22-Jan-2024";
   web       : constant String := "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..........^
   --  There is a mirror too @ https://github.com/zertovitch/gid

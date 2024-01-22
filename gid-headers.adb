@@ -378,48 +378,47 @@ package body GID.Headers is
 
   procedure Load_JPEG_Header (image : in out Image_Descriptor) is
     use Decoding_JPG, Buffering, Ada.Text_IO;
-    sh : Segment_Head;
+    head : Segment_Head;
     b : U8;
   begin
     --  We have already passed the SOI (Start of Image) segment marker (FFD8).
     image.JPEG_stuff.restart_interval := 0;
     Attach_Stream (image.buffer, image.stream);
     loop
-      Read (image, False, 0, sh);
-      case sh.kind is
+      Read (image, False, 0, head);
+      case head.kind is
         when DHT =>
           --  Huffman Table
-          Read_DHT (image, Natural (sh.length));
+          Read_DHT (image, Natural (head.length));
         when DQT =>
-          Read_DQT (image, Natural (sh.length));
+          Read_DQT (image, Natural (head.length));
         when DRI =>
           --  Restart Interval
           Read_DRI (image);
         when SOF_0 .. SOF_15 =>
-          Read_SOF (image, sh);
+          Read_SOF (image, head);
             --  We've got frame-header-style informations (SOF),
             --  then it's time to quit:
           exit;
         when APP_1 =>
-          Read_EXIF (image, Natural (sh.length));
+          Read_EXIF (image, Natural (head.length));
         when COM =>
           --  B.2.4.5 Comment
           if some_trace then
             New_Line;
             Put_Line ("JPEG Comment (during Load_JPEG_Header):  --------");
-            for i in 1 .. sh.length loop
+            for i in 1 .. head.length loop
               Get_Byte (image.buffer, b);
               Put (Character'Val (b));
             end loop;
             New_Line;
             Put_Line ("-------------------------------------------------");
             New_Line;
+          else
+            Skip_Segment_Data (image, head);
           end if;
         when others =>
-          --  Skip segment data
-          for i in 1 .. sh.length loop
-            Get_Byte (image.buffer, b);
-          end loop;
+          Skip_Segment_Data (image, head);
       end case;
     end loop;
   end Load_JPEG_Header;

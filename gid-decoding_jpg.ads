@@ -67,7 +67,11 @@ private package GID.Decoding_JPG is
     (image           : in out Image_Descriptor;
      known_marker    : in     Boolean;
      buffered_marker : in     U8;
-     sh              :    out Segment_Head);
+     head            :    out Segment_Head);
+
+  procedure Skip_Segment_Data
+    (image : in out Image_Descriptor;
+     head  : in     Segment_Head);
 
   --  SOF - Start Of Frame (the real header)
   procedure Read_SOF (image : in out Image_Descriptor; sh : Segment_Head);

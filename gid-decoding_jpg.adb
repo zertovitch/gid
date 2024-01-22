@@ -114,7 +114,7 @@ package body GID.Decoding_JPG is
     (image           : in out Image_Descriptor;
      known_marker    : in     Boolean;
      buffered_marker : in     U8;
-     sh              :    out Segment_Head)
+     head            :    out Segment_Head)
   is
     b : U8;
   begin
@@ -136,19 +136,19 @@ package body GID.Decoding_JPG is
     end if;
     for m in JPEG_Marker loop
       if marker_id (m) = b then
-        sh.kind := m;
+        head.kind := m;
         case m is
           when EOI =>
             --  No header following this marker (there are perhaps others).
-            sh.length := 0;
+            head.length := 0;
           when others =>
-            Big_Endian (image.buffer, sh.length);
+            Big_Endian (image.buffer, head.length);
             --  We consider length of contents, without the FFxx marker.
-            sh.length := sh.length - 2;
+            head.length := head.length - 2;
         end case;
         if some_trace then
           Put_Line
-            ("Segment [" & sh.kind'Image & "], length:" & sh.length'Image);
+            ("Segment [" & head.kind'Image & "], length:" & head.length'Image);
         end if;
         return;
       end if;
@@ -156,6 +156,17 @@ package body GID.Decoding_JPG is
     raise error_in_image_data
       with "JPEG: unknown marker here: 16#FF#, then" & b'Image;
   end Read;
+
+  procedure Skip_Segment_Data
+    (image : in out Image_Descriptor;
+     head  : in     Segment_Head)
+  is
+    dummy : U8;
+  begin
+    for i in 1 .. head.length loop
+      Get_Byte (image.buffer, dummy);
+    end loop;
+ end Skip_Segment_Data;
 
   shift_arg : constant array (0 .. 15) of Integer :=
     (1 => 0, 2 => 1, 4 => 2, 8 => 3, others => -1);
@@ -1433,7 +1444,7 @@ package body GID.Decoding_JPG is
 
     end Read_SOS;
 
-    sh : Segment_Head;
+    head : Segment_Head;
     b : U8;
 
     procedure Dispose is
@@ -1452,15 +1463,15 @@ package body GID.Decoding_JPG is
       if full_trace then
         Put_Line ("Reading Segment Marker (Load)");
       end if;
-      Read (image, memo_marker /= 0, memo_marker, sh);
+      Read (image, memo_marker /= 0, memo_marker, head);
       memo_marker := 0;
-      case sh.kind is
+      case head.kind is
         when DQT =>
           --  Quantization Table
-          Read_DQT (image, Natural (sh.length));
+          Read_DQT (image, Natural (head.length));
         when DHT =>
           --  Huffman Table
-          Read_DHT (image, Natural (sh.length));
+          Read_DHT (image, Natural (head.length));
         when DRI =>
           --  Restart Interval
           Read_DRI (image);
@@ -1491,19 +1502,18 @@ package body GID.Decoding_JPG is
           if some_trace then
             New_Line;
             Put_Line ("JPEG Comment (during Load):  --------");
-            for i in 1 .. sh.length loop
+            for i in 1 .. head.length loop
               Get_Byte (image.buffer, b);
               Put (Character'Val (b));
             end loop;
             New_Line;
             Put_Line ("-------------------------------------");
             New_Line;
+          else
+            Skip_Segment_Data (image, head);
           end if;
         when others =>
-          --  Any other segment: skip segment data.
-          for i in 1 .. sh.length loop
-            Get_Byte (image.buffer, b);
-          end loop;
+          Skip_Segment_Data (image, head);
       end case;
     end loop;
     Dispose (image_array);
