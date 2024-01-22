@@ -98,9 +98,16 @@ package GID is
   --------------------------------------------------------------------
 
   type Display_Mode is (fast, nice);
-  --  For bitmap pictures, the result is exactly the same, but
-  --  progressive or interlaced images' larger pixels are drawn
-  --  in full during decoding.
+  --  For both display modes the final result is exactly the same.
+  --  However, for progressive or interlaced image formats, inaccurate
+  --  versions of the image will be displayed during decoding as
+  --  foreseen by those formats. The inaccurate display is covering
+  --  completely the image's frame.
+  --  The advantage of the `nice` mode is that if the stream is
+  --  slow or the image is huge, the person contemplating the image
+  --  can see earlier most characteristics of the image. The downside
+  --  is that the intermediary display makes the overall decoding slower.
+  --  So, for prioritizing speed, choose the `fast` mode.
 
   generic
     type Primary_Color_Range is mod <>;

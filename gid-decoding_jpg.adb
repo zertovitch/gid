@@ -1,4 +1,4 @@
---  The GID JPEG decoder is largely inspired
+--  GID's JPEG baseline decoder is largely inspired
 --  by the NanoJPEG code by Martin J. Fiedler.
 --  With the author's permission. Web link:
 --  https://keyj.emphy.de/nanojpeg/
@@ -65,44 +65,87 @@ package body GID.Decoding_JPG is
 
   procedure Big_Endian is new Big_Endian_Number (U16);
 
-  procedure Read (image : in out Image_Descriptor; sh : out Segment_Head) is
+  --  B.1.1.3 Marker assignments
+
+  EOI_code   : constant := 16#D9#;
+  DHT_code   : constant := 16#C4#;
+  --
+  RST_0_code : constant := 16#D0#;
+  RST_1_code : constant := 16#D1#;
+  RST_2_code : constant := 16#D2#;
+  RST_3_code : constant := 16#D3#;
+  RST_4_code : constant := 16#D4#;
+  RST_5_code : constant := 16#D5#;
+  RST_6_code : constant := 16#D6#;
+  RST_7_code : constant := 16#D7#;
+
+  marker_id : constant array (JPEG_Marker) of U8 :=
+   (SOI => 16#D8#,
+    --
+    SOF_0  => 16#C0#, SOF_1  => 16#C1#, SOF_2  => 16#C2#, SOF_3  => 16#C3#,
+    SOF_5  => 16#C5#, SOF_6  => 16#C6#, SOF_7  => 16#C7#, SOF_8  => 16#C8#,
+    SOF_9  => 16#C9#, SOF_10 => 16#CA#, SOF_11 => 16#CB#, SOF_13 => 16#CD#,
+    SOF_14 => 16#CE#, SOF_15 => 16#CF#,
+    --
+    DHT => DHT_code,
+    DAC => 16#CC#,
+    DQT => 16#DB#,
+    DRI => 16#DD#,
+    --
+    RST_0 => RST_0_code,
+    RST_1 => RST_1_code,
+    RST_2 => RST_2_code,
+    RST_3 => RST_3_code,
+    RST_4 => RST_4_code,
+    RST_5 => RST_5_code,
+    RST_6 => RST_6_code,
+    RST_7 => RST_7_code,
+    --
+    APP_0  => 16#E0#, APP_1  => 16#E1#, APP_2  => 16#E2#, APP_3  => 16#E3#,
+    APP_4  => 16#E4#, APP_5  => 16#E5#, APP_6  => 16#E6#, APP_7  => 16#E7#,
+    APP_8  => 16#E8#, APP_9  => 16#E9#, APP_10 => 16#EA#, APP_11 => 16#EB#,
+    APP_12 => 16#EC#, APP_13 => 16#ED#, APP_14 => 16#EE#,
+    --
+    COM => 16#FE#,
+    SOS => 16#DA#,
+    EOI => EOI_code);
+
+  procedure Read
+    (image           : in out Image_Descriptor;
+     known_marker    : in     Boolean;
+     buffered_marker : in     U8;
+     sh              :    out Segment_Head)
+  is
     b : U8;
-    id : constant array (JPEG_Marker) of U8 :=
-     (SOI => 16#D8#,
-      --
-      SOF_0  => 16#C0#, SOF_1  => 16#C1#, SOF_2  => 16#C2#, SOF_3  => 16#C3#,
-      SOF_5  => 16#C5#, SOF_6  => 16#C6#, SOF_7  => 16#C7#, SOF_8  => 16#C8#,
-      SOF_9  => 16#C9#, SOF_10 => 16#CA#, SOF_11 => 16#CB#, SOF_13 => 16#CD#,
-      SOF_14 => 16#CE#, SOF_15 => 16#CF#,
-      --
-      DHT => 16#C4#,
-      DAC => 16#CC#,
-      DQT => 16#DB#,
-      DRI => 16#DD#,
-      --
-      APP_0  => 16#E0#, APP_1  => 16#E1#, APP_2  => 16#E2#, APP_3  => 16#E3#,
-      APP_4  => 16#E4#, APP_5  => 16#E5#, APP_6  => 16#E6#, APP_7  => 16#E7#,
-      APP_8  => 16#E8#, APP_9  => 16#E9#, APP_10 => 16#EA#, APP_11 => 16#EB#,
-      APP_12 => 16#EC#, APP_13 => 16#ED#, APP_14 => 16#EE#,
-      --
-      COM => 16#FE#,
-      SOS => 16#DA#,
-      EOI => 16#D9#);
   begin
-    Get_Byte (image.buffer, b);
-    if b /= 16#FF# then
-      raise error_in_image_data with "JPEG: expected marker (16#FF#) here";
+    if known_marker then
+      if full_trace then
+        Put_Line ("Segment Marker has been read previously.");
+      end if;
+      b := buffered_marker;
+    else
+      Get_Byte (image.buffer, b);
+      if b /= 16#FF# then
+        raise error_in_image_data
+          with "JPEG: expected marker prefix (16#FF#) here";
+      end if;
+      Get_Byte (image.buffer, b);
+      if full_trace then
+        Put_Line ("Segment Marker has been just read from stream.");
+      end if;
     end if;
-    Get_Byte (image.buffer, b);
-    if full_trace then
-      Put_Line ("Segment Marker has been read");
-    end if;
-    for m in id'Range loop
-      if id (m) = b then
+    for m in JPEG_Marker loop
+      if marker_id (m) = b then
         sh.kind := m;
-        Big_Endian (image.buffer, sh.length);
-        sh.length := sh.length - 2;
-        --  We consider length of contents, without the FFxx marker.
+        case m is
+          when EOI =>
+            --  No header following this marker (there are perhaps others).
+            sh.length := 0;
+          when others =>
+            Big_Endian (image.buffer, sh.length);
+            --  We consider length of contents, without the FFxx marker.
+            sh.length := sh.length - 2;
+        end case;
         if some_trace then
           Put_Line
             ("Segment [" & sh.kind'Image & "], length:" & sh.length'Image);
@@ -165,6 +208,9 @@ package body GID.Decoding_JPG is
         --  Workaround for a bug in some encoders, for instance Intel(R) JPEG Library,
         --  version [2.0.18.50] as in some Photoshop versions : IDs are numbered 0, 1, 2.
         id_base := 0;
+        if full_trace then
+          Put_Line ("SOF: Off-by one error in image data: component Id");
+        end if;
       end if;
       if b - id_base > Component'Pos (Component'Last) then
         raise error_in_image_data with "JPEG: SOF: invalid component ID: " & b'Image;
@@ -224,7 +270,7 @@ package body GID.Decoding_JPG is
       image.JPEG_stuff.color_space := CMYK;
     else
       raise unsupported_image_subformat with
-        "JPEG: only YCbCr, Y_Grey and CMYK color spaces are currently supported";
+        "JPEG: only YCbCr, Y_Grey and CMYK color spaces are currently defined";
     end if;
     image.detailed_format := image.detailed_format & ", " &
       image.JPEG_stuff.color_space'Image;
@@ -461,49 +507,83 @@ package body GID.Decoding_JPG is
     --
     --  Bit buffer
     --
-    buf : U32 := 0;
-    bufbits : Natural := 0;
+    buf : U32;
+    buf_bits : Natural;
+    --  A marker can appear when filling the bit buffer
+    --  during a scan's decoding. Actually, at the end of
+    --  the scan's data, it *will* appear (usually:
+    --  the final EOI, or the next SOS).
+    memo_marker : U8 := 0;
+
+    procedure Initialize_Bit_Buffer is
+    begin
+      buf := 0;
+      buf_bits := 0;
+      memo_marker := 0;
+    end Initialize_Bit_Buffer;
 
     function Show_Bits (bits : Natural) return Natural is
-      newbyte, marker : U8;
+      newbyte, possible_marker : U8;
     begin
       if bits = 0 then
         return 0;
       end if;
-      while bufbits < bits loop
+      while buf_bits < bits loop
         begin
           Get_Byte (image.buffer, newbyte);
-          bufbits := bufbits + 8;
-          buf := buf * 256 + U32 (newbyte);
+          buf_bits := buf_bits + 8;
+          buf := Shift_Left (buf, 8) + U32 (newbyte);
           if newbyte = 16#FF# then
-            Get_Byte (image.buffer, marker);
-            case marker is
-              when 0 =>
-                null;
-              when 16#D8# =>  --  SOI here ?
-                null;
-                --  2015-04-26: occured in one (of many) picture
-                --  taken by an Olympus VG120,D705. See test/img/bcase_1.jpg
-              when 16#D9# =>  --  EOI here ?
-                null;  --  !! signal end
-              when 16#D0# .. 16#D7# =>
-                bufbits := bufbits + 8;
-                buf := buf * 256 + U32 (marker);
-              when others =>
-                raise error_in_image_data with
-                  "JPEG: Invalid code (bit buffer): " & marker'Image;
-            end case;
+            Get_Byte (image.buffer, possible_marker);
+            if possible_marker = 0 then
+              --  Escape code for a normal value 16#FF#.
+              --  F.1.2.3 Byte stuffing:
+              --    "If a X'00' byte is detected after a X'FF' byte, the
+              --     decoder must discard it."
+              null;
+            else
+              --    "If the byte is not zero, a marker has been detected,
+              --     and shall be interpreted to the extent needed to
+              --     complete the decoding of the scan."
+              --  It is the case at least for restart markers (RST).
+              if full_trace then
+                New_Line;
+                Put_Line
+                  ("Bit buffer: possible marker found: " &
+                   possible_marker'Image);
+              end if;
+              buf_bits := buf_bits + 8;
+              buf := Shift_Left (buf, 8) + U32 (possible_marker);
+              --  Many possible markers are naturally
+              --  buffered in the bit buffer at the very end of the
+              --  scan: EOI, DHT, SOS (next scan), ...
+              --  We need not to discard those markers!
+              memo_marker := possible_marker;
+              --
+              case possible_marker is
+                when EOI_code =>
+                  if full_trace then
+                    Put_Line ("Bit buffer: acquired EOI marker");
+                  end if;
+                when RST_0_code .. RST_7_code | DHT_code =>
+                  null;
+                when others =>
+                  raise error_in_image_data with
+                    "JPEG: Invalid marker within filling of bit buffer: " &
+                    possible_marker'Image;
+              end case;
+            end if;
           end if;
         exception
           when Ada.IO_Exceptions.End_Error =>
             newbyte := 16#FF#;
-            bufbits := bufbits + 8;
-            buf := buf * 256 + U32 (newbyte);
+            buf_bits := buf_bits + 8;
+            buf := Shift_Left (buf, 8) + U32 (newbyte);
         end;
       end loop;
       return
         Natural
-          (Shift_Right (buf, bufbits - bits)
+          (Shift_Right (buf, buf_bits - bits)
            and
            (Shift_Left (1, bits) - 1));
     end Show_Bits;
@@ -513,10 +593,10 @@ package body GID.Decoding_JPG is
       dummy : Integer;
       pragma Unreferenced (dummy);
     begin
-      if bufbits < bits then
+      if buf_bits < bits then
         dummy := Show_Bits (bits);
       end if;
-      bufbits := bufbits - bits;
+      buf_bits := buf_bits - bits;
     end Skip_Bits;
 
     function Get_Bits (bits : Natural) return Integer is
@@ -770,6 +850,8 @@ package body GID.Decoding_JPG is
     ssxmax : constant Natural := image.JPEG_stuff.max_samples_hor;
     ssymax : constant Natural := image.JPEG_stuff.max_samples_ver;
 
+    scan_compo_set : Compo_Set_Type;
+
     type Macro_8x8_Block is array
       (Component range <>,  --  component
        Positive range <>,   --  x sample range
@@ -833,7 +915,7 @@ package body GID.Decoding_JPG is
       --  Step 4 happens here: Upsampling  --
       ---------------------------------------
       for c in Component loop
-        if image.JPEG_stuff.compo_set (c) then
+        if scan_compo_set (c) then
           upsx := info_A (c).up_factor_x;
           upsy := info_A (c).up_factor_y;
           for x in reverse 1 .. info_A (c).samples_hor loop
@@ -888,7 +970,7 @@ package body GID.Decoding_JPG is
         rst_count := rst_count - 1;
         if rst_count = 0 then
           --  Here begins the restart.
-          bufbits := Natural (U32 (bufbits) and 16#F8#);  --  Byte alignment
+          buf_bits := Natural (U32 (buf_bits) and 16#F8#);  --  Byte alignment
           --  Now the restart marker.
           w := U16 (Get_Bits (16));
           if some_trace then
@@ -926,7 +1008,7 @@ package body GID.Decoding_JPG is
       loop
         components_loop :
         for c in Component loop
-          if image.JPEG_stuff.compo_set (c) then
+          if scan_compo_set (c) then
             samples_y_loop :
             for sby in 1 .. info_A (c).samples_ver loop
               samples_x_loop :
@@ -966,6 +1048,7 @@ package body GID.Decoding_JPG is
     image_array : Progressive_Bitmap_Access := null;
 
     components_amount : U8;
+    compo : Component;
 
     procedure Progressive_DCT_Decoding_Scan
       (spectral_selection_start,
@@ -979,11 +1062,11 @@ package body GID.Decoding_JPG is
       refining : Boolean;
       x, y : Natural_32;
       repeat : Natural;
-      compo_idx : Natural;
       dc_value : Integer;
       code : U8;
 
       procedure Progressive_DC_Scan is
+        compo_idx : Natural;
       begin
         if not refining then
           for c in Component loop
@@ -994,7 +1077,7 @@ package body GID.Decoding_JPG is
           compo_idx := 1;  --  Compact index (without holes).
           --  Loop through all color components
           for c in Component loop
-            if image.JPEG_stuff.compo_set (c) then
+            if scan_compo_set (c) then
               declare
                 info : JPEG_Defs.Info_per_Component_A
                   renames image.JPEG_stuff.info (c);
@@ -1045,26 +1128,139 @@ package body GID.Decoding_JPG is
       end Progressive_DC_Scan;
 
       procedure Progressive_AC_Scan is
-        --  !! LINE 1075 of jpeg.py
+
+        --  Queue of AC values that will be refined
+        --  to_refine = deque()  --  A FIFO.
+
+        --  Refining procedure
+        procedure Refine_AC is
+          --  !! LINE 1100 of jpeg.py
+        begin
+          null;  --  !!
+        end Refine_AC;
+
+        eob_run, zero_run : Natural := 0;
+        index : Integer;
+        huffman_value, run_magnitute : Integer;
+        ac_bits, ac_bits_length, eob_bits : Integer;
+        ac_value, current_value : Integer;
+        ac_x, ac_y, xr, yr : Integer_32;
+        compo_idx : Integer := 0;
       begin
         if components_amount > 1 then
           raise error_in_image_data with
             "JPEG, progressive: an AC progressive scan can only" &
             " have a single color component";
         end if;
-        --  !!  TBD
+
+        for c in Component loop
+          if image.JPEG_stuff.compo_set (c) then
+            compo_idx := compo_idx + 1;
+            exit when c = compo;  --  THE colour component.
+          end if;
+        end loop;
+
+        --  !!  Remove when complete.
         raise unsupported_image_subformat
           with "JPEG: progressive format not yet functional";
+
+        --  Decode and refine the AC values
+        for current_mcu in 0 .. mcu_count - 1 loop
+          --  (x, y) coordinates, on the image, of current MCU's corner
+          x := Natural_32 ((current_mcu mod mcu_count_h) * 8);
+          y := Natural_32 ((current_mcu  /  mcu_count_h) * 8);
+
+          --  Loop through the band
+          index := spectral_selection_start;
+          while index <= spectral_selection_end loop
+            --  ^ The element at the end of the band is included
+
+            --  Get the next Huffman value from the encoded data
+            huffman_value := 123;  --  !! next_huffval()
+                                   --  !! LINE 1133
+            run_magnitute := huffman_value  /  16;
+            ac_bits_length := huffman_value mod 16;
+
+            --  Determine the run length
+            if huffman_value = 0 then
+              --  End of band run of 1
+              eob_run := 1;
+              exit;
+            elsif huffman_value = 16#F0# then
+              zero_run := 16;
+            elsif ac_bits_length = 0 then
+              --  End of band run (length determined by the next bits on the data)
+              --  (amount of bands to skip)
+              eob_bits := Get_Bits (run_magnitute);
+              eob_run := (2 ** run_magnitute) + eob_bits;
+              exit;
+            else
+              --  Amount of zero values to skip
+              zero_run := run_magnitute;
+            end if;
+
+            --  Perform the zero run
+            if refining then
+              while zero_run > 0 loop  --  Refining scan
+                --  !! xr, yr = zagzig[index]
+                  --  !!  LINE 1185 of jpeg.py
+                current_value := image_array (x + xr, y + yr, compo_idx);
+
+                if current_value = 0 then
+                  zero_run := zero_run - 1;
+                else
+                  --  !!  to_refine.append((x + xr, y + yr))
+                  --  !!  LINE 1191 of jpeg.py
+                  null;
+                end if;
+                index := index + 1;
+              end loop;
+            else
+              --  First scan
+              index := index + zero_run;
+              zero_run := 0;
+            end if;
+
+            --  Decode the next AC value
+            if ac_bits_length > 0 then
+              ac_bits := Get_Bits (ac_bits_length);
+              --  ac_value = bin_twos_complement(ac_bits)  !!  LINE 1203
+
+              --  Store the AC value on the image array
+              --  (the zig-zag scan order is undone to find the position of the value on the image)
+              --  !!  ac_x, ac_y = zagzig[index]  LINE 1207
+
+              --  In order to create a new AC value, the decoder needs to be at a zero value
+              --  (the index is moved until a zero is found, other values along the way will be refined)
+              if refining then
+                while image_array (x + ac_x, y + ac_y, compo_idx) /= 0 loop
+                  --  !!  to_refine.append((x + ac_x, y + ac_y))
+                  index := index + 1;
+                  --  !!  ac_x, ac_y = zagzig[index]  LINE 1215
+                end loop;
+              end if;
+
+              --  Create a new ac_value
+              image_array (x + ac_x, y + ac_y, compo_idx) := ac_value * 2 ** bit_position_low;
+
+              --  Move to the next value
+              index := index + 1;
+            end if;
+
+            --  Refine AC values skipped by the zero run
+            if refining then
+              Refine_AC;
+            end if;
+
+          end loop;
+          --  !! LINE 1238 of jpeg.py
+
+        end loop;
       end Progressive_AC_Scan;
 
       kind : AC_DC;
 
     begin
-      if no_trace then  --  !! Temporary, until the progressive decoding works...
-        raise unsupported_image_subformat
-          with "JPEG: progressive format not yet functional";
-      end if;
-
       rst_count := image.JPEG_stuff.restart_interval;
       next_rst := 0;
 
@@ -1107,36 +1303,47 @@ package body GID.Decoding_JPG is
     --
     procedure Read_SOS is
       b, id_base : U8;
-      compo : Component := Component'First;
       mcu_width, mcu_height : Natural;
       --  Parameters for progressive decoding :
       start_spectral_selection,
       end_spectral_selection,
       successive_approximation : U8;
+      type LF is digits 15;
+      sample_ratio_h, sample_ratio_v : LF;
+      layer_width, layer_height : LF;
     begin
+      compo := Component'First;
       Get_Byte (image.buffer, components_amount);
       if some_trace then
         Put_Line
           ("  Start of Scan (SOS), with" & components_amount'Image & " components");
       end if;
-      if image.subformat_id /= Natural (components_amount) then
-        raise error_in_image_data with "JPEG: components mismatch in Scan segment";
+      if Natural (components_amount) > image.subformat_id  then
+        raise error_in_image_data
+          with "JPEG: Scan segment has more color components than the image";
       end if;
+
+      scan_compo_set := (others => False);
       id_base := 1;
       for i in 1 .. components_amount loop
         Get_Byte (image.buffer, b);
         if b = 0 then
-          --  Workaround for bugged encoder (see above)
+          --  Workaround for bugged encoder (see occurrence above
+          --  for image's header in Read_SOF)
           id_base := 0;
+          if full_trace then
+            Put_Line ("SOS: Off-by one error in image data: component Id");
+          end if;
         end if;
         if b - id_base > Component'Pos (Component'Last) then
           raise error_in_image_data with "JPEG: Scan: invalid ID:" & b'Image;
         end if;
         compo := Component'Val (b - id_base);
+        scan_compo_set (compo) := True;
         if not image.JPEG_stuff.compo_set (compo) then
           raise error_in_image_data with
-            "JPEG: component " & compo'Image &
-            " has not been defined in the header (SOF) segment";
+            "JPEG: scan component " & compo'Image &
+            " has not been defined in the image header (SOF) segment";
         end if;
         --  Huffman table selection
         Get_Byte (image.buffer, b);
@@ -1150,10 +1357,25 @@ package body GID.Decoding_JPG is
       --
       --  End of SOS segment, image data follow.
       --
-      mcu_width := ssxmax * 8;   --  Pixels in a row of a MCU (Minimum Coded Unit) block
-      mcu_height := ssymax * 8;  --  Pixels in a column of a MCU block
-      mcu_count_h := (Integer (image.width)  + mcu_width - 1) / mcu_width;
-      mcu_count_v := (Integer (image.height) + mcu_height - 1) / mcu_height;
+
+      if components_amount > 1 then
+        mcu_width  := ssxmax * 8;  --  Pixels in a row of a MCU (Minimum Coded Unit) block
+        mcu_height := ssymax * 8;  --  Pixels in a column of a MCU block
+        mcu_count_h := (Integer (image.width)  + mcu_width - 1) / mcu_width;
+        mcu_count_v := (Integer (image.height) + mcu_height - 1) / mcu_height;
+      else
+        --  PyJpegDecoder:
+        --  "If there is only one color component in the scan,
+        --   then the MCU size is always 8 x 8."
+        mcu_width  := 8;
+        mcu_height := 8;
+        sample_ratio_h := LF (ssxmax) / LF (image.JPEG_stuff.info (compo).shape_x);
+        sample_ratio_v := LF (ssymax) / LF (image.JPEG_stuff.info (compo).shape_y);
+        layer_width := LF (image.width) / sample_ratio_h;
+        layer_height := LF (image.height) / sample_ratio_v;
+        mcu_count_h := Integer (LF'Ceiling (layer_width / LF (mcu_width)));
+        mcu_count_v := Integer (LF'Ceiling (layer_height / LF (mcu_height)));
+      end if;
       mcu_count := mcu_count_h * mcu_count_v;
 
       if some_trace then
@@ -1172,7 +1394,7 @@ package body GID.Decoding_JPG is
       end if;
 
       for c in Component loop
-        if image.JPEG_stuff.compo_set (c) then
+        if scan_compo_set (c) then
           info_B (c).width  := (Integer (image.width)  * info_A (c).samples_hor + ssxmax - 1) / ssxmax;
           info_B (c).height := (Integer (image.height) * info_A (c).samples_ver + ssymax - 1) / ssymax;
           info_B (c).stride := (mcu_count_h * mcu_width * info_A (c).samples_hor) / ssxmax;
@@ -1198,6 +1420,7 @@ package body GID.Decoding_JPG is
         end if;
       end loop;
 
+      Initialize_Bit_Buffer;
       if image.progressive then
         Progressive_DCT_Decoding_Scan
           (Integer (start_spectral_selection),
@@ -1227,9 +1450,10 @@ package body GID.Decoding_JPG is
     end if;
     loop
       if full_trace then
-        Put_Line ("Reading Segment Marker");
+        Put_Line ("Reading Segment Marker (Load)");
       end if;
-      Read (image, sh);
+      Read (image, memo_marker /= 0, memo_marker, sh);
+      memo_marker := 0;
       case sh.kind is
         when DQT =>
           --  Quantization Table
@@ -1252,22 +1476,27 @@ package body GID.Decoding_JPG is
           Read_SOS;
           exit when no_trace and not image.progressive;
           --  ^  When there is a trace we are interested in
-          --       what appears after the scan.
-          --     When the image is progressive we need to
+          --       what appears after the scan, even a single one.
+          --     When the image is progressive we have to
           --       continue because there are multiple scans.
           if full_trace then
             New_Line;
             Put_Line ("SOS marker done");
+            Put_Line ("  Bit buffer length:   " & buf_bits'Image);
+            Put_Line ("  Bit buffer contents: " & buf'Image);
+            Put_Line ("  Marker buffer: "       & memo_marker'Image);
           end if;
         when COM =>
           --  B.2.4.5 Comment
           if some_trace then
             New_Line;
-            Put_Line ("JPEG Comment:  --------");
+            Put_Line ("JPEG Comment (during Load):  --------");
             for i in 1 .. sh.length loop
               Get_Byte (image.buffer, b);
               Put (Character'Val (b));
             end loop;
+            New_Line;
+            Put_Line ("-------------------------------------");
             New_Line;
           end if;
         when others =>

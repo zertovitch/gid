@@ -12,7 +12,7 @@ with GID.Buffering,
      GID.Decoding_PNG,
      GID.Decoding_PNM;
 
-with Ada.Unchecked_Deallocation;
+with Ada.Text_IO, Ada.Unchecked_Deallocation;
 
 package body GID.Headers is
   use Interfaces;
@@ -377,8 +377,7 @@ package body GID.Headers is
   -----------------
 
   procedure Load_JPEG_Header (image : in out Image_Descriptor) is
-    --  http://en.wikipedia.org/wiki/JPEG
-    use Decoding_JPG, Buffering;
+    use Decoding_JPG, Buffering, Ada.Text_IO;
     sh : Segment_Head;
     b : U8;
   begin
@@ -386,7 +385,7 @@ package body GID.Headers is
     image.JPEG_stuff.restart_interval := 0;
     Attach_Stream (image.buffer, image.stream);
     loop
-      Read (image, sh);
+      Read (image, False, 0, sh);
       case sh.kind is
         when DHT =>
           --  Huffman Table
@@ -403,6 +402,19 @@ package body GID.Headers is
           exit;
         when APP_1 =>
           Read_EXIF (image, Natural (sh.length));
+        when COM =>
+          --  B.2.4.5 Comment
+          if some_trace then
+            New_Line;
+            Put_Line ("JPEG Comment (during Load_JPEG_Header):  --------");
+            for i in 1 .. sh.length loop
+              Get_Byte (image.buffer, b);
+              Put (Character'Val (b));
+            end loop;
+            New_Line;
+            Put_Line ("-------------------------------------------------");
+            New_Line;
+          end if;
         when others =>
           --  Skip segment data
           for i in 1 .. sh.length loop
