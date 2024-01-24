@@ -110,6 +110,19 @@ package body GID.Decoding_JPG is
     SOS => 16#DA#,
     EOI => EOI_code);
 
+  function Marker_Image (m : U8) return String is
+    package BIO is new Modular_IO (U8);
+    hexa : String (1 .. 6);
+  begin
+    BIO.Put (hexa, m, 16);
+    for jm in JPEG_Marker loop
+      if marker_id (jm) = m then
+        return hexa & ", marker: " & jm'Image;
+      end if;
+    end loop;
+    return hexa;
+  end Marker_Image;
+
   procedure Read
     (image           : in out Image_Descriptor;
      known_marker    : in     Boolean;
@@ -154,7 +167,7 @@ package body GID.Decoding_JPG is
       end if;
     end loop;
     raise error_in_image_data
-      with "JPEG: unknown marker here: 16#FF#, then" & b'Image;
+      with "JPEG: unknown marker here: 16#FF#, then" & Marker_Image (b);
   end Read;
 
   procedure Skip_Segment_Data
@@ -561,7 +574,7 @@ package body GID.Decoding_JPG is
                 New_Line;
                 Put_Line
                   ("Bit buffer: possible marker found: " &
-                   possible_marker'Image);
+                   Marker_Image (possible_marker));
               end if;
               buf_bits := buf_bits + 8;
               buf := Shift_Left (buf, 8) + U32 (possible_marker);
@@ -581,7 +594,7 @@ package body GID.Decoding_JPG is
                 when others =>
                   raise error_in_image_data with
                     "JPEG: Invalid marker within filling of bit buffer: " &
-                    possible_marker'Image;
+                    Marker_Image (possible_marker);
               end case;
             end if;
           end if;
@@ -657,6 +670,29 @@ package body GID.Decoding_JPG is
         value_ret := value;
       end if;
     end Get_VLC;
+
+    procedure next_huffval
+      (vlc           : in     VLC_table;
+       huffman_value :    out Integer)
+    is
+      value : constant Integer := Show_Bits (16);
+      bits  : constant Natural := Natural (vlc (value).bits);
+    begin
+      if bits = 0 then
+        null;  --  Seems to happen in progressive AC ?
+      end if;
+      Skip_Bits (bits);
+      huffman_value := Integer (vlc (value).code);
+    end next_huffval;
+
+    function bin_twos_complement (value, bit_length : Integer) return Integer is
+    begin
+      if value < Integer (Shift_Left (U32'(1), bit_length - 1)) then
+        return value + 1 - Integer (Shift_Left (U32'(1), bit_length));
+      else
+        return value;
+      end if;
+    end bin_twos_complement;
 
     function Clip (x : Integer) return Integer is
     pragma Inline (Clip);
@@ -1073,11 +1109,11 @@ package body GID.Decoding_JPG is
       refining : Boolean;
       x, y : Natural_32;
       repeat : Natural;
-      dc_value : Integer;
-      code : U8;
 
       procedure Progressive_DC_Scan is
         compo_idx : Natural;
+        dc_value : Integer;
+        code : U8;
       begin
         if not refining then
           for c in Component loop
@@ -1138,16 +1174,50 @@ package body GID.Decoding_JPG is
         end loop;
       end Progressive_DC_Scan;
 
+      zagzig : constant array (0 .. 63, 1 .. 2) of Integer_32 :=
+         ((0, 0), (1, 0), (0, 1), (0, 2), (1, 1), (2, 0), (3, 0), (2, 1),
+          (1, 2), (0, 3), (0, 4), (1, 3), (2, 2), (3, 1), (4, 0), (5, 0),
+          (4, 1), (3, 2), (2, 3), (1, 4), (0, 5), (0, 6), (1, 5), (2, 4),
+          (3, 3), (4, 2), (5, 1), (6, 0), (7, 0), (6, 1), (5, 2), (4, 3),
+          (3, 4), (2, 5), (1, 6), (0, 7), (1, 7), (2, 6), (3, 5), (4, 4),
+          (5, 3), (6, 2), (7, 1), (7, 2), (6, 3), (5, 4), (4, 5), (3, 6),
+          (2, 7), (3, 7), (4, 6), (5, 5), (6, 4), (7, 3), (7, 4), (6, 5),
+          (5, 6), (4, 7), (5, 7), (6, 6), (7, 5), (7, 6), (6, 7), (7, 7));
+
       procedure Progressive_AC_Scan is
 
-        --  Queue of AC values that will be refined
-        --  to_refine = deque()  --  A FIFO.
+        compo_idx : Integer := 0;
+
+        --  AC values that will be refined
+
+        max_refine_index : constant := 64;
+        refine_index_last : Natural := 0;
+        refine_point_x, refine_point_y :
+          array (1 .. max_refine_index) of Integer_32;
+
+        procedure Append (x, y : Integer_32) is
+        begin
+          refine_index_last := refine_index_last + 1;
+          refine_point_x (refine_index_last) := x;
+          refine_point_y (refine_index_last) := y;
+        end Append;
 
         --  Refining procedure
         procedure Refine_AC is
-          --  !! LINE 1100 of jpeg.py
+          --  Perform the refinement of the AC values on a progressive scan.
+          refine_bits : Integer := Get_Bits (refine_index_last);
+          new_bit : Integer;
+          x, y : Integer_32;
         begin
-          null;  --  !!
+          for i in reverse 1 .. refine_index_last loop
+            new_bit := refine_bits rem 2;
+            refine_bits := refine_bits / 2;
+            x := refine_point_x (i);
+            y := refine_point_y (i);
+            image_array (x, y, compo_idx) :=
+              image_array (x, y, compo_idx) + new_bit * 2 ** bit_position_low;
+          end loop;
+          refine_index_last := 0;
         end Refine_AC;
 
         eob_run, zero_run : Natural := 0;
@@ -1156,7 +1226,7 @@ package body GID.Decoding_JPG is
         ac_bits, ac_bits_length, eob_bits : Integer;
         ac_value, current_value : Integer;
         ac_x, ac_y, xr, yr : Integer_32;
-        compo_idx : Integer := 0;
+        current_mcu : Integer;
       begin
         if components_amount > 1 then
           raise error_in_image_data with
@@ -1167,7 +1237,7 @@ package body GID.Decoding_JPG is
         for c in Component loop
           if image.JPEG_stuff.compo_set (c) then
             compo_idx := compo_idx + 1;
-            exit when c = compo;  --  THE colour component.
+            exit when c = compo;  --  THE colour component for that scan.
           end if;
         end loop;
 
@@ -1175,8 +1245,12 @@ package body GID.Decoding_JPG is
         raise unsupported_image_subformat
           with "JPEG: progressive format not yet functional";
 
+        refine_index_last := 0;
+
         --  Decode and refine the AC values
-        for current_mcu in 0 .. mcu_count - 1 loop
+        current_mcu := 0;
+        while current_mcu < mcu_count loop
+
           --  (x, y) coordinates, on the image, of current MCU's corner
           x := Natural_32 ((current_mcu mod mcu_count_h) * 8);
           y := Natural_32 ((current_mcu  /  mcu_count_h) * 8);
@@ -1187,9 +1261,10 @@ package body GID.Decoding_JPG is
             --  ^ The element at the end of the band is included
 
             --  Get the next Huffman value from the encoded data
-            huffman_value := 123;  --  !! next_huffval()
-                                   --  !! LINE 1133
-            run_magnitute := huffman_value  /  16;
+            next_huffval
+              (image.JPEG_stuff.vlc_defs (AC, info_B (compo).ht_idx_AC).all,
+               huffman_value);
+            run_magnitute  := huffman_value  /  16;
             ac_bits_length := huffman_value mod 16;
 
             --  Determine the run length
@@ -1213,16 +1288,14 @@ package body GID.Decoding_JPG is
             --  Perform the zero run
             if refining then
               while zero_run > 0 loop  --  Refining scan
-                --  !! xr, yr = zagzig[index]
-                  --  !!  LINE 1185 of jpeg.py
+                xr := zagzig (index, 1);
+                yr := zagzig (index, 2);
                 current_value := image_array (x + xr, y + yr, compo_idx);
 
                 if current_value = 0 then
                   zero_run := zero_run - 1;
                 else
-                  --  !!  to_refine.append((x + xr, y + yr))
-                  --  !!  LINE 1191 of jpeg.py
-                  null;
+                  Append (x + xr, y + yr);
                 end if;
                 index := index + 1;
               end loop;
@@ -1235,23 +1308,26 @@ package body GID.Decoding_JPG is
             --  Decode the next AC value
             if ac_bits_length > 0 then
               ac_bits := Get_Bits (ac_bits_length);
-              --  ac_value = bin_twos_complement(ac_bits)  !!  LINE 1203
+              ac_value := bin_twos_complement (ac_bits, ac_bits_length);
 
               --  Store the AC value on the image array
               --  (the zig-zag scan order is undone to find the position of the value on the image)
-              --  !!  ac_x, ac_y = zagzig[index]  LINE 1207
+              ac_x := zagzig (index, 1);
+              ac_y := zagzig (index, 2);
 
               --  In order to create a new AC value, the decoder needs to be at a zero value
               --  (the index is moved until a zero is found, other values along the way will be refined)
               if refining then
                 while image_array (x + ac_x, y + ac_y, compo_idx) /= 0 loop
-                  --  !!  to_refine.append((x + ac_x, y + ac_y))
+                  Append (x + ac_x, y + ac_y);
                   index := index + 1;
-                  --  !!  ac_x, ac_y = zagzig[index]  LINE 1215
+                  ac_x := zagzig (index, 1);
+                  ac_y := zagzig (index, 2);
                 end loop;
               end if;
 
               --  Create a new ac_value
+              --  PUT_LINE (integer_32'image(x + ac_x) & integer_32'image(y + ac_y));
               image_array (x + ac_x, y + ac_y, compo_idx) := ac_value * 2 ** bit_position_low;
 
               --  Move to the next value
@@ -1264,7 +1340,53 @@ package body GID.Decoding_JPG is
             end if;
 
           end loop;
-          --  !! LINE 1238 of jpeg.py
+
+          --  Move to the next band if we are at the end of a band
+          if index > spectral_selection_end then
+            current_mcu := current_mcu + 1;
+            if refining then
+              --  Coordinates of the MCU on the image
+              x := Natural_32 ((current_mcu mod mcu_count_h) * 8);
+              y := Natural_32 ((current_mcu  /  mcu_count_h) * 8);
+            end if;
+          end if;
+
+          --  Perform the end of band run
+          if refining then
+            while eob_run > 0 loop
+              xr := zagzig (index, 1);
+              yr := zagzig (index, 2);
+              current_value := image_array (x + xr, y + yr, compo_idx);
+
+              if current_value /= 0 then
+                Append (x + xr, y + yr);
+              end if;
+
+              index := index + 1;
+              if index > spectral_selection_end then
+
+                --  Move to the next band
+                eob_run := eob_run - 1;
+                current_mcu := current_mcu + 1;
+                index := spectral_selection_start;
+
+                --  Coordinates of the MCU on the image
+                x := Natural_32 ((current_mcu mod mcu_count_h) * 8);
+                y := Natural_32 ((current_mcu  /  mcu_count_h) * 8);
+              end if;
+            end loop;
+          else
+             --  First scan
+             current_mcu := current_mcu + eob_run;
+             eob_run := 0;
+          end if;
+
+          --  Refine the AC values found during the EOB run
+          if refining then
+            Refine_AC;
+          end if;
+
+          Check_Restart (False);
 
         end loop;
       end Progressive_AC_Scan;
@@ -1309,6 +1431,16 @@ package body GID.Decoding_JPG is
         when AC => Progressive_AC_Scan;  --  Further scans
       end case;
     end Progressive_DCT_Decoding_Scan;
+
+    procedure Finalize_Progressive_DCT_Decoding is
+    begin
+      --  Perform the IDCT once all scans have finished
+      for c in Component loop
+        if image.JPEG_stuff.compo_set (c) then
+          null;  --  around LINE 1338 in jpeg.py
+        end if;
+      end loop;
+    end Finalize_Progressive_DCT_Decoding;
 
     --  Start Of Scan (and image data which follow)
     --
@@ -1380,12 +1512,20 @@ package body GID.Decoding_JPG is
         --   then the MCU size is always 8 x 8."
         mcu_width  := 8;
         mcu_height := 8;
-        sample_ratio_h := LF (ssxmax) / LF (image.JPEG_stuff.info (compo).shape_x);
-        sample_ratio_v := LF (ssymax) / LF (image.JPEG_stuff.info (compo).shape_y);
-        layer_width := LF (image.width) / sample_ratio_h;
-        layer_height := LF (image.height) / sample_ratio_v;
-        mcu_count_h := Integer (LF'Ceiling (layer_width / LF (mcu_width)));
-        mcu_count_v := Integer (LF'Ceiling (layer_height / LF (mcu_height)));
+        --
+        --  !! translated from py code but something is wrong.
+        --     Anyway, why not use the general formula?
+        --
+        --  sample_ratio_h := LF (ssxmax) / LF (image.JPEG_stuff.info (compo).shape_x);
+        --  sample_ratio_v := LF (ssymax) / LF (image.JPEG_stuff.info (compo).shape_y);
+        --  layer_width := LF (image.width) / sample_ratio_h;
+        --  layer_height := LF (image.height) / sample_ratio_v;
+        --  mcu_count_h := Integer (LF'Ceiling (layer_width / LF (mcu_width)));
+        --  mcu_count_v := Integer (LF'Ceiling (layer_height / LF (mcu_height)));
+        --
+        --  !! same as for general case.
+        mcu_count_h := (Integer (image.width)  + mcu_width - 1) / mcu_width;
+        mcu_count_v := (Integer (image.height) + mcu_height - 1) / mcu_height;
       end if;
       mcu_count := mcu_count_h * mcu_count_v;
 
@@ -1411,15 +1551,15 @@ package body GID.Decoding_JPG is
           info_B (c).stride := (mcu_count_h * mcu_width * info_A (c).samples_hor) / ssxmax;
           if some_trace then
             New_Line;
-            Put_Line ("    Details for component " & c'Image);
+            Put_Line ("    Details for component: . . . . . " & c'Image);
             Put_Line ("      samples in x " & info_A (c).samples_hor'Image);
             Put_Line ("      samples in y " & info_A (c).samples_ver'Image);
             Put_Line ("      width  " & info_B (c).width'Image);
             Put_Line ("      height " & info_B (c).height'Image);
             Put_Line ("      stride " & info_B (c).stride'Image);
             Put_Line
-              ("      AC/DC table index: " &
-               info_B (compo).ht_idx_AC'Image & ", " &
+              ("      AC/DC table index:  AC:" &
+               info_B (compo).ht_idx_AC'Image & ", DC:" &
                info_B (compo).ht_idx_DC'Image);
           end if;
           if (info_B (c).width < 3 and info_A (c).samples_hor /= ssxmax) or
@@ -1452,13 +1592,24 @@ package body GID.Decoding_JPG is
         (Progressive_Bitmap, Progressive_Bitmap_Access);
 
   begin  --  Load
+
     if image.progressive then
       image_array :=
         new Progressive_Bitmap
-          (0 .. image.width  - 1,
-           0 .. image.height - 1,
+          (0 .. image.width  + 7,
+           0 .. image.height + 7,
            1 .. image.subformat_id);
+
+      for x in image_array'Range (1) loop
+        for y in image_array'Range (2) loop
+          for cid in image_array'Range (3) loop
+            image_array (x, y, cid) := 0;
+          end loop;
+        end loop;
+      end loop;
+
     end if;
+
     loop
       if full_trace then
         Put_Line ("Reading Segment Marker (Load)");
@@ -1480,6 +1631,9 @@ package body GID.Decoding_JPG is
           if some_trace then
             New_Line;
             Put_Line ("EOI marker");
+          end if;
+          if image.progressive then
+            Finalize_Progressive_DCT_Decoding;
           end if;
           exit;
         when SOS =>
