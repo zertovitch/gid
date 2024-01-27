@@ -97,16 +97,20 @@ package GID is
   --    call Load_image_contents until next_frame is 0.0            --
   --------------------------------------------------------------------
 
-  type Display_Mode is (fast, nice);
+  type Display_Mode is (fast, redundant);
   --  For both display modes the final result is exactly the same.
+  --
   --  However, for progressive or interlaced image formats, inaccurate
   --  versions of the image will be displayed during decoding as
   --  foreseen by those formats. The inaccurate display is covering
   --  completely the image's frame.
-  --  The advantage of the `nice` mode is that if the stream is
+  --  The advantage of the `redundant` mode is that if the stream is
   --  slow or the image is huge, the person contemplating the image
   --  can see earlier most characteristics of the image. The downside
-  --  is that the intermediary display makes the overall decoding slower.
+  --  is that the intermediary display makes the overall decoding slower
+  --  and part of the pixels at the same position will be displayed
+  --  multiple times.
+  --
   --  So, for prioritizing speed, choose the `fast` mode.
 
   generic
@@ -191,7 +195,7 @@ package GID is
   ----------------------------------------------------------------
 
   version   : constant String := "011";
-  reference : constant String := "22-Jan-2024";
+  reference : constant String := "27-Jan-2024";
   web       : constant String := "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..........^
   --  There is a mirror too @ https://github.com/zertovitch/gid

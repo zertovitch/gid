@@ -177,7 +177,7 @@ package body GID.Decoding_GIF is
       begin
         --  Actually draw the pixel on screen buffer
         if X < Integer (image.width) then
-          if interlaced and mode = nice then
+          if interlaced and mode = redundant then
             for i in reverse 0 .. Span loop
               if Y + i < Integer (image.height) then
                 Set_X_Y (X, Integer (image.height) - (Y + i) - 1);

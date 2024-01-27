@@ -93,7 +93,9 @@ private package GID.Decoding_JPG is
       (red, green, blue : Primary_Color_Range;
        alpha            : Primary_Color_Range);
     with procedure Feedback (percents : Natural);
-    --  mode: Display_mode; -- nice -> progressive nicely displayed
+    --  mode : Display_Mode;
+    --         --  mode = redundant -> progressive JPEG
+               --    is displayed during decoding.
   --
   procedure Load (image : in out Image_Descriptor);
 
