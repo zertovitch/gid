@@ -260,8 +260,8 @@ private
        I,   --  ??
        Q);  --  ??
 
-    type QT is array (0 .. 63) of Natural;
-    type QT_List is array (0 .. 7) of QT;
+    type Quantization_Table is array (0 .. 63) of Natural;
+    type Quantization_Table_List is array (0 .. 7) of Quantization_Table;
 
     type Compo_Set_Type is array (Component) of Boolean;
 
@@ -305,7 +305,7 @@ private
     info             : JPEG_Defs.Component_Info_A;
     max_samples_hor  : Natural;
     max_samples_ver  : Natural;
-    qt_list          : JPEG_Defs.QT_List;
+    qt_list          : JPEG_Defs.Quantization_Table_List;
     vlc_defs         : JPEG_Defs.VLC_defs_type := (others => (others => null));
     restart_interval : Natural;  --  Predictor restarts every... (0: never)
   end record;

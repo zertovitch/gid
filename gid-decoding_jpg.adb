@@ -78,6 +78,8 @@ package body GID.Decoding_JPG is
   RST_5_code : constant := 16#D5#;
   RST_6_code : constant := 16#D6#;
   RST_7_code : constant := 16#D7#;
+  --
+  SOS_code   : constant := 16#DA#;
 
   marker_id : constant array (JPEG_Marker) of U8 :=
    (SOI => 16#D8#,
@@ -107,7 +109,7 @@ package body GID.Decoding_JPG is
     APP_12 => 16#EC#, APP_13 => 16#ED#, APP_14 => 16#EE#,
     --
     COM => 16#FE#,
-    SOS => 16#DA#,
+    SOS => SOS_code,
     EOI => EOI_code);
 
   function Marker_Image (m : U8) return String is
@@ -389,7 +391,7 @@ package body GID.Decoding_JPG is
       if some_trace then
         Put_Line ("  Quantization Table (QT) #" & b'Image);
       end if;
-      for i in QT'Range loop
+      for i in Quantization_Table'Range loop
         if high_prec then
           Big_Endian (image.buffer, q16);
           remaining := remaining - 2;
@@ -589,7 +591,7 @@ package body GID.Decoding_JPG is
                   if full_trace then
                     Put_Line ("Bit buffer: acquired EOI marker");
                   end if;
-                when RST_0_code .. RST_7_code | DHT_code =>
+                when RST_0_code .. RST_7_code | DHT_code | SOS_code =>
                   null;
                 when others =>
                   raise error_in_image_data with
@@ -679,7 +681,9 @@ package body GID.Decoding_JPG is
       bits  : constant Natural := Natural (vlc (value).bits);
     begin
       if bits = 0 then
-        null;  --  Seems to happen in progressive AC ?
+        if full_trace then
+          Put_Line ("Zero bits...");  --  Seems to happen in progressive AC ?
+        end if;
       end if;
       Skip_Bits (bits);
       huffman_value := Integer (vlc (value).code);
@@ -719,7 +723,8 @@ package body GID.Decoding_JPG is
     procedure Decode_8x8_Block (c : Component; block : in out Block_8x8) is
       value, coef : Integer;
       code : U8;
-      qt_local : JPEG_Defs.QT renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
+      qt_local : JPEG_Defs.Quantization_Table
+        renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
       --
       W1 : constant := 2841;
       W2 : constant := 2676;
@@ -1159,6 +1164,7 @@ package body GID.Decoding_JPG is
                        code,
                        dc_value);
                     dc_value := dc_value + info_B (c).dc_predictor;
+                    --  PUT_LINE ("dc_value: "&dc_value'Image);
                     info_B (c).dc_predictor := dc_value;
                     --  Store the partial DC value on the image array
                     --  Note that dc_value can be (and is often) negative.
@@ -1209,6 +1215,7 @@ package body GID.Decoding_JPG is
           new_bit : Integer;
           x, y : Integer_32;
         begin
+          --  PUT_LINE ("[R:"&refine_index_last'Image&"]");
           for i in reverse 1 .. refine_index_last loop
             new_bit := refine_bits rem 2;
             refine_bits := refine_bits / 2;
@@ -1241,7 +1248,7 @@ package body GID.Decoding_JPG is
           end if;
         end loop;
 
-        --  !!  Remove when complete.
+        --  --  !!  Remove when complete.
         raise unsupported_image_subformat
           with "JPEG: progressive format not yet functional";
 
@@ -1249,14 +1256,18 @@ package body GID.Decoding_JPG is
 
         --  Decode and refine the AC values
         current_mcu := 0;
+
+        MCU_Loop :
         while current_mcu < mcu_count loop
 
-          --  (x, y) coordinates, on the image, of current MCU's corner
+          --  Coordinates of the MCU's corner on the image
           x := Natural_32 ((current_mcu mod mcu_count_h) * 8);
           y := Natural_32 ((current_mcu  /  mcu_count_h) * 8);
 
           --  Loop through the band
           index := spectral_selection_start;
+
+          Within_Band :
           while index <= spectral_selection_end loop
             --  ^ The element at the end of the band is included
 
@@ -1266,12 +1277,15 @@ package body GID.Decoding_JPG is
                huffman_value);
             run_magnitute  := huffman_value  /  16;
             ac_bits_length := huffman_value mod 16;
+            --  PUT_LINE
+            --    ("run_magnitute=" & run_magnitute'Image &
+            --     " ac_bits_length=" &  ac_bits_length'Image);
 
             --  Determine the run length
             if huffman_value = 0 then
               --  End of band run of 1
               eob_run := 1;
-              exit;
+              exit Within_Band;
             elsif huffman_value = 16#F0# then
               zero_run := 16;
             elsif ac_bits_length = 0 then
@@ -1279,7 +1293,7 @@ package body GID.Decoding_JPG is
               --  (amount of bands to skip)
               eob_bits := Get_Bits (run_magnitute);
               eob_run := (2 ** run_magnitute) + eob_bits;
-              exit;
+              exit Within_Band;
             else
               --  Amount of zero values to skip
               zero_run := run_magnitute;
@@ -1287,7 +1301,7 @@ package body GID.Decoding_JPG is
 
             --  Perform the zero run
             if refining then
-              while zero_run > 0 loop  --  Refining scan
+              while zero_run > 0 loop
                 xr := zagzig (index, 1);
                 yr := zagzig (index, 2);
                 current_value := image_array (x + xr, y + yr, compo_idx);
@@ -1339,13 +1353,13 @@ package body GID.Decoding_JPG is
               Refine_AC;
             end if;
 
-          end loop;
+          end loop Within_Band;
 
           --  Move to the next band if we are at the end of a band
           if index > spectral_selection_end then
             current_mcu := current_mcu + 1;
             if refining then
-              --  Coordinates of the MCU on the image
+              --  Coordinates of the MCU's corner on the image
               x := Natural_32 ((current_mcu mod mcu_count_h) * 8);
               y := Natural_32 ((current_mcu  /  mcu_count_h) * 8);
             end if;
@@ -1370,7 +1384,7 @@ package body GID.Decoding_JPG is
                 current_mcu := current_mcu + 1;
                 index := spectral_selection_start;
 
-                --  Coordinates of the MCU on the image
+                --  Coordinates of the MCU's corner on the image
                 x := Natural_32 ((current_mcu mod mcu_count_h) * 8);
                 y := Natural_32 ((current_mcu  /  mcu_count_h) * 8);
               end if;
@@ -1382,13 +1396,13 @@ package body GID.Decoding_JPG is
           end if;
 
           --  Refine the AC values found during the EOB run
-          if refining then
+          if refining then  --  !!  could be moved to the previous "if refining"
             Refine_AC;
           end if;
 
           Check_Restart (False);
 
-        end loop;
+        end loop MCU_Loop;
       end Progressive_AC_Scan;
 
       kind : AC_DC;
@@ -1424,6 +1438,7 @@ package body GID.Decoding_JPG is
         New_Line;
         Put_Line ("Bit position high =" & bit_position_high'Image);
         Put_Line ("Bit position low  =" & bit_position_low'Image);
+        Put_Line ("Refining scan : "    & refining'Image);
       end if;
 
       case kind is
@@ -1433,11 +1448,17 @@ package body GID.Decoding_JPG is
     end Progressive_DCT_Decoding_Scan;
 
     procedure Finalize_Progressive_DCT_Decoding is
+      procedure Finalize_Color_Component (c : Component) is
+        qt_local : JPEG_Defs.Quantization_Table
+          renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
+      begin
+        null;  --  around LINE 1338 in jpeg.py
+      end Finalize_Color_Component;
     begin
       --  Perform the IDCT once all scans have finished
       for c in Component loop
         if image.JPEG_stuff.compo_set (c) then
-          null;  --  around LINE 1338 in jpeg.py
+          Finalize_Color_Component (c);
         end if;
       end loop;
     end Finalize_Progressive_DCT_Decoding;
