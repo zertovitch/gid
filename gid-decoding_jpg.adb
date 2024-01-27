@@ -673,20 +673,18 @@ package body GID.Decoding_JPG is
       end if;
     end Get_VLC;
 
-    procedure next_huffval
-      (vlc           : in     VLC_table;
-       huffman_value :    out Integer)
-    is
+    function next_huffval (vlc : VLC_table) return Integer is
       value : constant Integer := Show_Bits (16);
       bits  : constant Natural := Natural (vlc (value).bits);
     begin
       if bits = 0 then
         if full_trace then
           Put_Line ("Zero bits...");  --  Seems to happen in progressive AC ?
+          Skip_Line;
         end if;
       end if;
       Skip_Bits (bits);
-      huffman_value := Integer (vlc (value).code);
+      return Integer (vlc (value).code);
     end next_huffval;
 
     function bin_twos_complement (value, bit_length : Integer) return Integer is
@@ -1196,7 +1194,7 @@ package body GID.Decoding_JPG is
 
         --  AC values that will be refined
 
-        max_refine_index : constant := 64;
+        max_refine_index : constant := 2000;
         refine_index_last : Natural := 0;
         refine_point_x, refine_point_y :
           array (1 .. max_refine_index) of Integer_32;
@@ -1248,10 +1246,6 @@ package body GID.Decoding_JPG is
           end if;
         end loop;
 
-        --  --  !!  Remove when complete.
-        raise unsupported_image_subformat
-          with "JPEG: progressive format not yet functional";
-
         refine_index_last := 0;
 
         --  Decode and refine the AC values
@@ -1272,9 +1266,9 @@ package body GID.Decoding_JPG is
             --  ^ The element at the end of the band is included
 
             --  Get the next Huffman value from the encoded data
-            next_huffval
-              (image.JPEG_stuff.vlc_defs (AC, info_B (compo).ht_idx_AC).all,
-               huffman_value);
+            huffman_value :=
+              next_huffval
+                (image.JPEG_stuff.vlc_defs (AC, info_B (compo).ht_idx_AC).all);
             run_magnitute  := huffman_value  /  16;
             ac_bits_length := huffman_value mod 16;
             --  PUT_LINE
@@ -1448,12 +1442,17 @@ package body GID.Decoding_JPG is
     end Progressive_DCT_Decoding_Scan;
 
     procedure Finalize_Progressive_DCT_Decoding is
+
       procedure Finalize_Color_Component (c : Component) is
         qt_local : JPEG_Defs.Quantization_Table
           renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
       begin
-        null;  --  around LINE 1338 in jpeg.py
+        --  !!  Remove when complete.
+        raise unsupported_image_subformat
+          with "JPEG: progressive format not yet functional";
+        --  TBD: around LINE 1338 in jpeg.py
       end Finalize_Color_Component;
+
     begin
       --  Perform the IDCT once all scans have finished
       for c in Component loop
@@ -1537,16 +1536,16 @@ package body GID.Decoding_JPG is
         --  !! translated from py code but something is wrong.
         --     Anyway, why not use the general formula?
         --
-        --  sample_ratio_h := LF (ssxmax) / LF (image.JPEG_stuff.info (compo).shape_x);
-        --  sample_ratio_v := LF (ssymax) / LF (image.JPEG_stuff.info (compo).shape_y);
-        --  layer_width := LF (image.width) / sample_ratio_h;
-        --  layer_height := LF (image.height) / sample_ratio_v;
-        --  mcu_count_h := Integer (LF'Ceiling (layer_width / LF (mcu_width)));
-        --  mcu_count_v := Integer (LF'Ceiling (layer_height / LF (mcu_height)));
-        --
-        --  !! same as for general case.
-        mcu_count_h := (Integer (image.width)  + mcu_width - 1) / mcu_width;
-        mcu_count_v := (Integer (image.height) + mcu_height - 1) / mcu_height;
+        --  PUT_LINE ("sample_shape x" & ssxmax'Image);
+        --  PUT_LINE ("sample_shape y" & ssymax'Image);
+        sample_ratio_h := LF (8 * ssxmax) / LF (image.JPEG_stuff.info (compo).shape_x);
+        sample_ratio_v := LF (8 * ssymax) / LF (image.JPEG_stuff.info (compo).shape_y);
+        --  PUT_LINE ("sample_ratio_h" & sample_ratio_h'Image);
+        --  PUT_LINE ("sample_ratio_v" & sample_ratio_v'Image);
+        layer_width := LF (image.width) / sample_ratio_h;
+        layer_height := LF (image.height) / sample_ratio_v;
+        mcu_count_h := Integer (LF'Ceiling (layer_width / LF (mcu_width)));
+        mcu_count_v := Integer (LF'Ceiling (layer_height / LF (mcu_height)));
       end if;
       mcu_count := mcu_count_h * mcu_count_v;
 
