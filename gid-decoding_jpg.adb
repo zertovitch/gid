@@ -900,6 +900,9 @@ package body GID.Decoding_JPG is
     ssxmax : constant Natural := image.JPEG_stuff.max_samples_hor;
     ssymax : constant Natural := image.JPEG_stuff.max_samples_ver;
 
+    sample_shape_x : constant Natural := 8 * ssxmax;
+    sample_shape_y : constant Natural := 8 * ssymax;
+
     scan_compo_set : Compo_Set_Type;
 
     type Macro_8x8_Block is array
@@ -910,7 +913,7 @@ package body GID.Decoding_JPG is
 
     procedure Upsampling_and_Output (m : Macro_8x8_Block; x0, y0 : Natural) is
 
-      flat : array (Component, 0 .. 8 * ssxmax - 1, 0 .. 8 * ssymax - 1) of Integer;
+      flat : array (Component, 0 .. sample_shape_x - 1, 0 .. sample_shape_y - 1) of Integer;
 
       generic
         color_space : Supported_color_space;
@@ -1096,6 +1099,8 @@ package body GID.Decoding_JPG is
     type Progressive_Bitmap_Access is access Progressive_Bitmap;
 
     image_array : Progressive_Bitmap_Access := null;
+    array_width  : Natural_32;
+    array_height : Natural_32;
 
     components_amount : U8;
     compo : Component;
@@ -1443,21 +1448,64 @@ package body GID.Decoding_JPG is
 
     procedure Finalize_Progressive_DCT_Decoding is
 
-      procedure Finalize_Color_Component (c : Component) is
+      procedure Finalize_Color_Component (c : Component; c_idx : Natural) is
+        --  Quantization table used by the component:
         qt_local : JPEG_Defs.Quantization_Table
           renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
+        --  Subsampling ratio:
+        ratio_h : constant Integer := sample_shape_x / image.JPEG_stuff.info (c).shape_x;
+        ratio_v : constant Integer := sample_shape_y / image.JPEG_stuff.info (c).shape_y;
+        --  Dimensions of the MCU *of the component*:
+        component_width  : constant Integer_32 := array_width  / Integer_32 (ratio_h);
+        component_height : constant Integer_32 := array_height / Integer_32 (ratio_v);
+        --  Amount of MCUs (*for this component*):
+        mcu_count_h_c : constant Integer_32 := component_width / 8;
+        mcu_count_v_c : constant Integer_32 := component_height / 8;
+        mcu_count_c  : constant Integer_32 := mcu_count_h_c * mcu_count_v_c;
+
+        x1, y1 : Integer_32;
+
+        block : Block_8x8;
       begin
+        for current_mcu in 0 .. mcu_count_c - 1 loop
+          --  Get coordinates of the block's corner:
+          x1 := (current_mcu mod mcu_count_h_c) * 8;
+          y1 := (current_mcu  /  mcu_count_h_c) * 8;
+
+          --  Copy block data:
+          for yb in 0 .. 7 loop
+            for xb in 0 .. 7 loop
+              block (xb + yb * 8) :=
+                image_array (x1 + Integer_32 (xb), y1 + Integer_32 (yb), c_idx);
+            end loop;
+          end loop;
+
+          --  Undo quantization on the block:
+          for i in 0 .. 63 loop
+            block (i) := block (i) * qt_local (i);
+          end loop;
+
+          --  Perform the inverse discrete cosine transform (IDCT)
+          --  on the block to get the color values
+
+          --  TBD: around LINE 1377 in jpeg.py
+
+        end loop;
+
         --  !!  Remove when complete.
         raise unsupported_image_subformat
           with "JPEG: progressive format not yet functional";
-        --  TBD: around LINE 1338 in jpeg.py
+
       end Finalize_Color_Component;
+
+      c_idx : Natural := 0;
 
     begin
       --  Perform the IDCT once all scans have finished
       for c in Component loop
         if image.JPEG_stuff.compo_set (c) then
-          Finalize_Color_Component (c);
+          c_idx := c_idx + 1;
+          Finalize_Color_Component (c, c_idx);
         end if;
       end loop;
     end Finalize_Progressive_DCT_Decoding;
@@ -1465,6 +1513,35 @@ package body GID.Decoding_JPG is
     --  Start Of Scan (and image data which follow)
     --
     procedure Read_SOS is
+
+      procedure Create_Image_Array is
+        count_h, count_v, sx, sy : Natural_32;
+      begin
+        --  3-dimensional array to store the color values of each pixel on the image
+        --  array(x-coordinate, y-coordinate, color)
+        sx := Natural_32 (sample_shape_x);
+        sy := Natural_32 (sample_shape_y);
+        --  Include padding if dimensions are not exactly a multiple of sx or sy.
+        count_h := (image.width  / sx) + (if image.width  mod sx = 0 then 0 else 1);
+        count_v := (image.height / sy) + (if image.height mod sy = 0 then 0 else 1);
+        array_width  := sx * count_h;
+        array_height := sy * count_v;
+
+        image_array :=
+          new Progressive_Bitmap
+            (0 .. array_width - 1,
+             0 .. array_height - 1,
+             1 .. image.subformat_id);
+
+        for x in image_array'Range (1) loop
+          for y in image_array'Range (2) loop
+            for cid in image_array'Range (3) loop
+              image_array (x, y, cid) := 0;
+            end loop;
+          end loop;
+        end loop;
+      end Create_Image_Array;
+
       b, id_base : U8;
       mcu_width, mcu_height : Natural;
       --  Parameters for progressive decoding :
@@ -1538,8 +1615,8 @@ package body GID.Decoding_JPG is
         --
         --  PUT_LINE ("sample_shape x" & ssxmax'Image);
         --  PUT_LINE ("sample_shape y" & ssymax'Image);
-        sample_ratio_h := LF (8 * ssxmax) / LF (image.JPEG_stuff.info (compo).shape_x);
-        sample_ratio_v := LF (8 * ssymax) / LF (image.JPEG_stuff.info (compo).shape_y);
+        sample_ratio_h := LF (sample_shape_x) / LF (image.JPEG_stuff.info (compo).shape_x);
+        sample_ratio_v := LF (sample_shape_y) / LF (image.JPEG_stuff.info (compo).shape_y);
         --  PUT_LINE ("sample_ratio_h" & sample_ratio_h'Image);
         --  PUT_LINE ("sample_ratio_v" & sample_ratio_v'Image);
         layer_width := LF (image.width) / sample_ratio_h;
@@ -1547,7 +1624,13 @@ package body GID.Decoding_JPG is
         mcu_count_h := Integer (LF'Ceiling (layer_width / LF (mcu_width)));
         mcu_count_v := Integer (LF'Ceiling (layer_height / LF (mcu_height)));
       end if;
+
       mcu_count := mcu_count_h * mcu_count_v;
+
+      --  Create the image array (if one does not exist already)
+      if image.progressive and then image_array = null then
+        Create_Image_Array;
+      end if;
 
       if some_trace then
         New_Line;
@@ -1612,24 +1695,6 @@ package body GID.Decoding_JPG is
         (Progressive_Bitmap, Progressive_Bitmap_Access);
 
   begin  --  Load
-
-    if image.progressive then
-      image_array :=
-        new Progressive_Bitmap
-          (0 .. image.width  + 7,
-           0 .. image.height + 7,
-           1 .. image.subformat_id);
-
-      for x in image_array'Range (1) loop
-        for y in image_array'Range (2) loop
-          for cid in image_array'Range (3) loop
-            image_array (x, y, cid) := 0;
-          end loop;
-        end loop;
-      end loop;
-
-    end if;
-
     loop
       if full_trace then
         Put_Line ("Reading Segment Marker (Load)");
