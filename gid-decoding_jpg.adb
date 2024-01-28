@@ -723,6 +723,34 @@ package body GID.Decoding_JPG is
       code : U8;
       qt_local : JPEG_Defs.Quantization_Table
         renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
+    begin
+      -------------------------------------------------
+      --  Step 2 happens here: Inverse quantization  --
+      -------------------------------------------------
+      --  DC value:
+      Get_VLC (image.JPEG_stuff.vlc_defs (DC, info_B (c).ht_idx_DC).all, code, value);
+      --  First value in block (0: top left) uses a predictor.
+      info_B (c).dc_predictor := info_B (c).dc_predictor + value;
+      block := (0 => info_B (c).dc_predictor * qt_local (0), others => 0);
+      coef := 0;
+      loop
+        --  AC value:
+        Get_VLC (image.JPEG_stuff.vlc_defs (AC, info_B (c).ht_idx_AC).all, code, value);
+        exit when code = 0;  --  EOB
+        if (code and 16#0F#) = 0 and code /= 16#F0# then
+          raise error_in_image_data with "JPEG: error in VLC AC code for de-quantization";
+        end if;
+        coef := coef + Integer (Shift_Right (code, 4)) + 1;
+        if coef > 63 then
+          raise error_in_image_data with "JPEG: coefficient for de-quantization is > 63";
+        end if;
+        --  Undo the zigzag scan and apply de-quantization:
+        block (zig_zag (coef)) := value * qt_local (coef);
+        exit when coef = 63;
+      end loop;
+    end Decode_8x8_Block;
+
+    procedure Inverse_DCT_8x8_Block (block : in out Block_8x8) is
       --
       W1 : constant := 2841;
       W2 : constant := 2676;
@@ -829,31 +857,7 @@ package body GID.Decoding_JPG is
         end if;
       end Col_IDCT;
 
-    begin  --  Decode_8x8_Block
-      -------------------------------------------------
-      --  Step 2 happens here: Inverse quantization  --
-      -------------------------------------------------
-      --  DC value:
-      Get_VLC (image.JPEG_stuff.vlc_defs (DC, info_B (c).ht_idx_DC).all, code, value);
-      --  First value in block (0: top left) uses a predictor.
-      info_B (c).dc_predictor := info_B (c).dc_predictor + value;
-      block := (0 => info_B (c).dc_predictor * qt_local (0), others => 0);
-      coef := 0;
-      loop
-        --  AC value:
-        Get_VLC (image.JPEG_stuff.vlc_defs (AC, info_B (c).ht_idx_AC).all, code, value);
-        exit when code = 0;  --  EOB
-        if (code and 16#0F#) = 0 and code /= 16#F0# then
-          raise error_in_image_data with "JPEG: error in VLC AC code for de-quantization";
-        end if;
-        coef := coef + Integer (Shift_Right (code, 4)) + 1;
-        if coef > 63 then
-          raise error_in_image_data with "JPEG: coefficient for de-quantization is > 63";
-        end if;
-        --  Undo the zigzag scan and apply de-quantization:
-        block (zig_zag (coef)) := value * qt_local (coef);
-        exit when coef = 63;
-      end loop;
+    begin
       -----------------------------------------------------
       --  Step 3 happens here: Inverse cosine transform  --
       -----------------------------------------------------
@@ -863,7 +867,7 @@ package body GID.Decoding_JPG is
       for column in 0 .. 7 loop
         Col_IDCT (column);
       end loop;
-    end Decode_8x8_Block;
+    end Inverse_DCT_8x8_Block;
 
     procedure Out_Pixel_8 (br, bg, bb : U8) is
     pragma Inline (Out_Pixel_8);
@@ -1068,6 +1072,8 @@ package body GID.Decoding_JPG is
               for sbx in 1 .. info_A (c).samples_hor loop
                 --  Steps 1, 2, 3 happen here:
                 Decode_8x8_Block (c, mb (c, sbx, sby));
+                --  Step 3 happens here:
+                Inverse_DCT_8x8_Block (mb (c, sbx, sby));
               end loop samples_x_loop;
             end loop samples_y_loop;
           end if;
@@ -1487,6 +1493,7 @@ package body GID.Decoding_JPG is
 
           --  Perform the inverse discrete cosine transform (IDCT)
           --  on the block to get the color values
+          Inverse_DCT_8x8_Block (block);
 
           --  TBD: around LINE 1377 in jpeg.py
 
