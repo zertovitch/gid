@@ -1091,12 +1091,12 @@ package body GID.Decoding_JPG is
         Upsampling_and_Output (mb, x0, y0);
         --
         mb_x := mb_x + 1;
-        x0 := x0 + Integer_32 (ssxmax * 8);
+        x0 := x0 + Integer_32 (sample_shape_max_x);
         if mb_x >= mcu_count_image_h then
           mb_x := 0;
           x0 := 0;
           mb_y := mb_y + 1;
-          y0 := y0 + Integer_32 (ssymax * 8);
+          y0 := y0 + Integer_32 (sample_shape_max_y);
           Feedback ((100 * mb_y) / mcu_count_image_v);
           exit macro_blocks_loop when mb_y >= mcu_count_image_v;
         end if;
@@ -1471,9 +1471,15 @@ package body GID.Decoding_JPG is
     procedure Finalize_Progressive_DCT_Decoding is
       mb : Macro_8x8_Block (Component, 1 .. ssxmax, 1 .. ssymax);
       x0, y0 : Integer_32 := 0;
-      xia, yia : array (Component) of Integer_32 := (others => 0);
       mb_x, mb_y : Natural := 0;
       c_idx : Natural;
+
+      --  Coordinates in the temporary image_array are *not* extended
+      --  for the upsampling, which gives a bit more complexity, especially
+      --  since it depends on settings *per component*...
+      x_image_array, y_image_array :
+        array (Component) of Integer_32 := (others => 0);
+
     begin
       macro_blocks_loop :
       loop
@@ -1496,8 +1502,8 @@ package body GID.Decoding_JPG is
                     for xb in 0 .. 7 loop
                       block (xb + yb * 8) :=
                         image_array
-                          (xia (c) + Integer_32 (8 * (sbx - 1) + xb),
-                           yia (c) + Integer_32 (8 * (sby - 1) + yb),
+                          (x_image_array (c) + Integer_32 (8 * (sbx - 1) + xb),
+                           y_image_array (c) + Integer_32 (8 * (sby - 1) + yb),
                            c_idx);
                     end loop;
                   end loop;
@@ -1510,22 +1516,24 @@ package body GID.Decoding_JPG is
               end loop samples_x_loop;
             end loop samples_y_loop;
           end if;
-          xia (c) := xia (c) + Integer_32 (info_A (c).samples_hor * 8);
+          x_image_array (c) :=
+            x_image_array (c) + Integer_32 (info_A (c).samples_hor * 8);
         end loop components_loop;
         --  All components of the current macro-block are now processed.
         --  Steps 4, 5, 6 happen here:
         Upsampling_and_Output (mb, x0, y0);
         --
         mb_x := mb_x + 1;
-        x0 := x0 + Integer_32 (ssxmax * 8);
+        x0 := x0 + Integer_32 (sample_shape_max_x);
         if mb_x >= mcu_count_image_h then
           mb_x := 0;
           x0 := 0;
           mb_y := mb_y + 1;
-          y0 := y0 + Integer_32 (ssymax * 8);
+          y0 := y0 + Integer_32 (sample_shape_max_y);
           for c in Component loop
-            xia (c) := 0;
-            yia (c) := yia (c) + Integer_32 (info_A (c).samples_ver * 8);
+            x_image_array (c) := 0;
+            y_image_array (c) :=
+              y_image_array (c) + Integer_32 (info_A (c).samples_ver * 8);
           end loop;
           Feedback ((100 * mb_y) / mcu_count_image_v);
           exit macro_blocks_loop when mb_y >= mcu_count_image_v;
@@ -1625,8 +1633,8 @@ package body GID.Decoding_JPG is
       --
 
       if components_amount > 1 then
-        mcu_width  := ssxmax * 8;  --  Pixels in a row of a MCU (Minimum Coded Unit) block
-        mcu_height := ssymax * 8;  --  Pixels in a column of a MCU block
+        mcu_width  := sample_shape_max_x;  --  Pixels in a row of a MCU (Minimum Coded Unit) block
+        mcu_height := sample_shape_max_y;  --  Pixels in a column of a MCU block
         mcu_count_h := (Integer (image.width)  + mcu_width - 1) / mcu_width;
         mcu_count_v := (Integer (image.height) + mcu_height - 1) / mcu_height;
         mcu_count_image_h := mcu_count_h;

@@ -21,7 +21,8 @@
 --  Credits:
 --
 --     - Andre van Splunter: GIF's LZW decoder in Ada
---     - Martin J. Fiedler: most of the JPEG decoder (from NanoJPEG)
+--     - Martin J. Fiedler: most of baseline JPEG (from NanoJPEG)
+--     - Tiago Becerra Paolini: most of progressive JPEG (from PyJpegDecoder)
 --
 --     More credits in gid_work.xls, sheet "credits".
 --
@@ -361,15 +362,15 @@ private
   --  Primitive tracing using Ada.Text_IO, for debugging,
   --  or explaining internals.
   --
-  type Trace_Type is
-    (none,    -- No trace at all, no use of console from the library
-     some_t,  -- Image / frame technical informations
-     full);   -- Byte / pixel / compressed block details
+  subtype Trace_Type is Integer range 0 .. 9;
+  --  0  :  No trace at all, no use of console from the library
+  --  1  :  Image / frame technical informations
+  --  9  :  Byte / pixel / compressed block details
 
-  trace : constant Trace_Type := none;  --  <=====  The choice is here
+  trace : constant Trace_Type := 0;  --  <=====  The choice is here
 
-  no_trace   : constant Boolean := trace = none;
-  full_trace : constant Boolean := trace = full;
-  some_trace : constant Boolean := trace >= some_t;
+  no_trace   : constant Boolean := trace  = 0;
+  full_trace : constant Boolean := trace  = 9;
+  some_trace : constant Boolean := trace >= 1;
 
 end GID;
