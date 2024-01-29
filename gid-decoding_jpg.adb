@@ -904,8 +904,8 @@ package body GID.Decoding_JPG is
     ssxmax : constant Natural := image.JPEG_stuff.max_samples_hor;
     ssymax : constant Natural := image.JPEG_stuff.max_samples_ver;
 
-    sample_shape_x : constant Natural := 8 * ssxmax;
-    sample_shape_y : constant Natural := 8 * ssymax;
+    sample_shape_max_x : constant Natural := 8 * ssxmax;
+    sample_shape_max_y : constant Natural := 8 * ssymax;
 
     scan_compo_set : Compo_Set_Type;
 
@@ -915,9 +915,16 @@ package body GID.Decoding_JPG is
        Positive range <>)   --  y sample range
     of Block_8x8;
 
-    procedure Upsampling_and_Output (m : Macro_8x8_Block; x0, y0 : Natural) is
+    procedure Upsampling_and_Output
+      (macro_block : Macro_8x8_Block;
+       x0, y0      : Natural_32)
+    is
 
-      flat : array (Component, 0 .. sample_shape_x - 1, 0 .. sample_shape_y - 1) of Integer;
+      flat :
+        array
+          (Component,
+           0 .. sample_shape_max_x - 1,
+           0 .. sample_shape_max_y - 1) of Integer;
 
       generic
         color_space : Supported_color_space;
@@ -928,10 +935,10 @@ package body GID.Decoding_JPG is
         y_val_8 : U8;
       begin
         for ymb in flat'Range (3) loop
-          exit when y0 + ymb >= Integer (image.height);
-          Set_X_Y (x0, Integer (image.height) - 1 - (y0 + ymb));
+          exit when y0 + Integer_32 (ymb) >= image.height;
+          Set_X_Y (Integer (x0), Integer (image.height - 1 - (y0 + Integer_32 (ymb))));
           for xmb in flat'Range (2) loop
-            exit when x0 + xmb >= Integer (image.width);
+            exit when x0 + Integer_32 (xmb) >= image.width;
             case color_space is
               when YCbCr =>
                 y_val  := flat (Y,  xmb, ymb) * 256;
@@ -972,7 +979,7 @@ package body GID.Decoding_JPG is
       --  Step 4 happens here: Upsampling  --
       ---------------------------------------
       for c in Component loop
-        if scan_compo_set (c) then
+        if image.JPEG_stuff.compo_set (c) then
           upsx := info_A (c).up_factor_x;
           upsy := info_A (c).up_factor_y;
           for x in reverse 1 .. info_A (c).samples_hor loop
@@ -982,7 +989,7 @@ package body GID.Decoding_JPG is
               for y8 in reverse 0 .. 7 loop
                 for x8 in reverse 0 .. 7 loop
                   declare
-                    val : constant Integer := m (c, x, y)(blk_idx);
+                    val : constant Integer := macro_block (c, x, y)(blk_idx);
                     big_pixel_x : constant Natural := upsx * (x8 + 8 * (x - 1));
                     big_pixel_y : constant Natural := upsy * (y8 + 8 * (y - 1));
                   begin
@@ -1015,6 +1022,7 @@ package body GID.Decoding_JPG is
     end Upsampling_and_Output;
 
     mcu_count, mcu_count_h, mcu_count_v : Natural;
+    mcu_count_image_h, mcu_count_image_v : Natural := 0;
 
     --  RST (restart) markers:
     rst_count : Natural;
@@ -1055,7 +1063,7 @@ package body GID.Decoding_JPG is
 
     procedure Baseline_DCT_Decoding_Scan is
       mb : Macro_8x8_Block (Component, 1 .. ssxmax, 1 .. ssymax);
-      x0, y0 : Integer := 0;
+      x0, y0 : Integer_32 := 0;
       mb_x, mb_y : Natural := 0;
     begin
       rst_count := image.JPEG_stuff.restart_interval;
@@ -1065,12 +1073,12 @@ package body GID.Decoding_JPG is
       loop
         components_loop :
         for c in Component loop
-          if scan_compo_set (c) then
+          if image.JPEG_stuff.compo_set (c) then
             samples_y_loop :
             for sby in 1 .. info_A (c).samples_ver loop
               samples_x_loop :
               for sbx in 1 .. info_A (c).samples_hor loop
-                --  Steps 1, 2, 3 happen here:
+                --  Steps 1 and 2 happen here:
                 Decode_8x8_Block (c, mb (c, sbx, sby));
                 --  Step 3 happens here:
                 Inverse_DCT_8x8_Block (mb (c, sbx, sby));
@@ -1083,14 +1091,14 @@ package body GID.Decoding_JPG is
         Upsampling_and_Output (mb, x0, y0);
         --
         mb_x := mb_x + 1;
-        x0 := x0 + ssxmax * 8;
-        if mb_x >= mcu_count_h then
+        x0 := x0 + Integer_32 (ssxmax * 8);
+        if mb_x >= mcu_count_image_h then
           mb_x := 0;
           x0 := 0;
           mb_y := mb_y + 1;
-          y0 := y0 + ssymax * 8;
-          Feedback ((100 * mb_y) / mcu_count_v);
-          exit macro_blocks_loop when mb_y >= mcu_count_v;
+          y0 := y0 + Integer_32 (ssymax * 8);
+          Feedback ((100 * mb_y) / mcu_count_image_v);
+          exit macro_blocks_loop when mb_y >= mcu_count_image_v;
         end if;
         Check_Restart (True);
       end loop macro_blocks_loop;
@@ -1213,6 +1221,14 @@ package body GID.Decoding_JPG is
         procedure Append (x, y : Integer_32) is
         begin
           refine_index_last := refine_index_last + 1;
+          if refine_index_last > max_refine_index then
+            --  This check is unnecessary... unless
+            --  built-in checks have been disabled.
+            raise Constraint_Error
+              with
+                "Progressive JPEG: refining buffer capacity" &
+                max_refine_index'Image & " exceeded";
+          end if;
           refine_point_x (refine_index_last) := x;
           refine_point_y (refine_index_last) := y;
         end Append;
@@ -1453,68 +1469,71 @@ package body GID.Decoding_JPG is
     end Progressive_DCT_Decoding_Scan;
 
     procedure Finalize_Progressive_DCT_Decoding is
-
-      procedure Finalize_Color_Component (c : Component; c_idx : Natural) is
-        --  Quantization table used by the component:
-        qt_local : JPEG_Defs.Quantization_Table
-          renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
-        --  Subsampling ratio:
-        ratio_h : constant Integer := sample_shape_x / image.JPEG_stuff.info (c).shape_x;
-        ratio_v : constant Integer := sample_shape_y / image.JPEG_stuff.info (c).shape_y;
-        --  Dimensions of the MCU *of the component*:
-        component_width  : constant Integer_32 := array_width  / Integer_32 (ratio_h);
-        component_height : constant Integer_32 := array_height / Integer_32 (ratio_v);
-        --  Amount of MCUs (*for this component*):
-        mcu_count_h_c : constant Integer_32 := component_width / 8;
-        mcu_count_v_c : constant Integer_32 := component_height / 8;
-        mcu_count_c  : constant Integer_32 := mcu_count_h_c * mcu_count_v_c;
-
-        x1, y1 : Integer_32;
-
-        block : Block_8x8;
-      begin
-        for current_mcu in 0 .. mcu_count_c - 1 loop
-          --  Get coordinates of the block's corner:
-          x1 := (current_mcu mod mcu_count_h_c) * 8;
-          y1 := (current_mcu  /  mcu_count_h_c) * 8;
-
-          --  Copy block data:
-          for yb in 0 .. 7 loop
-            for xb in 0 .. 7 loop
-              block (xb + yb * 8) :=
-                image_array (x1 + Integer_32 (xb), y1 + Integer_32 (yb), c_idx);
-            end loop;
-          end loop;
-
-          --  Undo quantization on the block:
-          for i in 0 .. 63 loop
-            block (i) := block (i) * qt_local (i);
-          end loop;
-
-          --  Perform the inverse discrete cosine transform (IDCT)
-          --  on the block to get the color values
-          Inverse_DCT_8x8_Block (block);
-
-          --  TBD: around LINE 1377 in jpeg.py
-
-        end loop;
-
-        --  !!  Remove when complete.
-        raise unsupported_image_subformat
-          with "JPEG: progressive format not yet functional";
-
-      end Finalize_Color_Component;
-
-      c_idx : Natural := 0;
-
+      mb : Macro_8x8_Block (Component, 1 .. ssxmax, 1 .. ssymax);
+      x0, y0 : Integer_32 := 0;
+      xia, yia : array (Component) of Integer_32 := (others => 0);
+      mb_x, mb_y : Natural := 0;
+      c_idx : Natural;
     begin
-      --  Perform the IDCT once all scans have finished
-      for c in Component loop
-        if image.JPEG_stuff.compo_set (c) then
-          c_idx := c_idx + 1;
-          Finalize_Color_Component (c, c_idx);
+      macro_blocks_loop :
+      loop
+        c_idx := 0;
+        components_loop :
+        for c in Component loop
+          if image.JPEG_stuff.compo_set (c) then
+            c_idx := c_idx + 1;
+            samples_y_loop :
+            for sby in 1 .. info_A (c).samples_ver loop
+              samples_x_loop :
+              for sbx in 1 .. info_A (c).samples_hor loop
+                declare
+                  block : Block_8x8 renames mb (c, sbx, sby);
+                  qt_local : JPEG_Defs.Quantization_Table
+                    renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
+                begin
+                  --  Copy block data:
+                  for yb in 0 .. 7 loop
+                    for xb in 0 .. 7 loop
+                      block (xb + yb * 8) :=
+                        image_array
+                          (xia (c) + Integer_32 (8 * (sbx - 1) + xb),
+                           yia (c) + Integer_32 (8 * (sby - 1) + yb),
+                           c_idx);
+                    end loop;
+                  end loop;
+                  --  Undo quantization on the block:
+                  for i in 0 .. 63 loop
+                    block (i) := block (i) * qt_local (i);
+                  end loop;
+                  Inverse_DCT_8x8_Block (block);
+                end;
+              end loop samples_x_loop;
+            end loop samples_y_loop;
+          end if;
+          xia (c) := xia (c) + Integer_32 (info_A (c).samples_hor * 8);
+        end loop components_loop;
+        --  All components of the current macro-block are now processed.
+        --  Steps 4, 5, 6 happen here:
+        Upsampling_and_Output (mb, x0, y0);
+        --
+        mb_x := mb_x + 1;
+        x0 := x0 + Integer_32 (ssxmax * 8);
+        if mb_x >= mcu_count_image_h then
+          mb_x := 0;
+          x0 := 0;
+          mb_y := mb_y + 1;
+          y0 := y0 + Integer_32 (ssymax * 8);
+          for c in Component loop
+            xia (c) := 0;
+            yia (c) := yia (c) + Integer_32 (info_A (c).samples_ver * 8);
+          end loop;
+          Feedback ((100 * mb_y) / mcu_count_image_v);
+          exit macro_blocks_loop when mb_y >= mcu_count_image_v;
         end if;
-      end loop;
+      end loop macro_blocks_loop;
+      --  !!  Remove when outputs are optically OK.
+      raise unsupported_image_subformat
+        with "JPEG: progressive format functional but has some color glitches";
     end Finalize_Progressive_DCT_Decoding;
 
     --  Start Of Scan (and image data which follow)
@@ -1526,8 +1545,8 @@ package body GID.Decoding_JPG is
       begin
         --  3-dimensional array to store the color values of each pixel on the image
         --  array(x-coordinate, y-coordinate, color)
-        sx := Natural_32 (sample_shape_x);
-        sy := Natural_32 (sample_shape_y);
+        sx := Natural_32 (sample_shape_max_x);
+        sy := Natural_32 (sample_shape_max_y);
         --  Include padding if dimensions are not exactly a multiple of sx or sy.
         count_h := (image.width  / sx) + (if image.width  mod sx = 0 then 0 else 1);
         count_v := (image.height / sy) + (if image.height mod sy = 0 then 0 else 1);
@@ -1610,26 +1629,28 @@ package body GID.Decoding_JPG is
         mcu_height := ssymax * 8;  --  Pixels in a column of a MCU block
         mcu_count_h := (Integer (image.width)  + mcu_width - 1) / mcu_width;
         mcu_count_v := (Integer (image.height) + mcu_height - 1) / mcu_height;
+        mcu_count_image_h := mcu_count_h;
+        mcu_count_image_v := mcu_count_v;
       else
         --  PyJpegDecoder:
         --  "If there is only one color component in the scan,
         --   then the MCU size is always 8 x 8."
         mcu_width  := 8;
         mcu_height := 8;
-        --
-        --  !! translated from py code but something is wrong.
-        --     Anyway, why not use the general formula?
-        --
-        --  PUT_LINE ("sample_shape x" & ssxmax'Image);
-        --  PUT_LINE ("sample_shape y" & ssymax'Image);
-        sample_ratio_h := LF (sample_shape_x) / LF (image.JPEG_stuff.info (compo).shape_x);
-        sample_ratio_v := LF (sample_shape_y) / LF (image.JPEG_stuff.info (compo).shape_y);
-        --  PUT_LINE ("sample_ratio_h" & sample_ratio_h'Image);
-        --  PUT_LINE ("sample_ratio_v" & sample_ratio_v'Image);
-        layer_width := LF (image.width) / sample_ratio_h;
+        sample_ratio_h := LF (sample_shape_max_x) / LF (image.JPEG_stuff.info (compo).shape_x);
+        sample_ratio_v := LF (sample_shape_max_y) / LF (image.JPEG_stuff.info (compo).shape_y);
+        layer_width  := LF (image.width) / sample_ratio_h;
         layer_height := LF (image.height) / sample_ratio_v;
         mcu_count_h := Integer (LF'Ceiling (layer_width / LF (mcu_width)));
         mcu_count_v := Integer (LF'Ceiling (layer_height / LF (mcu_height)));
+        --  In case of a monochrome image, all scans have
+        --  a single component (Y).
+        if mcu_count_image_h = 0 then
+          mcu_count_image_h := mcu_count_h;
+        end if;
+        if mcu_count_image_v = 0 then
+          mcu_count_image_v := mcu_count_v;
+        end if;
       end if;
 
       mcu_count := mcu_count_h * mcu_count_v;

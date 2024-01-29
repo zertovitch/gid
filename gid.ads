@@ -123,6 +123,7 @@ package GID is
     --
     with procedure Set_X_Y (x, y : Natural);
     --  After Set_X_Y, next pixel is meant to be displayed at position (x,y)
+    --  TBD: switch to Natural_32 for ensuring dimensions larger than 32767.
     with procedure Put_Pixel
       (red, green, blue : Primary_Color_Range;
        alpha            : Primary_Color_Range);
@@ -271,8 +272,8 @@ private
 
     type Info_per_Component_A is record  --  B is defined inside the decoder
       qt_assoc    : Natural;
-      samples_hor : Natural;
-      samples_ver : Natural;
+      samples_hor : Natural := 0;
+      samples_ver : Natural := 0;
       repeat      : Natural;
       shape_x     : Natural;  --  x dimension (in pixels) of the MCU
       shape_y     : Natural;  --  y dimension (in pixels) of the MCU
