@@ -365,12 +365,14 @@ private
   subtype Trace_Type is Integer range 0 .. 9;
   --  0  :  No trace at all, no use of console from the library
   --  1  :  Image / frame technical informations
-  --  9  :  Byte / pixel / compressed block details
+  --  2  :  Byte / pixel / compressed block details
+  --  9  :  Dump files
 
   trace : constant Trace_Type := 0;  --  <=====  The choice is here
 
   no_trace   : constant Boolean := trace  = 0;
-  full_trace : constant Boolean := trace  = 9;
   some_trace : constant Boolean := trace >= 1;
+  more_trace : constant Boolean := trace >= 2;
+  full_trace : constant Boolean := trace >= 9;
 
 end GID;
