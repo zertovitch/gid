@@ -196,10 +196,11 @@ package GID is
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String := "011";
-  reference : constant String := "27-Jan-2024";
+  version   : constant String := "012 preview 1";
+  reference : constant String := "02-Feb-2024";
   web       : constant String := "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..........^
+  --
   --  There is a mirror too @ https://github.com/zertovitch/gid
 
 private

@@ -377,7 +377,7 @@ package body GID.Decoding_JPG is
   end Read_DHT;
 
   procedure Read_DQT (image : in out Image_Descriptor; data_length : Natural) is
-    remaining : Integer := data_length; -- data remaining in segment
+    remaining : Integer := data_length;  --  Data remaining in segment
     b, q8 : U8; q16 : U16;
     qt_idx : Natural;
     high_prec : Boolean;
@@ -711,12 +711,18 @@ package body GID.Decoding_JPG is
     type Block_8x8 is array (0 .. 63) of Integer;
 
     --  Ordering within a 8x8 block, in zig-zag
+    --  See: Figure 5 - Preparation of quantized
+    --       coefficients for entropy encoding
+    --
     zig_zag : constant Block_8x8 :=
-      (0,  1,  8, 16,  9,  2,  3, 10, 17, 24, 32, 25, 18,
-      11,  4,  5, 12, 19, 26, 33, 40, 48, 41, 34, 27, 20,
-      13,  6,  7, 14, 21, 28, 35, 42, 49, 56, 57, 50, 43,
-      36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 59, 52, 45,
-      38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63);
+      (0,  1,  8, 16,  9,  2,  3, 10,
+      17, 24, 32, 25, 18, 11,  4,  5,
+      12, 19, 26, 33, 40, 48, 41, 34,
+      27, 20, 13,  6,  7, 14, 21, 28,
+      35, 42, 49, 56, 57, 50, 43, 36,
+      29, 22, 15, 23, 30, 37, 44, 51,
+      58, 59, 52, 45, 38, 31, 39, 46,
+      53, 60, 61, 54, 47, 55, 62, 63);
 
     procedure Decode_8x8_Block (c : Component; block : in out Block_8x8) is
       value, coef : Integer;
@@ -1029,34 +1035,39 @@ package body GID.Decoding_JPG is
     next_rst : U16;
 
     procedure Check_Restart (do_reset_predictors : Boolean) is
-      w : U16;
+
+      procedure Restart is
+        w : U16;
+      begin
+        buf_bits := Natural (U32 (buf_bits) and 16#F8#);  --  Byte alignment
+        --  Now the restart marker.
+        w := U16 (Get_Bits (16));
+        if some_trace then
+          Put_Line
+            ("  Restart #" & next_rst'Image &
+             "  Code " & w'Image &
+             " after" & image.JPEG_stuff.restart_interval'Image &
+             " macro blocks");
+        end if;
+        if w not in 16#FFD0# .. 16#FFD7# or (w and 7) /= next_rst then
+          raise error_in_image_data with
+            "JPEG: expected RST (restart) marker Nb " & next_rst'Image;
+        end if;
+        next_rst := (next_rst + 1) and 7;
+        rst_count := image.JPEG_stuff.restart_interval;
+        if do_reset_predictors then
+          --  Block-to-block predictor variables are reset.
+          for c in Component loop
+            info_B (c).dc_predictor := 0;
+          end loop;
+        end if;
+      end Restart;
+
     begin
       if image.JPEG_stuff.restart_interval > 0 then
         rst_count := rst_count - 1;
         if rst_count = 0 then
-          --  Here begins the restart.
-          buf_bits := Natural (U32 (buf_bits) and 16#F8#);  --  Byte alignment
-          --  Now the restart marker.
-          w := U16 (Get_Bits (16));
-          if some_trace then
-            Put_Line
-              ("  Restart #" & next_rst'Image &
-               "  Code " & w'Image &
-               " after" & image.JPEG_stuff.restart_interval'Image &
-               " macro blocks");
-          end if;
-          if w not in 16#FFD0# .. 16#FFD7# or (w and 7) /= next_rst then
-            raise error_in_image_data with
-              "JPEG: expected RST (restart) marker Nb " & next_rst'Image;
-          end if;
-          next_rst := (next_rst + 1) and 7;
-          rst_count := image.JPEG_stuff.restart_interval;
-          if do_reset_predictors then
-            --  Block-to-block predictor variables are reset.
-            for c in Component loop
-              info_B (c).dc_predictor := 0;
-            end loop;
-          end if;
+          Restart;
         end if;
       end if;
     end Check_Restart;
@@ -1100,7 +1111,7 @@ package body GID.Decoding_JPG is
           Feedback ((100 * mb_y) / mcu_count_image_v);
           exit macro_blocks_loop when mb_y >= mcu_count_image_v;
         end if;
-        Check_Restart (True);
+        Check_Restart (do_reset_predictors => True);
       end loop macro_blocks_loop;
     end Baseline_DCT_Decoding_Scan;
 
@@ -1123,6 +1134,7 @@ package body GID.Decoding_JPG is
 
     dump_file : File_Type;
     dump_sep  : constant Character := ';';
+    max_refine_index_last : Natural := 0;  --  For statistics
 
     procedure Progressive_DCT_Decoding_Scan
       (spectral_selection_start,
@@ -1226,8 +1238,10 @@ package body GID.Decoding_JPG is
               compo_idx := compo_idx + 1;
             end if;
           end loop Component_Loop;
-          Check_Restart (not refining);
-          Feedback ((50 * current_mcu) / mcu_count);
+          Check_Restart (do_reset_predictors => not refining);
+          if scan_count = 1 then
+            Feedback ((50 * current_mcu) / mcu_count);
+          end if;
         end loop MCU_Loop;
       end Progressive_DC_Scan;
 
@@ -1269,29 +1283,63 @@ package body GID.Decoding_JPG is
 
         --  Refining procedure
         procedure Refine_AC is
-          --  Perform the refinement of the AC values on a progressive scan.
-          refine_bits : Integer := Get_Bits (refine_index_last);
-          new_bit : Integer;
-          x, y : Integer_32;
+
+          idx : Integer := 1;
+          amount : Integer := refine_index_last;
+
+          procedure Refine_Batch (length : Integer) is
+            --  Perform the refinement of the AC values on a progressive scan.
+            refine_bits : constant Unsigned_32 := Unsigned_32 (Get_Bits (length));
+            mask : Unsigned_32 := 2 ** (length - 1);
+            new_bit, mem : Integer;
+            x, y : Integer_32;
+          begin
+            for i in 1 .. length loop
+              x := refine_point_x (idx);
+              y := refine_point_y (idx);
+              if (refine_bits and mask) /= 0 then
+                new_bit := 2 ** bit_position_low;
+              else
+                new_bit := 0;
+              end if;
+              mask := Shift_Right (mask, 1);
+              if full_trace then
+                mem := image_array (x, y, compo_idx);
+              end if;
+              image_array (x, y, compo_idx) :=
+                image_array (x, y, compo_idx) + new_bit;
+              if full_trace then
+                Put_Line
+                  (dump_file,
+                   dump_sep & dump_sep & dump_sep &
+                   Integer_32'Image (x) & dump_sep &
+                   Integer_32'Image (y) & dump_sep &
+                   mem'Image & dump_sep &
+                   image_array
+                   (x, y, compo_idx)'Image & dump_sep &
+                   "refine_ac" & dump_sep &
+                   "new_bit =" & new_bit'Image);
+              end if;
+              idx := idx + 1;
+            end loop;
+            amount := amount - length;
+          end Refine_Batch;
+
+          batch_size : constant := 16;
+
         begin
-          for i in 1 .. refine_index_last loop
-            new_bit := refine_bits rem 2;
-            refine_bits := refine_bits / 2;
-            x := refine_point_x (i);
-            y := refine_point_y (i);
-            image_array (x, y, compo_idx) :=
-              image_array (x, y, compo_idx) + new_bit * 2 ** bit_position_low;
-            if full_trace then
-              Put_Line
-                (dump_file,
-                 dump_sep & dump_sep & dump_sep &
-                 Integer_32'Image (x) & dump_sep &
-                 Integer_32'Image (y) & dump_sep &
-                 image_array
-                 (x, y, compo_idx)'Image & dump_sep &
-                 "refine_ac");
-            end if;
+          if full_trace and then refine_index_last > 0 then
+            --  Put_Line
+            --    (dump_file,
+            --     dump_sep & dump_sep &
+            --     "Refining list, length:" & refine_index_last'Image);
+            max_refine_index_last :=
+              Integer'Max (max_refine_index_last, refine_index_last);
+          end if;
+          while amount > batch_size loop
+            Refine_Batch (batch_size);
           end loop;
+          Refine_Batch (amount);
           refine_index_last := 0;
         end Refine_AC;
 
@@ -1299,7 +1347,7 @@ package body GID.Decoding_JPG is
         index : Integer;
         huffman_value, run_magnitute : Integer;
         ac_bits, ac_bits_length, eob_bits : Integer;
-        ac_value, current_value : Integer;
+        ac_value, current_value, mem_ac_value : Integer;
         ac_x, ac_y, xr, yr : Integer_32;
         current_mcu : Integer;
       begin
@@ -1410,9 +1458,19 @@ package body GID.Decoding_JPG is
                 while image_array (x + ac_x, y + ac_y, compo_idx) /= 0 loop
                   Append (x + ac_x, y + ac_y);
                   index := index + 1;
+                  if index > zag_zig'Last (1) then
+                    --  In case this package was compiled
+                    --  with range checks off...
+                    raise error_in_image_data with
+                      "JPEG, progressive: zig-zag index overflow";
+                  end if;
                   ac_x := zag_zig (index, 1);
                   ac_y := zag_zig (index, 2);
                 end loop;
+              end if;
+
+              if full_trace then
+                mem_ac_value := image_array (x + ac_x, y + ac_y, compo_idx);
               end if;
 
               --  Create a new ac_value
@@ -1425,9 +1483,11 @@ package body GID.Decoding_JPG is
                    dump_sep & dump_sep & dump_sep &
                    Integer_32'Image (x + ac_x) & dump_sep &
                    Integer_32'Image (y + ac_y) & dump_sep &
-                     image_array
+                   mem_ac_value'Image & dump_sep &
+                   image_array
                      (x + ac_x, y + ac_y, compo_idx)'Image & dump_sep &
-                   "new ac_value");
+                   "new ac_value" & dump_sep &
+                   "new bit =" & Integer'Image (ac_value * 2 ** bit_position_low));
               end if;
               --  Move to the next value
               index := index + 1;
@@ -1452,6 +1512,7 @@ package body GID.Decoding_JPG is
 
           --  Perform the end of band run
           if refining then
+
             while eob_run > 0 loop
               xr := zag_zig (index, 1);
               yr := zag_zig (index, 2);
@@ -1474,18 +1535,16 @@ package body GID.Decoding_JPG is
                 y := Natural_32 ((current_mcu  /  mcu_count_h) * 8);
               end if;
             end loop;
+
+            Refine_AC;
+
           else
              --  First scan
              current_mcu := current_mcu + eob_run;
              eob_run := 0;
           end if;
 
-          --  Refine the AC values found during the EOB run
-          if refining then  --  !!  could be moved to the previous "if refining"
-            Refine_AC;
-          end if;
-
-          Check_Restart (False);
+          Check_Restart (do_reset_predictors => False);
 
         end loop MCU_Loop;
       end Progressive_AC_Scan;
@@ -1548,7 +1607,46 @@ package body GID.Decoding_JPG is
       x_image_array, y_image_array :
         array (Component) of Integer_32 := (others => 0);
 
+      qt_zz : array (Component) of JPEG_Defs.Quantization_Table;
+
+      --  Reverse the zig-zag. If you follow the sequence 0, 1, 2, 3, ...
+      --  in the array below you find the original zig-zag sequence.
+      --  See also:
+      --    Figure A.6 - Zig-zag sequence of quantized DCT coefficients.
+      --
+      undo_zig_zag : constant array (0 .. 63) of Integer :=
+        (0,  1,  5,  6, 14, 15, 27, 28,
+         2,  4,  7, 13, 16, 26, 29, 42,
+         3,  8, 12, 17, 25, 30, 41, 43,
+         9, 11, 18, 24, 31, 40, 44, 53,
+        10, 19, 23, 32, 39, 45, 52, 54,
+        20, 22, 33, 38, 46, 51, 55, 60,
+        21, 34, 37, 47, 50, 56, 59, 61,
+        35, 36, 48, 49, 57, 58, 62, 63);
+
     begin
+      c_idx := 0;
+      for c in Component loop
+        if image.JPEG_stuff.compo_set (c) then
+          c_idx := c_idx + 1;
+          for i in qt_zz (c)'Range loop
+            qt_zz (c)(i) :=
+              image.JPEG_stuff.qt_list (info_A (c).qt_assoc)
+                (undo_zig_zag (i));
+          end loop;
+          if full_trace then
+            Put_Line (dump_file, "Image array (pre-IDCT) for " & c'Image);
+            for y in image_array'Range (2) loop
+              for x in image_array'Range (1) loop
+                Put (dump_file, image_array (x, y, c_idx)'Image & dump_sep);
+              end loop;
+              New_Line (dump_file);
+            end loop;
+            New_Line (dump_file);
+          end if;
+        end if;
+      end loop;
+      --
       macro_blocks_loop :
       loop
         c_idx := 0;
@@ -1562,8 +1660,7 @@ package body GID.Decoding_JPG is
               for sbx in 1 .. info_A (c).samples_hor loop
                 declare
                   block : Block_8x8 renames mb (c, sbx, sby);
-                  qt_local : JPEG_Defs.Quantization_Table
-                    renames image.JPEG_stuff.qt_list (info_A (c).qt_assoc);
+                  qt_local : JPEG_Defs.Quantization_Table renames qt_zz (c);
                 begin
                   --  Copy block data:
                   for yb in 0 .. 7 loop
@@ -1607,9 +1704,6 @@ package body GID.Decoding_JPG is
           exit macro_blocks_loop when mb_y >= mcu_count_image_v;
         end if;
       end loop macro_blocks_loop;
-      --  !!  Remove when outputs are optically OK.
-      raise unsupported_image_subformat
-        with "JPEG: progressive format functional but has some color glitches";
     end Finalize_Progressive_DCT_Decoding;
 
     --  Start Of Scan (and image data which follow)
@@ -1637,8 +1731,8 @@ package body GID.Decoding_JPG is
 
         for x in image_array'Range (1) loop
           for y in image_array'Range (2) loop
-            for cid in image_array'Range (3) loop
-              image_array (x, y, cid) := 0;
+            for c_idx in image_array'Range (3) loop
+              image_array (x, y, c_idx) := 0;
             end loop;
           end loop;
         end loop;
@@ -1805,7 +1899,7 @@ package body GID.Decoding_JPG is
   begin  --  Load
     if full_trace then
       Create (dump_file, Out_File, "jpeg_dump.csv");
-      Put_Line (dump_file, "Progressive : " & image.progressive'Image);
+      --  Put_Line (dump_file, "Progressive : " & image.progressive'Image);
     end if;
     loop
       if full_trace then
@@ -1870,6 +1964,12 @@ package body GID.Decoding_JPG is
     Dispose (image_array);
     if full_trace then
       Close (dump_file);
+      if image.progressive then
+        New_Line;
+        Put_Line
+          ("Longest refining list:" &
+           max_refine_index_last'Image & " points.");
+      end if;
     end if;
   end Load;
 
