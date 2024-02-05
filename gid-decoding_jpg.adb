@@ -67,8 +67,9 @@ package body GID.Decoding_JPG is
 
   --  B.1.1.3 Marker assignments
 
-  EOI_code   : constant := 16#D9#;
   DHT_code   : constant := 16#C4#;
+  DRI_code   : constant := 16#DD#;
+  EOI_code   : constant := 16#D9#;
   --
   RST_0_code : constant := 16#D0#;
   RST_1_code : constant := 16#D1#;
@@ -89,10 +90,10 @@ package body GID.Decoding_JPG is
     SOF_9  => 16#C9#, SOF_10 => 16#CA#, SOF_11 => 16#CB#, SOF_13 => 16#CD#,
     SOF_14 => 16#CE#, SOF_15 => 16#CF#,
     --
-    DHT => DHT_code,
     DAC => 16#CC#,
+    DHT => DHT_code,
     DQT => 16#DB#,
-    DRI => 16#DD#,
+    DRI => DRI_code,
     --
     RST_0 => RST_0_code,
     RST_1 => RST_1_code,
@@ -178,6 +179,9 @@ package body GID.Decoding_JPG is
   is
     dummy : U8;
   begin
+    if full_trace then
+      Put_Line ("Skipping segment: " & head.kind'Image);
+    end if;
     for i in 1 .. head.length loop
       Get_Byte (image.buffer, dummy);
     end loop;
@@ -407,11 +411,13 @@ package body GID.Decoding_JPG is
   end Read_DQT;
 
   procedure Read_DRI (image : in out Image_Descriptor) is
+    --  B.2.4.4 Restart interval definition syntax
+    --  DRI: Define restart interval marker
     ri : U16;
   begin
     Big_Endian (image.buffer, ri);
     if some_trace then
-      Put_Line ("  Restart interval set to:" & ri'Image);
+      Put_Line ("  Restart interval (DRI) set to:" & ri'Image);
     end if;
     image.JPEG_stuff.restart_interval := Natural (ri);
   end Read_DRI;
@@ -533,8 +539,8 @@ package body GID.Decoding_JPG is
     --
     --  Bit buffer
     --
-    buf : U32;
-    buf_bits : Natural;
+    bit_buffer : U32;
+    bit_buffer_length : Natural;
     --  A marker can appear when filling the bit buffer
     --  during a scan's decoding. Actually, at the end of
     --  the scan's data, it *will* appear (usually:
@@ -543,8 +549,8 @@ package body GID.Decoding_JPG is
 
     procedure Initialize_Bit_Buffer is
     begin
-      buf := 0;
-      buf_bits := 0;
+      bit_buffer := 0;
+      bit_buffer_length := 0;
       memo_marker := 0;
     end Initialize_Bit_Buffer;
 
@@ -554,11 +560,11 @@ package body GID.Decoding_JPG is
       if bits = 0 then
         return 0;
       end if;
-      while buf_bits < bits loop
+      while bit_buffer_length < bits loop
         begin
           Get_Byte (image.buffer, newbyte);
-          buf_bits := buf_bits + 8;
-          buf := Shift_Left (buf, 8) + U32 (newbyte);
+          bit_buffer_length := bit_buffer_length + 8;
+          bit_buffer := Shift_Left (bit_buffer, 8) + U32 (newbyte);
           if newbyte = 16#FF# then
             Get_Byte (image.buffer, possible_marker);
             if possible_marker = 0 then
@@ -578,8 +584,8 @@ package body GID.Decoding_JPG is
                   ("Bit buffer: possible marker found: " &
                    Marker_Image (possible_marker));
               end if;
-              buf_bits := buf_bits + 8;
-              buf := Shift_Left (buf, 8) + U32 (possible_marker);
+              bit_buffer_length := bit_buffer_length + 8;
+              bit_buffer := Shift_Left (bit_buffer, 8) + U32 (possible_marker);
               --  Many possible markers are naturally
               --  buffered in the bit buffer at the very end of the
               --  scan: EOI, DHT, SOS (next scan), ...
@@ -591,7 +597,8 @@ package body GID.Decoding_JPG is
                   if full_trace then
                     Put_Line ("Bit buffer: acquired EOI marker");
                   end if;
-                when RST_0_code .. RST_7_code | DHT_code | SOS_code =>
+                when DHT_code | DRI_code |
+                     RST_0_code .. RST_7_code | SOS_code =>
                   null;
                 when others =>
                   raise error_in_image_data with
@@ -603,13 +610,13 @@ package body GID.Decoding_JPG is
         exception
           when Ada.IO_Exceptions.End_Error =>
             newbyte := 16#FF#;
-            buf_bits := buf_bits + 8;
-            buf := Shift_Left (buf, 8) + U32 (newbyte);
+            bit_buffer_length := bit_buffer_length + 8;
+            bit_buffer := Shift_Left (bit_buffer, 8) + U32 (newbyte);
         end;
       end loop;
       return
         Natural
-          (Shift_Right (buf, buf_bits - bits)
+          (Shift_Right (bit_buffer, bit_buffer_length - bits)
            and
            (Shift_Left (1, bits) - 1));
     end Show_Bits;
@@ -619,10 +626,10 @@ package body GID.Decoding_JPG is
       dummy : Integer;
       pragma Unreferenced (dummy);
     begin
-      if buf_bits < bits then
+      if bit_buffer_length < bits then
         dummy := Show_Bits (bits);
       end if;
-      buf_bits := buf_bits - bits;
+      bit_buffer_length := bit_buffer_length - bits;
     end Skip_Bits;
 
     function Get_Bits (bits : Natural) return Integer is
@@ -673,28 +680,25 @@ package body GID.Decoding_JPG is
       end if;
     end Get_VLC;
 
-    function next_huffval (vlc : VLC_table) return Integer is
+    function Next_Huffval (vlc : VLC_table) return Integer is
       value : constant Integer := Show_Bits (16);
       bits  : constant Natural := Natural (vlc (value).bits);
     begin
       if bits = 0 then
-        if full_trace then
-          Put_Line ("Zero bits...");  --  Seems to happen in progressive AC ?
-          Skip_Line;
-        end if;
+        raise error_in_image_data with "JPEG: Huffman value: bits = 0";
       end if;
       Skip_Bits (bits);
       return Integer (vlc (value).code);
-    end next_huffval;
+    end Next_Huffval;
 
-    function bin_twos_complement (value, bit_length : Integer) return Integer is
+    function Bin_Twos_Complement (value, bit_length : Integer) return Integer is
     begin
       if value < Integer (Shift_Left (U32'(1), bit_length - 1)) then
         return value + 1 - Integer (Shift_Left (U32'(1), bit_length));
       else
         return value;
       end if;
-    end bin_twos_complement;
+    end Bin_Twos_Complement;
 
     function Clip (x : Integer) return Integer is
     pragma Inline (Clip);
@@ -1037,21 +1041,29 @@ package body GID.Decoding_JPG is
     procedure Check_Restart (do_reset_predictors : Boolean) is
 
       procedure Restart is
-        w : U16;
+        w, expected : U16;
+        package BIO is new Modular_IO (U16);
+        hexa_w, hexa_exp : String (1 .. 8);
       begin
-        buf_bits := Natural (U32 (buf_bits) and 16#F8#);  --  Byte alignment
-        --  Now the restart marker.
+        --  Byte alignment:
+        bit_buffer_length := Natural (U32 (bit_buffer_length) and 16#F8#);
+        --  Now, the restart marker:
         w := U16 (Get_Bits (16));
+        BIO.Put (hexa_w, w, 16);
         if some_trace then
           Put_Line
             ("  Restart #" & next_rst'Image &
-             "  Code " & w'Image &
+             "  Code " & hexa_w &
              " after" & image.JPEG_stuff.restart_interval'Image &
              " macro blocks");
         end if;
-        if w not in 16#FFD0# .. 16#FFD7# or (w and 7) /= next_rst then
+        expected := 16#FFD0# + next_rst;
+        if w /= expected then
+          BIO.Put (hexa_exp, expected, 16);
           raise error_in_image_data with
-            "JPEG: expected RST (restart) marker Nb " & next_rst'Image;
+            "JPEG: expected RST (restart) marker Nb" & next_rst'Image &
+            "; code found " & hexa_w &
+            "; expected " & hexa_exp;
         end if;
         next_rst := (next_rst + 1) and 7;
         rst_count := image.JPEG_stuff.restart_interval;
@@ -1238,7 +1250,12 @@ package body GID.Decoding_JPG is
               compo_idx := compo_idx + 1;
             end if;
           end loop Component_Loop;
-          Check_Restart (do_reset_predictors => not refining);
+          if current_mcu < mcu_count - 1 then
+            --  B.2.1 High-level syntax
+            --  Restart marker: a conditional marker which is placed
+            --  *between* entropy-coded segments.
+            Check_Restart (do_reset_predictors => not refining);
+          end if;
           if scan_count = 1 then
             Feedback ((50 * current_mcu) / mcu_count);
           end if;
@@ -1256,6 +1273,22 @@ package body GID.Decoding_JPG is
           (5, 6), (4, 7), (5, 7), (6, 6), (7, 5), (7, 6), (6, 7), (7, 7));
 
       procedure Progressive_AC_Scan is
+        --  !! TBD: fix glitches in the AC scan.
+        --
+        --  - When scans are done, the data in image_array is not identical
+        --      to that of PyJpegDecoder, although it is identical after
+        --      all write operations into image_array...
+        --      However, the output image is visually similar to
+        --      PyJpegDecoder's; both are of slightly inferior quality to
+        --      common decoders': some artifacts (Gibbs effect, color stripes)
+        --      are more visible.
+        --
+        --  - Images with Restart markers crash the decoder in the AC scan
+        --      phase: for some reason, the RST_0 marker appears too early.
+        --      Strangely, the decoder works fine for images without Restart
+        --      markers. A way of investigating the issue would be to run
+        --      GID and PyJpegDecoder step-by-step on the same data.
+        --
 
         compo_idx : Integer := 0;
 
@@ -1271,7 +1304,7 @@ package body GID.Decoding_JPG is
           refine_index_last := refine_index_last + 1;
           if refine_index_last > max_refine_index then
             --  This check is unnecessary... unless
-            --  built-in checks have been disabled.
+            --  the built-in range checks have been disabled.
             raise Constraint_Error
               with
                 "Progressive JPEG: refining buffer capacity" &
@@ -1398,7 +1431,7 @@ package body GID.Decoding_JPG is
 
             --  Get the next Huffman value from the encoded data
             huffman_value :=
-              next_huffval
+              Next_Huffval
                 (image.JPEG_stuff.vlc_defs (AC, info_B (compo).ht_idx_AC).all);
             run_magnitute  := huffman_value  /  16;
             ac_bits_length := huffman_value mod 16;
@@ -1443,7 +1476,7 @@ package body GID.Decoding_JPG is
             --  Decode the next AC value
             if ac_bits_length > 0 then
               ac_bits := Get_Bits (ac_bits_length);
-              ac_value := bin_twos_complement (ac_bits, ac_bits_length);
+              ac_value := Bin_Twos_Complement (ac_bits, ac_bits_length);
 
               --  Store the AC value on the image array
               --  (the zig-zag scan order is undone to find the
@@ -1459,8 +1492,8 @@ package body GID.Decoding_JPG is
                   Append (x + ac_x, y + ac_y);
                   index := index + 1;
                   if index > zag_zig'Last (1) then
-                    --  In case this package was compiled
-                    --  with range checks off...
+                    --  This check is unnecessary... unless
+                    --  the built-in range checks have been disabled.
                     raise error_in_image_data with
                       "JPEG, progressive: zig-zag index overflow";
                   end if;
@@ -1544,7 +1577,9 @@ package body GID.Decoding_JPG is
              eob_run := 0;
           end if;
 
-          Check_Restart (do_reset_predictors => False);
+          if current_mcu < mcu_count - 1 then
+            Check_Restart (do_reset_predictors => False);
+          end if;
 
         end loop MCU_Loop;
       end Progressive_AC_Scan;
@@ -1938,8 +1973,8 @@ package body GID.Decoding_JPG is
           if full_trace then
             New_Line;
             Put_Line ("SOS marker done");
-            Put_Line ("  Bit buffer length:   " & buf_bits'Image);
-            Put_Line ("  Bit buffer contents: " & buf'Image);
+            Put_Line ("  Bit buffer length:   " & bit_buffer_length'Image);
+            Put_Line ("  Bit buffer contents: " & bit_buffer'Image);
             Put_Line ("  Marker buffer: "       & memo_marker'Image);
           end if;
         when COM =>
