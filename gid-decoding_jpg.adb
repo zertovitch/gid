@@ -67,6 +67,7 @@ package body GID.Decoding_JPG is
 
   --  B.1.1.3 Marker assignments
 
+  COM_code   : constant := 16#FE#;
   DHT_code   : constant := 16#C4#;
   DRI_code   : constant := 16#DD#;
   EOI_code   : constant := 16#D9#;
@@ -109,7 +110,7 @@ package body GID.Decoding_JPG is
     APP_8  => 16#E8#, APP_9  => 16#E9#, APP_10 => 16#EA#, APP_11 => 16#EB#,
     APP_12 => 16#EC#, APP_13 => 16#ED#, APP_14 => 16#EE#,
     --
-    COM => 16#FE#,
+    COM => COM_code,
     SOS => SOS_code,
     EOI => EOI_code);
 
@@ -597,7 +598,7 @@ package body GID.Decoding_JPG is
                   if full_trace then
                     Put_Line ("Bit buffer: acquired EOI marker");
                   end if;
-                when DHT_code | DRI_code |
+                when COM_code | DHT_code | DRI_code |
                      RST_0_code .. RST_7_code | SOS_code =>
                   null;
                 when others =>
