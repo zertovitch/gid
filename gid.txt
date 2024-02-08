@@ -1,32 +1,39 @@
 GID - the Generic Image Decoder
 ===============================
 
-The Generic Image Decoder (GID) is an Ada package for decoding a
-broad variety of image formats, from any data stream, to any kind
+The Generic Image Decoder (GID) is a low-level Ada package for decoding
+a broad variety of image formats, from any data stream, to any kind
 of medium, be it an in-memory bitmap, a GUI object,
 some other stream, arrays of floating-point initial data
 for scientific calculations, a browser element, a device,...
 
-Animations are supported.
+Currently supported formats are:
+  BMP, GIF, JPEG, PNG, PNM (PBM, PGM, PPM), QOI, TGA.
+
+Animations are supported (GIF, PNG).
 
 Some features:
 
   - Standalone (no dependency on other libraires, bindings,...)
-  - Unconditionally portable code: OS-, CPU-, compiler- independent code.
+  - Unconditionally portable code: OS-, CPU-, compiler- independent code (*)
   - Multi-platform, but native code
   - Task safe
   - Endian-neutral
   - Free, open-source
-  - pure Ada 2005 (compiled by Ada 2005, and compilers for later versions)
+  - Pure Ada 2012: this package can be used in projects in Ada 2012
+      and later versions of the Ada language
+___	  
+(*) within limits of compiler's provided integer types and target architecture capacity.
 
 Some existing or possible applications:
 
-  - image processing (interactive or not)
-  - image analysis, text recognition
-  - a drawing program
-  - a web browser
-  - use of images as data for simulations
-  - thumbnail generation for a file manager
+  - Image processing (interactive or not)
+  - Image analysis, text recognition
+  - A drawing program
+  - A web browser
+  - Use of images as data for simulations
+  - Thumbnail generation for a file manager
+  - Conversion of compressed pictures to raw bitmaps for a user interface
 
 Through the genericity and the use of the Inline pragma at multiple
 nesting levels (see it like macros inside macros), the package is
@@ -45,10 +52,10 @@ Further details (especially, credits and history) can be found in gid_work.xls.
 
 Files
 =====
-    gid.ads   GID package specification
-    gid.adb   GID package body
-    gid-*.ad* private packages for decoding specific
-                formats, reading headers,...
+    gid.ads      GID package specification
+    gid.adb      GID package body
+    gid-*.ad*    private packages for decoding specific
+                   formats, reading headers,...
 
 To summarize, the gid*.ad* files are the whole GID source files. 
 For example, you can have a copy of those in a gid/ subdirectory
@@ -206,4 +213,3 @@ All image formats decoded by GID have similarities in their structure.
   - TGA : areas
   - TIFF: tags
   etc.
-
