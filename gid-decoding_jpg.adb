@@ -1283,6 +1283,8 @@ package body GID.Decoding_JPG is
         --      PyJpegDecoder's; both are of slightly inferior quality to
         --      common decoders': some artifacts (Gibbs effect, color stripes)
         --      are more visible.
+        --      Further note: not applying the refining seems to remove
+        --      some artifacts! See the constant apply_refining.
         --
         --  - Images with Restart markers crash the decoder in the AC scan
         --      phase: for some reason, the RST_0 marker appears too early.
@@ -1321,6 +1323,10 @@ package body GID.Decoding_JPG is
           idx : Integer := 1;
           amount : Integer := refine_index_last;
 
+          --  For some obscure reason, there are significantly less
+          --  artifacts when refining is *not* applied!
+          apply_refining : constant Boolean := False;
+
           procedure Refine_Batch (length : Integer) is
             --  Perform the refinement of the AC values on a progressive scan.
             refine_bits : constant Unsigned_32 := Unsigned_32 (Get_Bits (length));
@@ -1328,34 +1334,36 @@ package body GID.Decoding_JPG is
             new_bit, mem : Integer;
             x, y : Integer_32;
           begin
-            for i in 1 .. length loop
-              x := refine_point_x (idx);
-              y := refine_point_y (idx);
-              if (refine_bits and mask) /= 0 then
-                new_bit := 2 ** bit_position_low;
-              else
-                new_bit := 0;
-              end if;
-              mask := Shift_Right (mask, 1);
-              if full_trace then
-                mem := image_array (x, y, compo_idx);
-              end if;
-              image_array (x, y, compo_idx) :=
-                image_array (x, y, compo_idx) + new_bit;
-              if full_trace then
-                Put_Line
-                  (dump_file,
-                   dump_sep & dump_sep & dump_sep &
-                   Integer_32'Image (x) & dump_sep &
-                   Integer_32'Image (y) & dump_sep &
-                   mem'Image & dump_sep &
-                   image_array
-                   (x, y, compo_idx)'Image & dump_sep &
-                   "refine_ac" & dump_sep &
-                   "new_bit =" & new_bit'Image);
-              end if;
-              idx := idx + 1;
-            end loop;
+            if apply_refining then
+              for i in 1 .. length loop
+                x := refine_point_x (idx);
+                y := refine_point_y (idx);
+                if (refine_bits and mask) /= 0 then
+                  new_bit := 2 ** bit_position_low;
+                else
+                  new_bit := 0;
+                end if;
+                mask := Shift_Right (mask, 1);
+                if full_trace then
+                  mem := image_array (x, y, compo_idx);
+                end if;
+                image_array (x, y, compo_idx) :=
+                  image_array (x, y, compo_idx) + new_bit;
+                if full_trace then
+                  Put_Line
+                    (dump_file,
+                     dump_sep & dump_sep & dump_sep &
+                     Integer_32'Image (x) & dump_sep &
+                     Integer_32'Image (y) & dump_sep &
+                     mem'Image & dump_sep &
+                     image_array
+                     (x, y, compo_idx)'Image & dump_sep &
+                     "refine_ac" & dump_sep &
+                     "new_bit =" & new_bit'Image);
+                end if;
+                idx := idx + 1;
+              end loop;
+            end if;
             amount := amount - length;
           end Refine_Batch;
 
