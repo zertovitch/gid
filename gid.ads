@@ -4,9 +4,9 @@
 --
 --  Purpose:
 --
---     The Generic Image Decoder is a package for decoding a broad
---     variety of image formats, from any data stream, to any kind
---     of medium, be it an in-memory bitmap, a GUI object,
+--     The Generic Image Decoder is a low-level package for decoding
+--     a broad variety of image formats, from any data stream, to any
+--     kind of medium, be it an in-memory bitmap, a GUI object,
 --     some other stream, arrays of floating-point initial data
 --     for scientific calculations, a browser element, a device,...
 --     Animations are supported.
@@ -196,8 +196,8 @@ package GID is
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String := "012 preview 1";
-  reference : constant String := "02-Feb-2024";
+  version   : constant String := "012";
+  reference : constant String := "10-Feb-2024";
   web       : constant String := "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..........^
   --
