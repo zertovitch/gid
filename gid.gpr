@@ -35,17 +35,17 @@ project GID is
    
    case GID_Build_Mode is
       when "Debug" =>
-         for Object_Dir use "obj_debug";
+         for Object_Dir use "obj/debug";
       when "Fast_unchecked" =>
-         for Object_Dir use "obj_fast";
+         for Object_Dir use "obj/fast_unchecked";
       when "Fast_but_checked" =>
-         for Object_Dir use "obj_safer";
+         for Object_Dir use "obj/fast_checked";
       when "Small" =>
-         for Object_Dir use "obj_small";
+         for Object_Dir use "obj/small";
       when "Smallest" =>
-         for Object_Dir use "obj_smallest";
+         for Object_Dir use "obj/smallest";
       when "Profiling" =>
-         for Object_Dir use "obj_profiling";
+         for Object_Dir use "obj/profiling";
    end case;
 
    Common_Options :=
@@ -64,15 +64,15 @@ project GID is
      "-gnatyt",      --  Style: check t:token separation rules
      "-gnatyc");     --  Style: check c:comment format (two spaces)
 
-   Fast_Options := ("-Ofast");
+   Fast_Options  := ("-Ofast");
+   Small_Options := ("-Os", "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0");
 
-   Debug_Options  := (
-     --  "-gnateV",  --  Validity check for parameters, GNAT > 4.6, redundant with -gnatVim ?
-     "-gnatVa",  --  Turn on all validity checking options
-     "-gnato",   --  Enable overflow checking in STRICT (-gnato1) mode
-     "-g", 
-     "-fno-inline", "-fstack-check"
-   );
+   Debug_Options  := 
+     (--  "-gnateV",  --  Validity check for parameters, GNAT > 4.6, redundant with -gnatVim ?
+      "-gnatVa",  --  Turn on all validity checking options
+      "-gnato",   --  Enable overflow checking in STRICT (-gnato1) mode
+      "-g", 
+      "-fno-inline", "-fstack-check");
 
    package Compiler is
       case GID_Build_Mode is
@@ -86,9 +86,9 @@ project GID is
          when "Fast_but_checked" =>
             for Default_Switches ("ada") use Common_Options & Fast_Options & ("-gnato",  "-ffunction-sections");
          when "Small" =>
-            for Default_Switches ("ada") use Common_Options &  ("-Os", "-gnatpn",                "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0");
+            for Default_Switches ("ada") use Common_Options & Small_Options & ("-gnatpn");
          when "Smallest" =>
-            for Default_Switches ("ada") use Common_Options &  ("-Os", "-gnatp", "-fno-inline",  "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0");
+            for Default_Switches ("ada") use Common_Options & Small_Options & ("-gnatp", "-fno-inline");
       end case;
    end Compiler;
 
