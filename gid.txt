@@ -193,8 +193,13 @@ palette (2**16, for the TGA format).
 
 Where to find the latest version
 ================================
-Please check the "web" constant in gid.ads.
-     
+
+    home page:     http://gen-img-dec.sf.net/
+    project page:  http://sf.net/projects/gen-img-dec/     
+    mirror:        https://github.com/zertovitch/gid
+
+See also the "web" constant in gid.ads.
+    
 Note on the construction of GID.
 ================================
 All image formats decoded by GID have similarities in their structure.
