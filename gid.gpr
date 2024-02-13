@@ -1,9 +1,10 @@
 --  This is a GNAT, GCC or GNAT Studio project file
 --  for the Generic Image Decoder project:
 --
---      home page:     http://gen-img-dec.sf.net/
---      project page:  http://sf.net/projects/gen-img-dec/
---      mirror:        https://github.com/zertovitch/gid
+--      Home page:     http://gen-img-dec.sf.net/
+--      Project page:  http://sf.net/projects/gen-img-dec/
+--      Mirror:        https://github.com/zertovitch/gid
+--      Alire crate:   https://alire.ada.dev/crates/gid
 --
 --  Build me with "gprbuild -P gid", or "gnatmake -P gid",
 --  or open me with GNAT Studio.
@@ -48,7 +49,7 @@ project GID is
          for Object_Dir use "obj/profiling";
    end case;
 
-   Common_Options :=
+   Compiler_Common_Options :=
     ("-gnatwa",                        --  Warnings switches (a:turn on all info/warnings marked with +)
      "-gnatwh",                        --  Warnings switches (h:turn on warnings for hiding declarations)
      "-gnatwcijkmopruvz.c.p.t.w.x",    --  Warnings switches (run "gnatmake" for full list)
@@ -64,31 +65,37 @@ project GID is
      "-gnatyt",      --  Style: check t:token separation rules
      "-gnatyc");     --  Style: check c:comment format (two spaces)
 
-   Fast_Options  := ("-Ofast");
-   Small_Options := ("-Os", "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0");
+   Compiler_Fast_Options  :=
+     ("-Ofast") &
+     Compiler_Common_Options;
 
-   Debug_Options  := 
+   Compiler_Small_Options :=
+     ("-Os", "-ffunction-sections", "-falign-jumps=0", "-falign-loops=0", "-falign-functions=0") &
+     Compiler_Common_Options;
+
+   Compiler_Debug_Options  := 
      (--  "-gnateV",  --  Validity check for parameters, GNAT > 4.6, redundant with -gnatVim ?
       "-gnatVa",  --  Turn on all validity checking options
       "-gnato",   --  Enable overflow checking in STRICT (-gnato1) mode
       "-g", 
-      "-fno-inline", "-fstack-check");
+      "-fno-inline", "-fstack-check") &
+     Compiler_Common_Options;
 
    package Compiler is
       case GID_Build_Mode is
          when "Debug" =>
             for Local_Configuration_Pragmas use project'Project_Dir & "debug.pra";
-            for Default_Switches ("ada") use Common_Options & Debug_Options ;
+            for Default_Switches ("ada") use Compiler_Debug_Options ;
          when "Fast_unchecked" =>
-            for Default_Switches ("ada") use Common_Options & Fast_Options & ("-gnatpn", "-ffunction-sections");
+            for Default_Switches ("ada") use Compiler_Fast_Options & ("-gnatpn", "-ffunction-sections");
          when "Profiling" =>
-            for Default_Switches ("ada") use Common_Options & Fast_Options & ("-gnatp",  "-fno-inline", "-g", "-pg");
+            for Default_Switches ("ada") use Compiler_Fast_Options & ("-gnatp",  "-fno-inline", "-g", "-pg");
          when "Fast_but_checked" =>
-            for Default_Switches ("ada") use Common_Options & Fast_Options & ("-gnato",  "-ffunction-sections");
+            for Default_Switches ("ada") use Compiler_Fast_Options & ("-gnato",  "-ffunction-sections");
          when "Small" =>
-            for Default_Switches ("ada") use Common_Options & Small_Options & ("-gnatpn");
+            for Default_Switches ("ada") use Compiler_Small_Options & ("-gnatpn");
          when "Smallest" =>
-            for Default_Switches ("ada") use Common_Options & Small_Options & ("-gnatp", "-fno-inline");
+            for Default_Switches ("ada") use Compiler_Small_Options & ("-gnatp", "-fno-inline");
       end case;
    end Compiler;
 
