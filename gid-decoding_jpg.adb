@@ -322,9 +322,9 @@ package body GID.Decoding_JPG is
     kind : AC_DC;
     counts : array (1 .. 16) of Integer_M32;
     idx : Natural;
-    currcnt, spread, remain_vlc : Integer_M32;
+    current_count, spread, remain_vlc : Integer_M32;
   begin
-    multi_tables :
+    Multi_DHT_Tables :
     loop
       Get_Byte (image.buffer, b);
       remaining := remaining - 1;
@@ -350,26 +350,28 @@ package body GID.Decoding_JPG is
       remain_vlc := 65_536;
       spread := 65_536;
       idx := 0;
-      for codelen in counts'Range loop
+      for code_len in counts'Range loop
         spread := spread / 2;
-        currcnt := counts (codelen);
-        if currcnt > 0 then
-          if remaining < currcnt then
-            raise error_in_image_data with "JPEG: DHT data too short";
+        current_count := counts (code_len);
+        if current_count > 0 then
+          if remaining < current_count then
+            raise error_in_image_data
+              with "JPEG: DHT data too short";
           end if;
-          remain_vlc := remain_vlc - currcnt * spread;
+          remain_vlc := remain_vlc - current_count * spread;
           if remain_vlc < 0 then
-            raise error_in_image_data with "JPEG: DHT table too short for data";
+            raise error_in_image_data
+              with "JPEG: DHT table too short for data";
           end if;
-          for i in reverse 1 .. currcnt loop
+          for i in reverse 1 .. current_count loop
             Get_Byte (image.buffer, b);
             for j in reverse 1 .. spread loop
               image.JPEG_stuff.vlc_defs (kind, ht_idx)(idx) :=
-                (bits => U8 (codelen), code => b);
+                (bits => U8 (code_len), code => b);
               idx := idx + 1;
             end loop;
           end loop;
-          remaining := remaining - currcnt;
+          remaining := remaining - current_count;
         end if;
       end loop;
       while remain_vlc > 0 loop
@@ -377,8 +379,8 @@ package body GID.Decoding_JPG is
         image.JPEG_stuff.vlc_defs (kind, ht_idx)(idx).bits := 0;
         idx := idx + 1;
       end loop;
-      exit multi_tables when remaining <= 0;
-    end loop multi_tables;
+      exit Multi_DHT_Tables when remaining <= 0;
+    end loop Multi_DHT_Tables;
   end Read_DHT;
 
   procedure Read_DQT (image : in out Image_Descriptor; data_length : Natural) is
@@ -888,7 +890,8 @@ package body GID.Decoding_JPG is
         --  Returns x if type Primary_Color_Range is mod 2**8.
         return 16 * (16 * x) + x;
         --  ^ This is 257 * x, that is 16#0101# * x
-        --  All literal numbers are 8-bit -> no OA warning at instanciation.
+        --  All literal numbers are 8-bit ->
+        --  no OA warning at instantiation.
       end Times_257;
       full_opaque : constant Primary_Color_Range := Primary_Color_Range'Last;
     begin

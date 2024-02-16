@@ -358,27 +358,27 @@ package body GID.Decoding_PNG is
           pragma Inline (Times_257);
           begin
             return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
-            --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
+            --  Numbers 8-bit -> no OA warning at instantiation.
+            --  Returns x if type Primary_color_range is mod 2**8.
           end Times_257;
         begin
           case Primary_Color_Range'Modulus is
             when 256 =>
-              Put_Pixel (
-                Primary_Color_Range (br),
-                Primary_Color_Range (bg),
-                Primary_Color_Range (bb),
-                Primary_Color_Range (ba)
-              );
+              Put_Pixel
+                (Primary_Color_Range (br),
+                 Primary_Color_Range (bg),
+                 Primary_Color_Range (bb),
+                 Primary_Color_Range (ba));
             when 65_536 =>
-              Put_Pixel (
-                Times_257 (Primary_Color_Range (br)),
-                Times_257 (Primary_Color_Range (bg)),
-                Times_257 (Primary_Color_Range (bb)),
-                Times_257 (Primary_Color_Range (ba))
-                --  Times_257 makes max intensity FF go to FFFF
-              );
+              Put_Pixel
+                (Times_257 (Primary_Color_Range (br)),
+                 Times_257 (Primary_Color_Range (bg)),
+                 Times_257 (Primary_Color_Range (bb)),
+                 Times_257 (Primary_Color_Range (ba)));
+                 --  Times_257 makes max intensity FF go to FFFF
             when others =>
-              raise invalid_primary_color_range with "PNG: color range not supported";
+              raise invalid_primary_color_range
+                with "PNG: color range not supported";
           end case;
         end Out_Pixel_8;
 

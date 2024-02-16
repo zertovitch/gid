@@ -207,7 +207,7 @@ procedure To_BMP is
       stars := so_far;
     end Feedback;
 
-    --  Here, the exciting thing: the instanciation of
+    --  Here, the exciting thing: the instantiation of
     --  GID.Load_image_contents. In our case, we load the image
     --  into a 24-bit bitmap (because we provide a Put_Pixel
     --  that does that with the pixels), but we could do plenty

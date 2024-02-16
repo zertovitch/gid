@@ -137,7 +137,8 @@ package body GID.Decoding_GIF is
         pragma Inline (Times_257);
         begin
           return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
-          --  Numbers 8-bit -> no OA warning at instanciation. Returns x if type Primary_color_range is mod 2**8.
+          --  Numbers 8-bit -> no OA warning at instantiation.
+          --  Returns x if type Primary_color_range is mod 2**8.
         end Times_257;
         full_opaque : constant Primary_Color_Range := Primary_Color_Range'Last;
       begin
@@ -147,22 +148,21 @@ package body GID.Decoding_GIF is
         end if;
         case Primary_Color_Range'Modulus is
           when 256 =>
-            Put_Pixel (
-              Primary_Color_Range (local.palette (Integer (b)).red),
-              Primary_Color_Range (local.palette (Integer (b)).green),
-              Primary_Color_Range (local.palette (Integer (b)).blue),
-              full_opaque
-            );
+            Put_Pixel
+              (Primary_Color_Range (local.palette (Integer (b)).red),
+               Primary_Color_Range (local.palette (Integer (b)).green),
+               Primary_Color_Range (local.palette (Integer (b)).blue),
+               full_opaque);
           when 65_536 =>
-            Put_Pixel (
-              Times_257 (Primary_Color_Range (local.palette (Integer (b)).red)),
-              Times_257 (Primary_Color_Range (local.palette (Integer (b)).green)),
-              Times_257 (Primary_Color_Range (local.palette (Integer (b)).blue)),
-              --  Times_257 makes max intensity FF go to FFFF
-              full_opaque
-            );
+            Put_Pixel
+              (Times_257 (Primary_Color_Range (local.palette (Integer (b)).red)),
+               Times_257 (Primary_Color_Range (local.palette (Integer (b)).green)),
+               Times_257 (Primary_Color_Range (local.palette (Integer (b)).blue)),
+               --  Times_257 makes max intensity FF go to FFFF
+               full_opaque);
           when others =>
-            raise invalid_primary_color_range with "GIF: color range not supported";
+            raise invalid_primary_color_range
+              with "GIF: color range not supported";
         end case;
       end Pixel_with_palette;
 
@@ -583,7 +583,7 @@ package body GID.Decoding_GIF is
       end;
     else
       --  8 bit, usual format: we try to make things
-      --  faster with specialized instanciations...
+      --  faster by using specialized instantiations...
       if frame_interlaced then
         if frame_transparency then
           GIF_Decode_interlaced_transparent_8;
