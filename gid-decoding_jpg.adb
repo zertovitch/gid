@@ -325,11 +325,9 @@ package body GID.Decoding_JPG is
     current_count, spread, remain_vlc : Integer_M32;
   begin
     Multi_DHT_Tables :
-    loop
-      if remaining <= 0 then
-        raise error_in_image_data
-          with "JPEG: DHT data too short [1]: remaining =" & remaining'Image;
-      end if;
+    while remaining > 0 loop
+      --  ^ Test is at the beginning of the loop because
+      --    some encoders produce empty DHT segments!
       Get_Byte (image.buffer, b);
       remaining := remaining - 1;
       if b >= 8 then
@@ -361,13 +359,13 @@ package body GID.Decoding_JPG is
           if remaining < current_count then
             raise error_in_image_data
               with
-                "JPEG: DHT data too short [2]: remaining =" & remaining'Image;
+                "JPEG: DHT data too short [1]: remaining =" & remaining'Image;
           end if;
           remain_vlc := remain_vlc - current_count * spread;
           if remain_vlc < 0 then
             raise error_in_image_data
               with
-                "JPEG: DHT data too short [3]: remain_vlc =" &
+                "JPEG: DHT data too short [2]: remain_vlc =" &
                 remain_vlc'Image;
           end if;
           for i in reverse 1 .. current_count loop
@@ -386,7 +384,6 @@ package body GID.Decoding_JPG is
         image.JPEG_stuff.vlc_defs (kind, ht_idx)(idx).bits := 0;
         idx := idx + 1;
       end loop;
-      exit Multi_DHT_Tables when remaining <= 0;
     end loop Multi_DHT_Tables;
   end Read_DHT;
 
@@ -396,8 +393,10 @@ package body GID.Decoding_JPG is
     qt_idx : Natural;
     high_prec : Boolean;
   begin
-    multi_tables :
-    loop
+    Multi_DQT_Tables :
+    while remaining > 0 loop
+      --  ^ Test is at the beginning of the loop because
+      --    an encoder could produce an empty DQT segment.
       Get_Byte (image.buffer, b);
       remaining := remaining - 1;
       high_prec := b >= 8;
@@ -416,8 +415,7 @@ package body GID.Decoding_JPG is
           image.JPEG_stuff.qt_list (qt_idx)(i) := Natural (q8);
         end if;
       end loop;
-      exit multi_tables when remaining <= 0;
-    end loop multi_tables;
+    end loop Multi_DQT_Tables;
   end Read_DQT;
 
   procedure Read_DRI (image : in out Image_Descriptor) is
@@ -582,8 +580,11 @@ package body GID.Decoding_JPG is
               --  F.1.2.3 Byte stuffing:
               --    "If a X'00' byte is detected after a X'FF' byte, the
               --     decoder must discard it."
-              null;
-            else
+              if full_trace then
+                New_Line;
+                Put_Line
+                  ("Bit buffer: byte stuffing: FF, then 00 -> value FF");
+              end if;            else
               --    "If the byte is not zero, a marker has been detected,
               --     and shall be interpreted to the extent needed to
               --     complete the decoding of the scan."
