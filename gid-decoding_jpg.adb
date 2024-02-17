@@ -326,6 +326,10 @@ package body GID.Decoding_JPG is
   begin
     Multi_DHT_Tables :
     loop
+      if remaining <= 0 then
+        raise error_in_image_data
+          with "JPEG: DHT data too short [1]: remaining =" & remaining'Image;
+      end if;
       Get_Byte (image.buffer, b);
       remaining := remaining - 1;
       if b >= 8 then
@@ -356,12 +360,15 @@ package body GID.Decoding_JPG is
         if current_count > 0 then
           if remaining < current_count then
             raise error_in_image_data
-              with "JPEG: DHT data too short";
+              with
+                "JPEG: DHT data too short [2]: remaining =" & remaining'Image;
           end if;
           remain_vlc := remain_vlc - current_count * spread;
           if remain_vlc < 0 then
             raise error_in_image_data
-              with "JPEG: DHT table too short for data";
+              with
+                "JPEG: DHT data too short [3]: remain_vlc =" &
+                remain_vlc'Image;
           end if;
           for i in reverse 1 .. current_count loop
             Get_Byte (image.buffer, b);
