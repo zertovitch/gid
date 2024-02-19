@@ -1,12 +1,12 @@
---  GID's JPEG baseline decoder is largely inspired
+--  GID's JPEG baseline DCT decoder is largely inspired
 --  by the NanoJPEG code by Martin J. Fiedler.
 --  With the author's permission. Web link:
---  https://keyj.emphy.de/nanojpeg/
+--    https://keyj.emphy.de/nanojpeg/
 --
---  The progressive decoding is largely inspired
---  by the PyJpegDecoder by Tiago Becerra Paolini,
+--  The JPEG progressive DCT decoder is largely inspired
+--  by the PyJpegDecoder code by Tiago Becerra Paolini,
 --  available under MIT Licence. Web link:
---  https://github.com/tbpaolini/PyJpegDecoder
+--    https://github.com/tbpaolini/PyJpegDecoder
 
 --  Other informations:
 --    JPEG standard
