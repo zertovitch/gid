@@ -152,7 +152,8 @@ package GID is
   ---------------------------------------------------------------------
 
   type Image_Format_Type is
-    (BMP, FITS, GIF, JPEG, PNG, PNM, QOI, TGA, TIFF);
+    (BMP, FITS, GIF, JPEG, PNG, PNM, QOI, RIFF, TGA, TIFF);
+  --  NB: RIFF is a container for the WebP format.
 
   function Format (image : Image_Descriptor) return Image_Format_Type;
   function Detailed_format (image : Image_Descriptor) return String;

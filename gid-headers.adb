@@ -29,11 +29,13 @@ package body GID.Headers is
     c : Character;
     FITS_challenge : String (1 .. 5);  --  without the initial
     GIF_challenge  : String (1 .. 5);  --  without the initial
-    QOI_challenge  : String (1 .. 3);  --  without the initial
-    QOI_signature  : constant String := "oif";
     PNG_challenge  : String (1 .. 7);  --  without the initial
     PNG_signature  : constant String := "PNG" & ASCII.CR & ASCII.LF & ASCII.SUB & ASCII.LF;
     PNM_challenge  : Character;
+    QOI_challenge  : String (1 .. 3);  --  without the initial
+    QOI_signature  : constant String := "oif";
+    RIFF_challenge : String (1 .. 3);  --  without the initial
+    RIFF_signature : constant String := "IFF";
     TIFF_challenge : String (1 .. 3);  --  without the initial
     TIFF_signature : String (1 .. 2);
     procedure Dispose is
@@ -114,6 +116,12 @@ package body GID.Headers is
         if QOI_challenge = QOI_signature then
           image.format := QOI;
           image.RLE_encoded := True;
+          return;
+        end if;
+      when 'R' =>
+        String'Read (image.stream, RIFF_challenge);
+        if RIFF_challenge = RIFF_signature then
+          image.format := RIFF;
           return;
         end if;
       when others =>
@@ -318,9 +326,14 @@ package body GID.Headers is
     Color_tables.Load_palette (image);
   end Load_BMP_Header;
 
+  -----------------
+  -- FITS header --
+  -----------------
+
   procedure Load_FITS_Header (image : in out Image_Descriptor) is
   begin
-    raise known_but_unsupported_image_format;
+    raise known_but_unsupported_image_format
+      with "FITS format not yet supported";
   end Load_FITS_Header;
 
   ----------------
@@ -422,21 +435,6 @@ package body GID.Headers is
       end case;
     end loop;
   end Load_JPEG_Header;
-
-  procedure Load_QOI_Header (image : in out Image_Descriptor) is
-    val_32 : U32;
-    channels, colorspace : U8;
-  begin
-    Buffering.Attach_Stream (image.buffer, image.stream);
-    Read_any_endian (image.stream, val_32, big);
-    image.width := Positive_32 (val_32);
-    Read_any_endian (image.stream, val_32, big);
-    image.height := Positive_32 (val_32);
-    U8'Read (image.stream, channels);
-    image.bits_per_pixel := Positive (channels) * 8;
-    image.transparency := channels = 4;
-    U8'Read (image.stream, colorspace);
-  end Load_QOI_Header;
 
   ----------------
   -- PNG header --
@@ -613,6 +611,35 @@ package body GID.Headers is
       raise error_in_image_data with "PNM: invalid numeric value in PNM header";
   end Load_PNM_Header;
 
+  ----------------
+  -- QOI header --
+  ----------------
+
+  procedure Load_QOI_Header (image : in out Image_Descriptor) is
+    val_32 : U32;
+    channels, colorspace : U8;
+  begin
+    Buffering.Attach_Stream (image.buffer, image.stream);
+    Read_any_endian (image.stream, val_32, big);
+    image.width := Positive_32 (val_32);
+    Read_any_endian (image.stream, val_32, big);
+    image.height := Positive_32 (val_32);
+    U8'Read (image.stream, channels);
+    image.bits_per_pixel := Positive (channels) * 8;
+    image.transparency := channels = 4;
+    U8'Read (image.stream, colorspace);
+  end Load_QOI_Header;
+
+  -----------------
+  -- RIFF header --
+  -----------------
+
+  procedure Load_RIFF_Header (image : in out Image_Descriptor) is
+  begin
+    raise known_but_unsupported_image_format
+      with "RIFF (for WebP) not yet supported";
+  end Load_RIFF_Header;
+
   ------------------------
   -- TGA (Targa) header --
   ------------------------
@@ -740,7 +767,8 @@ package body GID.Headers is
   begin
     Read_any_endian (image.stream, first_IFD_offset, image.endianess);
     raise known_but_unsupported_image_format with
-      "TIFF is not appropriate for streaming. Use PNG, BMP (lossless) or JPEG instead." &
+      "TIFF is not appropriate for streaming. " &
+      "Use PNG, BMP (lossless) or JPEG instead." &
       "Info: IFD Offset=" & U32'Image (first_IFD_offset);
   end Load_TIFF_Header;
 

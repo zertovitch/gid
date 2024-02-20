@@ -26,6 +26,7 @@ private package GID.Headers is
   procedure Load_PNG_Header  (image : in out Image_Descriptor);
   procedure Load_PNM_Header  (image : in out Image_Descriptor);
   procedure Load_QOI_Header  (image : in out Image_Descriptor);
+  procedure Load_RIFF_Header (image : in out Image_Descriptor);
   procedure Load_TGA_Header  (image : in out Image_Descriptor);
   procedure Load_TIFF_Header (image : in out Image_Descriptor);
 

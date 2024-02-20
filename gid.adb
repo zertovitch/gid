@@ -87,6 +87,7 @@ package body GID is
       when PNG  => Headers.Load_PNG_Header  (image);
       when PNM  => Headers.Load_PNM_Header  (image);
       when QOI  => Headers.Load_QOI_Header  (image);
+      when RIFF => Headers.Load_RIFF_Header (image);
       when TGA  => Headers.Load_TGA_Header  (image);
       when TIFF => Headers.Load_TIFF_Header (image);
     end case;
