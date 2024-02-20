@@ -8,6 +8,8 @@
 
 with GID;
 
+with Color_Distances;
+
 with Ada.Calendar,
      Ada.Characters.Handling,
      Ada.Command_Line,
@@ -44,47 +46,10 @@ procedure All_RGB is
 
   use Interfaces;
 
-  type RGB is record
-    r, g, b : Unsigned_8;
-  end record;
+  package Color_Distances_8_Bit is
+    new Color_Distances (Unsigned_8, Long_Float);
 
-  type Dist_Type is (L1, L2, L3, Linf);
-
-  generic
-    dist_choice : Dist_Type;
-  function Monotone_Function_of_Distance (p, q : RGB) return Natural;
-  pragma Inline (Monotone_Function_of_Distance);
-
-  function Monotone_Function_of_Distance (p, q : RGB) return Natural is
-  begin
-    --  The goal of the use of generics is to optimize
-    --  out the following case statement when the function
-    --  is inlined in the main iteration loop:
-    case dist_choice is
-      when L1 =>
-        return
-          abs (Integer (p.r) - Integer (q.r)) +
-          abs (Integer (p.g) - Integer (q.g)) +
-          abs (Integer (p.b) - Integer (q.b));
-      when L2 =>
-        return
-          (Integer (p.r) - Integer (q.r)) ** 2 +
-          (Integer (p.g) - Integer (q.g)) ** 2 +
-          (Integer (p.b) - Integer (q.b)) ** 2;
-      when L3 =>
-        return
-          (abs (Integer (p.r) - Integer (q.r))) ** 3 +
-          (abs (Integer (p.g) - Integer (q.g))) ** 3 +
-          (abs (Integer (p.b) - Integer (q.b))) ** 3;
-      when Linf =>
-        return
-          Integer'Max
-            (Integer'Max
-              ((Integer (p.r) - Integer (q.r)),
-               (Integer (p.g) - Integer (q.g))),
-             (Integer (p.b) - Integer (q.b)));
-    end case;
-  end Monotone_Function_of_Distance;
+  use Color_Distances_8_Bit;
 
   procedure Swap (p, q : in out RGB) is
   pragma Inline (Swap);
@@ -99,11 +64,10 @@ procedure All_RGB is
   procedure Dispose is new Ada.Unchecked_Deallocation (Bitmap, p_Bitmap);
 
   --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
-  procedure Load_raw_image (
-    image      : in out GID.Image_Descriptor;
-    bmp        : in out Bitmap;
-    next_frame :    out Ada.Calendar.Day_Duration
-  )
+  procedure Load_Raw_Image
+    (image      : in out GID.Image_Descriptor;
+     bmp        : in out Bitmap;
+     next_frame :    out Ada.Calendar.Day_Duration)
   is
     subtype Primary_color_range is Unsigned_8;
     pos_x, pos_y, max_y : Natural;
@@ -137,10 +101,9 @@ procedure All_RGB is
     end Feedback;
 
     procedure Load_image is
-      new GID.Load_Image_Contents (
-        Primary_color_range, Set_X_Y,
-        Put_Pixel, Feedback, GID.fast
-      );
+      new GID.Load_Image_Contents
+        (Primary_color_range, Set_X_Y,
+         Put_Pixel, Feedback, GID.fast);
 
   begin
     max_y := GID.Pixel_Height (image) - 1;
@@ -160,8 +123,7 @@ procedure All_RGB is
     use Side_Random;
     gen : Generator;
     dist_no_swap, dist_swap : Natural;
-    function M_Funct_Dist_Lx is
-      new Monotone_Function_of_Distance (transform_dist_choice);
+    function M_Funct_Dist_Lx is new Distance (transform_dist_choice);
     mix_phase : Integer := 3 * 4096 ** 2;
     do_swap : Boolean;
     total_iter : Integer;
@@ -302,6 +264,7 @@ procedure All_RGB is
     Dispose (src);
     Dispose (dst);
     T1 := Clock;
+    New_Line (Standard_Error);
     Put_Line
       (Standard_Error,
        "Time elapsed:" & Duration'Image (T1 - T0) & " seconds.");

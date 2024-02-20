@@ -29,7 +29,9 @@ project GID is
    for Main use
      ("to_bmp.adb",
       "mini.adb",
+	  --  Tests / Tools
       "all_rgb.adb",
+      "comp_img.adb",
       "is_opaque.adb",
       "recurve.adb",
       "steg.adb");
