@@ -9,4 +9,4 @@ for scientific calculations, a Web browser element, a device,...
 
 
 ====
-Full description in: gid.txt
+Full description in: doc/gid.txt

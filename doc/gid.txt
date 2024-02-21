@@ -88,6 +88,8 @@ in your project.
                           in which each pixel has a different colour and
                           all 8-bit-per-channel colours are displayed.
 
+    test/comp_img.adb   Image comparison tool (0: identical, 1: black/white)
+
     test/recurve.adb    Image processing demo: Recurve is a digitalization
                           tool which recovers curves from a chart and outputs
                           corresponding data.
