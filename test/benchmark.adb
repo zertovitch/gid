@@ -204,15 +204,19 @@ procedure Benchmark is
   end Process;
 
   iterations : constant := 1;
-  --  !!  To do: compute duration averages over many iterations.
+  --  !!  To do: compute duration statistics over many iterations.
+  --      Databases:
+  --        - per image
+  --        - per image format & subformat.
 
 begin
   Blurb;
   delay 5.0;
   for iter in 1 .. iterations loop
     Put_Line ("================================== Iteration" & iter'Image);
-    Process ("img/jpeg_baseline_biarritz.jpg");
-    Process ("img/jpeg_progressive_lyon.jpg");
-    Process ("img/jpeg_progressive_walensee.jpg");
+    Process ("img/jpeg_baseline_biarritz.jpg");     --  Olympus camera
+    Process ("img/jpeg_baseline_hifi.jpg");         --  Canon EOS 100D
+    Process ("img/jpeg_progressive_lyon.jpg");      --  Rescaled by GIMP 2.10
+    Process ("img/jpeg_progressive_walensee.jpg");  --  Rescaled by WhatsApp
   end loop;
 end Benchmark;
