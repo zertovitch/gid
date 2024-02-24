@@ -3,7 +3,10 @@ with GID,
 
 with Ada.Calendar,
      Ada.Characters.Handling,
+     Ada.Containers.Indefinite_Hashed_Maps,
+     Ada.Containers.Vectors,
      Ada.Streams.Stream_IO,
+     Ada.Strings.Hash,
      Ada.Text_IO,
      Ada.Unchecked_Deallocation;
 
@@ -26,8 +29,8 @@ procedure Benchmark is
     Put_Line ("benchmark");
     New_Line;
     Put_Line ("In order to save your SDD / Hard Disk and to minimize file transaction times,");
-    Put_Line ("it is recommended to copy this program's executable and the images (./img)");
-    Put_Line ("to a RAM Disk and run the program there.");
+    Put_Line ("it is recommended to copy the images (in ./test/img) to a RAM Disk");
+    Put_Line ("and run the program there.");
     New_Line;
   end Blurb;
 
@@ -135,6 +138,29 @@ procedure Benchmark is
     Close (f);
   end Dump_PPM;
 
+  package Name_Maps is new Ada.Containers.Indefinite_Hashed_Maps
+    (Key_Type        => String,
+     Element_Type    => Positive,
+     Hash            => Ada.Strings.Hash,
+     Equivalent_Keys => "=");
+
+  type Stats_Row is record
+    cumulative_duration_gid   : Duration   := 0.0;
+    cumulative_duration_other : Duration   := 0.0;
+    difference_score          : Long_Float := 0.0;
+    occ_per_category          : Natural    := 0;  --  For single image: 1.
+  end record;
+
+  package Stats_Vectors is new Ada.Containers.Vectors
+    (Index_Type   => Positive,
+     Element_Type => Stats_Row);
+
+  stats_table : Stats_Vectors.Vector;
+
+  image_stats,
+  format_stats,
+  format_subformat_stats : Name_Maps.Map;
+
   procedure Process (name : String) is
     f : Ada.Streams.Stream_IO.File_Type;
     i : GID.Image_Descriptor;
@@ -161,11 +187,31 @@ procedure Benchmark is
 
     dist : Long_Float;
 
+    procedure Feed_Stat (stat_map : in out Name_Maps.Map; stat_name : String) is
+      procedure Feed_To (the_row : in out Stats_Row) is
+      begin
+        the_row.cumulative_duration_gid   := the_row.cumulative_duration_gid + dur_gid;
+        the_row.cumulative_duration_other := the_row.cumulative_duration_other + dur_magick;
+        the_row.difference_score          := the_row.difference_score + dist;
+        the_row.occ_per_category          := the_row.occ_per_category + 1;
+      end Feed_To;
+    begin
+      if not stat_map.Contains (stat_name) then
+        declare
+          new_row : Stats_Row;
+        begin
+          stats_table.Append (new_row);
+          stat_map.Insert (stat_name, stats_table.Last_Index);
+        end;
+      end if;
+      Feed_To (stats_table (stat_map.Element (stat_name)));
+    end Feed_Stat;
+
   begin
     --
     --  Load the image in its original format
     --
-    Open (f, In_File, name);
+    Open (f, In_File, "img/" & name);
     Put ("Processing " & name & "... ");
     T0 := Clock;
     --
@@ -178,7 +224,7 @@ procedure Benchmark is
     --
     mem_buffer_last := force_allocate;
     Load_Raw_Image (i, img_buf, next_frame);
-    Dump_PPM (gid_name, i);
+    Dump_PPM ("img/" & gid_name, i);
     New_Line;
     --
     Close (f);
@@ -186,37 +232,87 @@ procedure Benchmark is
     --
     --  Call the other tool.
     --
-    Sys ("magick " & name & ' ' & magick_name, res);
+    Sys ("magick img/" & name & " img/" & magick_name, res);
     if res /= 0 then
       Put_Line ("Error calling magick!");
       raise Program_Error;
-    else
-      T2 := Clock;
-      dur_gid    := T1 - T0;
-      dur_magick := T2 - T1;
-      Put
-        ("Durations: GID:" & dur_gid'Image &
-         ", Magick:" & dur_magick'Image & "; difference score:");
-      dist := Comp_Img_Fct (gid_name, magick_name, False);
-      Put_Line (dist'Image);
-      New_Line;
     end if;
+    T2 := Clock;
+    dur_gid    := T1 - T0;
+    dur_magick := T2 - T1;
+    Put
+      ("Durations: GID:" & dur_gid'Image &
+       ", Magick:" & dur_magick'Image & "; difference score:");
+    dist := Comp_Img_Fct ("img/" & gid_name, "img/" & magick_name, False);
+    Put_Line (dist'Image);
+    New_Line;
+    --
+    Feed_Stat (image_stats, name);
+    Feed_Stat (format_stats, GID.Format (i)'Image);
+    Feed_Stat
+      (format_subformat_stats,
+       GID.Format (i)'Image & ' ' &
+       GID.Detailed_format (i) &
+       " Subformat" & GID.Subformat (i)'Image);
   end Process;
 
-  iterations : constant := 1;
-  --  !!  To do: compute duration statistics over many iterations.
-  --      Databases:
-  --        - per image
-  --        - per image format & subformat.
+  iterations : constant := 100;
+
+  procedure Show_Stats (categ_map : Name_Maps.Map) is
+    procedure Row_Details (row : Stats_Row) is
+      denom : constant Integer := iterations * row.occ_per_category;
+    begin
+      Put_Line ("   Images in this category      : " & row.occ_per_category'Image);
+      Put_Line ("   Average duration GID         : " &
+        Duration'Image (row.cumulative_duration_gid / denom));
+      Put_Line ("   Average duration ImageMagick : " &
+        Duration'Image (row.cumulative_duration_other / denom));
+      Put_Line ("   Average difference score     : " &
+        Long_Float'Image (row.difference_score / Long_Float (row.occ_per_category)));
+      New_Line;
+    end Row_Details;
+  begin
+    New_Line;
+    for curs in categ_map.Iterate loop
+      Put_Line (Name_Maps.Key (curs));
+      Row_Details (stats_table (Name_Maps.Element (curs)));
+    end loop;
+  end Show_Stats;
 
 begin
   Blurb;
-  delay 5.0;
+  delay 4.0;
+  
+  --  !! Here, add a loop for comparing the decoding of a tiny image,
+  --     in order to discount the invocation time of the external program. 
+  
   for iter in 1 .. iterations loop
-    Put_Line ("================================== Iteration" & iter'Image);
-    Process ("img/jpeg_baseline_biarritz.jpg");     --  Olympus camera
-    Process ("img/jpeg_baseline_hifi.jpg");         --  Canon EOS 100D
-    Process ("img/jpeg_progressive_lyon.jpg");      --  Rescaled by GIMP 2.10
-    Process ("img/jpeg_progressive_walensee.jpg");  --  Rescaled by WhatsApp
+    for row of stats_table loop
+      row.occ_per_category := 0;
+      row.difference_score := 0.0;
+      --  ^ same for each iteration, so we avoid cumulating rounding errors uselessly.
+    end loop;
+    Put_Line ("---------------------------- Iteration" & iter'Image);
+    Process ("gif_interlaced_hifi.gif");
+    Process ("gif_non_interlaced_hifi.gif");
+    --
+    Process ("jpeg_baseline_biarritz.jpg");     --  Olympus camera
+    Process ("jpeg_baseline_hifi.jpg");         --  Canon EOS 100D
+    Process ("jpeg_progressive_lyon.jpg");      --  Rescaled by GIMP 2.10
+    Process ("jpeg_progressive_walensee.jpg");  --  Rescaled by WhatsApp
+    --
+    Process ("png_interlaced_hifi.png");
+    Process ("png_non_interlaced_hifi.png");
   end loop;
+  --
+  Put_Line ("=========================");
+  Put_Line ("*** Statistics per image:");
+  Show_Stats (image_stats);
+  New_Line;
+  Put_Line ("*** Statistics per image format:");
+  Show_Stats (format_stats);
+  New_Line;
+  Put_Line ("*** Statistics per image format and subformat:");
+  Show_Stats (format_subformat_stats);
+  New_Line;
 end Benchmark;
