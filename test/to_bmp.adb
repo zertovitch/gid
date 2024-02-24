@@ -76,12 +76,12 @@ procedure To_BMP is
   generic
     correct_orientation : GID.Orientation;
   --  Load image into a 24-bit truecolor BGR raw bitmap (for a BMP output)
-  procedure Load_raw_image
+  procedure Load_Raw_Image
     (image      : in out GID.Image_Descriptor;
      buffer     : in out p_Byte_Array;
      next_frame :    out Ada.Calendar.Day_Duration);
   --
-  procedure Load_raw_image
+  procedure Load_Raw_Image
     (image      : in out GID.Image_Descriptor;
      buffer     : in out p_Byte_Array;
      next_frame :    out Ada.Calendar.Day_Duration)
@@ -122,12 +122,11 @@ procedure To_BMP is
     --
     --  No background version of Put_Pixel
     --
-    procedure Put_Pixel_without_bkg (
-      red, green, blue : Primary_color_range;
-      alpha            : Primary_color_range
-    )
+    procedure Put_Pixel_without_Bkg
+      (red, green, blue : Primary_color_range;
+       alpha            : Primary_color_range)
     is
-    pragma Inline (Put_Pixel_without_bkg);
+    pragma Inline (Put_Pixel_without_Bkg);
     pragma Unreferenced (alpha);
       use GID;
     begin
@@ -143,16 +142,15 @@ procedure To_BMP is
         when Rotation_270 =>
           idx := idx - padded_line_size_y;
       end case;
-    end Put_Pixel_without_bkg;
+    end Put_Pixel_without_Bkg;
     --
     --  Unicolor background version of Put_Pixel
     --
-    procedure Put_Pixel_with_unicolor_bkg (
-      red, green, blue : Primary_color_range;
-      alpha            : Primary_color_range
-    )
+    procedure Put_Pixel_with_Unicolor_Bkg
+      (red, green, blue : Primary_color_range;
+       alpha            : Primary_color_range)
     is
-    pragma Inline (Put_Pixel_with_unicolor_bkg);
+    pragma Inline (Put_Pixel_with_Unicolor_Bkg);
       u_red  : constant := 200;
       u_green : constant := 133;
       u_blue : constant := 32;
@@ -166,16 +164,15 @@ procedure To_BMP is
       end if;
       idx := idx + 3;
       --  ^ GID requires us to look to next pixel on the right for next time.
-    end Put_Pixel_with_unicolor_bkg;
+    end Put_Pixel_with_Unicolor_Bkg;
     --
     --  Background image version of Put_Pixel
     --
-    procedure Put_Pixel_with_image_bkg (
-      red, green, blue : Primary_color_range;
-      alpha            : Primary_color_range
-    )
+    procedure Put_Pixel_with_Image_Bkg
+      (red, green, blue : Primary_color_range;
+       alpha            : Primary_color_range)
     is
-    pragma Inline (Put_Pixel_with_image_bkg);
+    pragma Inline (Put_Pixel_with_Image_Bkg);
       b_red,
       b_green,
       b_blue : Primary_color_range;
@@ -195,7 +192,7 @@ procedure To_BMP is
       idx := idx + 3;
       --  ^ GID requires us to look to next pixel on the right for next time.
       mem_x := mem_x + 1;
-    end Put_Pixel_with_image_bkg;
+    end Put_Pixel_with_Image_Bkg;
 
     stars : Natural := 0;
     procedure Feedback (percents : Natural) is
@@ -218,27 +215,27 @@ procedure To_BMP is
     --  decoders for all formats, own specialized generic instances, inlines,
     --  etc.) depending on the transparency features.
 
-    procedure BMP24_Load_without_bkg is
+    procedure BMP24_Load_without_Bkg is
       new GID.Load_Image_Contents
         (Primary_color_range,
          Set_X_Y,
-         Put_Pixel_without_bkg,
+         Put_Pixel_without_Bkg,
          Feedback,
          GID.fast);
 
-    procedure BMP24_Load_with_unicolor_bkg is
+    procedure BMP24_Load_with_Unicolor_Bkg is
       new GID.Load_Image_Contents
         (Primary_color_range,
          Set_X_Y,
-         Put_Pixel_with_unicolor_bkg,
+         Put_Pixel_with_Unicolor_Bkg,
          Feedback,
          GID.fast);
 
-    procedure BMP24_Load_with_image_bkg is
+    procedure BMP24_Load_with_Image_Bkg is
       new GID.Load_Image_Contents
         (Primary_color_range,
          Set_X_Y,
-         Put_Pixel_with_image_bkg,
+         Put_Pixel_with_Image_Bkg,
          Feedback,
          GID.fast);
 
@@ -259,16 +256,16 @@ procedure To_BMP is
     end if;
     if GID.Expect_Transparency (image) then
       if background_image_name = Null_Unbounded_String then
-        BMP24_Load_with_unicolor_bkg (image, next_frame);
+        BMP24_Load_with_Unicolor_Bkg (image, next_frame);
       else
         bkg_width  := GID.Pixel_Width (bkg);
         bkg_height := GID.Pixel_Height (bkg);
         bkg_padded_line_size :=
           4 * Integer (Float'Ceiling (Float (bkg_width) * 3.0 / 4.0));
-        BMP24_Load_with_image_bkg (image, next_frame);
+        BMP24_Load_with_Image_Bkg (image, next_frame);
       end if;
     else
-      BMP24_Load_without_bkg (image, next_frame);
+      BMP24_Load_without_Bkg (image, next_frame);
     end if;
     --  -- For testing: white rectangle with a red half-frame.
     --  buffer.all:= (others => 255);
@@ -286,12 +283,12 @@ procedure To_BMP is
       else
         raise;
       end if;
-  end Load_raw_image;
+  end Load_Raw_Image;
 
-  procedure Load_raw_image_0 is new Load_raw_image (GID.Unchanged);
-  procedure Load_raw_image_90 is new Load_raw_image (GID.Rotation_90);
-  procedure Load_raw_image_180 is new Load_raw_image (GID.Rotation_180);
-  procedure Load_raw_image_270 is new Load_raw_image (GID.Rotation_270);
+  procedure Load_raw_image_0 is new Load_Raw_Image (GID.Unchanged);
+  procedure Load_raw_image_90 is new Load_Raw_Image (GID.Rotation_90);
+  procedure Load_raw_image_180 is new Load_Raw_Image (GID.Rotation_180);
+  procedure Load_raw_image_270 is new Load_Raw_Image (GID.Rotation_270);
 
   procedure Dump_BMP_24 (name : String; i : GID.Image_Descriptor) is
     f : Ada.Streams.Stream_IO.File_Type;

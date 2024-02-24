@@ -11,6 +11,6 @@ begin
     return;
   end if;
   Put_Line
-    ("Difference score (0: identical, 1: black/white):" &
+    ("Difference score (from 0: identical, to 1: black/white):" &
      Comp_Img_Fct (Argument (1), Argument (2), True)'Image);
 end Comp_Img;

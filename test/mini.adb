@@ -44,14 +44,13 @@ procedure Mini is
   mem_buffer_last : Integer;
 
   --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
-  procedure Load_raw_image (
-    image : in out GID.Image_Descriptor;
-    buffer : in out p_Byte_Array;
-    next_frame : out Ada.Calendar.Day_Duration
-  )
+  procedure Load_Raw_Image
+    (image : in out GID.Image_Descriptor;
+     buffer : in out p_Byte_Array;
+     next_frame : out Ada.Calendar.Day_Duration)
   is
-    subtype Primary_color_range is Unsigned_8;
-    image_width : constant Positive := GID.Pixel_Width (image);
+    subtype Primary_Color_Range is Unsigned_8;
+    image_width  : constant Positive := GID.Pixel_Width (image);
     image_height : constant Positive := GID.Pixel_Height (image);
     idx : Natural;
     --
@@ -61,8 +60,8 @@ procedure Mini is
     end Set_X_Y;
     --
     procedure Put_Pixel
-      (red, green, blue : Primary_color_range;
-       alpha            : Primary_color_range)
+      (red, green, blue : Primary_Color_Range;
+       alpha            : Primary_Color_Range)
     is
     pragma Warnings (off, alpha);  --  Alpha is just ignored
     begin
@@ -83,7 +82,7 @@ procedure Mini is
 
     procedure Load_Image is
       new GID.Load_Image_Contents
-        (Primary_color_range, Set_X_Y,
+        (Primary_Color_Range, Set_X_Y,
          Put_Pixel, Feedback, GID.fast);
 
     buffer_last : Natural;
@@ -96,7 +95,7 @@ procedure Mini is
       mem_buffer_last := buffer_last;
     end if;
     Load_Image (image, next_frame);
-  end Load_raw_image;
+  end Load_Raw_Image;
 
   procedure Dump_PPM (name : String; i : GID.Image_Descriptor) is
     f : Ada.Streams.Stream_IO.File_Type;
@@ -137,7 +136,7 @@ procedure Mini is
     mem_buffer_last := force_allocate;
     Animation_Loop :
     loop
-      Load_raw_image (i, img_buf, next_frame);
+      Load_Raw_Image (i, img_buf, next_frame);
       Dump_PPM (name & current_frame'Image, i);
       New_Line (Standard_Error);
       exit Animation_Loop when next_frame = 0.0;

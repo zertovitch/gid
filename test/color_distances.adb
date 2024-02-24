@@ -32,10 +32,10 @@ package body Color_Distances is
   end Distance;
 
   function Normalized_Distance (p, q : RGB) return Real is
-    function Distance_Instance is new Distance (dist_choice);
+    function Distance_Instance is new Distance (dist_choice_for_nd);
     raw_value : constant Real := Real (Distance_Instance (p, q));
   begin
-    case dist_choice is
+    case dist_choice_for_nd is
       when L1 =>
         return raw_value / (3.0 * Real (Primary_Color_Range'Last));
       when L2 =>

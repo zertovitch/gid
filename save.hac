@@ -68,7 +68,14 @@ begin
            root & "/*.hac " &
            root & "/*.txt " &
            root & "/debug.pra " &
-           root & "/test/*.adb ";
+           root & "/doc/*.pdf " &
+           root & "/doc/*.txt " &
+           root & "/doc/*.xls " &
+           root & "/test/*.ad* " &
+           root & "/test/img/*.gif "&
+           root & "/test/img/*.jpg "&
+           root & "/test/img/*.png "&
+           root & "/test/img/*.pbm ";
 
   --  The ZipAda command-line tool can be built or downloaded
   --  from the project Zip-Ada @

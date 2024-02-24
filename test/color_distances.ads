@@ -18,7 +18,7 @@ package Color_Distances is
   --  Normalized_Distance returns a number between 0 and 1.
 
   generic
-    dist_choice : Dist_Type;
+    dist_choice_for_nd : Dist_Type;
   function Normalized_Distance (p, q : RGB) return Real
   with Inline;
 

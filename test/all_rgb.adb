@@ -108,15 +108,18 @@ procedure All_RGB is
   begin
     max_y := GID.Pixel_Height (image) - 1;
     Load_image (image, next_frame);
-  end Load_raw_image;
+  end Load_Raw_Image;
 
   subtype All_RGB_Range is Integer range 0 .. 4095;
 
   generic
     transform_dist_choice : Dist_Type;
-  procedure Transform (src : in Bitmap; dst : out Bitmap; do_clear : Boolean; tr_iterations : Integer);
+  procedure Transform
+    (src : in Bitmap; dst : out Bitmap; do_clear : Boolean; tr_iterations : Integer);
 
-  procedure Transform (src : in Bitmap; dst : out Bitmap; do_clear : Boolean; tr_iterations : Integer) is
+  procedure Transform
+    (src : in Bitmap; dst : out Bitmap; do_clear : Boolean; tr_iterations : Integer)
+  is
     x1, y1, x2, y2 : Integer;
     s1, s2 : RGB;
     package Side_Random is new Ada.Numerics.Discrete_Random (All_RGB_Range);
@@ -132,9 +135,9 @@ procedure All_RGB is
   begin
     if do_clear then
       --  Deterministic bitmap with all possible 8-bit-per-channel colours.
-      for r in Unsigned_8'(0) .. 255 loop
-        for g in Unsigned_8'(0) .. 255 loop
-          for b in Unsigned_8'(0) .. 255 loop
+      for r in Unsigned_8 loop
+        for g in Unsigned_8 loop
+          for b in Unsigned_8 loop
             x1 := Integer (r) + Integer (g and 15) * 256;
             y1 := Integer (b) + Integer (Shift_Right (g, 4)) * 256;
             dst (x1, y1) := (r, g, b);
@@ -203,7 +206,12 @@ procedure All_RGB is
     Close (f);
   end Dump_PPM;
 
-  procedure Process (name : String; Lx : Dist_Type; iterations : Integer; startup_name : String) is
+  procedure Process
+    (name         : String;
+     Lx           : Dist_Type;
+     iterations   : Integer;
+     startup_name : String)
+  is
     use Ada.Calendar, Ada.Characters.Handling;
     f : Ada.Streams.Stream_IO.File_Type;
     i : GID.Image_Descriptor;
@@ -240,14 +248,16 @@ procedure All_RGB is
     Put_Line (Standard_Error, ".........v.........v");
     T0 := Clock;
     --
-    src := new Bitmap (0 .. GID.Pixel_Width (i) - 1, 0 .. GID.Pixel_Height (i) - 1);
-    Load_raw_image (i, src.all, next_frame);
+    src :=
+      new Bitmap
+        (0 .. GID.Pixel_Width (i) - 1, 0 .. GID.Pixel_Height (i) - 1);
+    Load_Raw_Image (i, src.all, next_frame);
     Close (f);
     dst := new Bitmap (All_RGB_Range, All_RGB_Range);
     if use_startup then
       Open (f, In_File, startup_name);
       GID.Load_Image_Header (i, Stream (f).all, try_tga_startup);
-      Load_raw_image (i, dst.all, next_frame);
+      Load_Raw_Image (i, dst.all, next_frame);
       Close (f);
     end if;
     case Lx is
@@ -286,8 +296,10 @@ begin
     begin
       if arg'Length >= 3 and then arg (arg'First) = '-' then
         case arg (arg'First + 1) is
-          when 'l' => Lx := Dist_Type'Value (arg (arg'First + 1 .. arg'Last));
-          when 'i' => iter := 1e6 * Integer'Value (arg (arg'First + 2 .. arg'Last));
+          when 'l' =>
+            Lx := Dist_Type'Value (arg (arg'First + 1 .. arg'Last));
+          when 'i' =>
+            iter := 1e6 * Integer'Value (arg (arg'First + 2 .. arg'Last));
           when 's' =>
             startup := To_Unbounded_String (arg (arg'First + 2 .. arg'Last));
           when others =>
