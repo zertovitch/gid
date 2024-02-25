@@ -3,10 +3,9 @@ with GID,
 
 with Ada.Calendar,
      Ada.Characters.Handling,
-     Ada.Containers.Indefinite_Hashed_Maps,
+     Ada.Containers.Indefinite_Ordered_Maps,
      Ada.Containers.Vectors,
      Ada.Streams.Stream_IO,
-     Ada.Strings.Hash,
      Ada.Text_IO,
      Ada.Unchecked_Deallocation;
 
@@ -138,11 +137,13 @@ procedure Benchmark is
     Close (f);
   end Dump_PPM;
 
-  package Name_Maps is new Ada.Containers.Indefinite_Hashed_Maps
-    (Key_Type        => String,
-     Element_Type    => Positive,
-     Hash            => Ada.Strings.Hash,
-     Equivalent_Keys => "=");
+  ---------------------------
+  --  Statistics database  --
+  ---------------------------
+
+  package Name_Maps is new Ada.Containers.Indefinite_Ordered_Maps
+    (Key_Type     => String,
+     Element_Type => Positive);
 
   type Stats_Row is record
     cumulative_duration_gid   : Duration   := 0.0;
@@ -282,10 +283,10 @@ procedure Benchmark is
 begin
   Blurb;
   delay 4.0;
-  
+
   --  !! Here, add a loop for comparing the decoding of a tiny image,
-  --     in order to discount the invocation time of the external program. 
-  
+  --     in order to discount the invocation time of the external program.
+
   for iter in 1 .. iterations loop
     for row of stats_table loop
       row.occ_per_category := 0;
@@ -298,6 +299,7 @@ begin
     --
     Process ("jpeg_baseline_biarritz.jpg");     --  Olympus camera
     Process ("jpeg_baseline_hifi.jpg");         --  Canon EOS 100D
+    Process ("jpeg_baseline_tirol.jpg");        --  Nokia 301 (!), panoramic
     Process ("jpeg_progressive_lyon.jpg");      --  Rescaled by GIMP 2.10
     Process ("jpeg_progressive_walensee.jpg");  --  Rescaled by WhatsApp
     --
