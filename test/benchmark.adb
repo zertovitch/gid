@@ -305,6 +305,7 @@ begin
     --
     Process ("png_interlaced_hifi.png");
     Process ("png_non_interlaced_hifi.png");
+    Process ("png_pixellized_lisboa.png");
   end loop;
   --
   Put_Line ("=========================");
