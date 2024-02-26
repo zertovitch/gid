@@ -5,6 +5,7 @@ with Ada.Calendar,
      Ada.Characters.Handling,
      Ada.Containers.Indefinite_Ordered_Maps,
      Ada.Containers.Vectors,
+     Ada.Environment_Variables,
      Ada.Streams.Stream_IO,
      Ada.Text_IO,
      Ada.Unchecked_Deallocation;
@@ -160,23 +161,46 @@ procedure Benchmark is
 
   image_stats,
   format_stats,
-  format_subformat_stats : Name_Maps.Map;
+  format_subformat_stats,
+  global_stats : Name_Maps.Map;
+
+  dur_external_call : Duration;
+
+  function GNAT_Sys (Arg : Interfaces.C.char_array) return Interfaces.C.int;
+  pragma Import (C, GNAT_Sys, "system");
+
+  procedure Sys (Command : String; Result : out Integer) is
+    --  https://rosettacode.org/wiki/Execute_a_system_command#Ada
+  begin
+    Result := Integer (GNAT_Sys (Interfaces.C.To_C (Command)));
+  end Sys;
+
+  procedure Compute_Penalty_for_External_Calls (iterations : Integer) is
+    use Ada.Calendar, Ada.Environment_Variables;
+    T0, T1 : Time;
+    res : Integer;
+    --  The command does nothing useful; we just want to time the call.
+    command : constant String :=
+      "magick -version >" &
+      (if Value ("OS") = "Windows_NT" then "nul" else "/dev/null");
+  begin
+    T0 := Clock;
+    for iter in 1 .. iterations loop
+      Sys (command, res);
+      if res /= 0 then
+        Put_Line ("Error calling magick!");
+        raise Program_Error;
+      end if;
+    end loop;
+    T1 := Clock;
+    dur_external_call := (T1 - T0) / iterations;
+  end Compute_Penalty_for_External_Calls;
 
   procedure Process (name : String) is
     f : Ada.Streams.Stream_IO.File_Type;
     i : GID.Image_Descriptor;
     up_name : constant String := To_Upper (name);
-    --
     next_frame : Ada.Calendar.Day_Duration := 0.0;
-    --
-    function GNAT_Sys (Arg : Interfaces.C.char_array) return Interfaces.C.int;
-    pragma Import (C, GNAT_Sys, "system");
-
-    procedure Sys (Command : String; Result : out Integer) is
-      --  https://rosettacode.org/wiki/Execute_a_system_command#Ada
-    begin
-      Result := Integer (GNAT_Sys (Interfaces.C.To_C (Command)));
-    end Sys;
 
     use Ada.Calendar;
     res : Integer;
@@ -249,6 +273,7 @@ procedure Benchmark is
     New_Line;
     --
     Feed_Stat (image_stats, name);
+    Feed_Stat (global_stats, "All images");
     Feed_Stat (format_stats, GID.Format (i)'Image);
     Feed_Stat
       (format_subformat_stats,
@@ -257,19 +282,24 @@ procedure Benchmark is
        " Subformat" & GID.Subformat (i)'Image);
   end Process;
 
-  iterations : constant := 100;
+  iterations : constant := 20;
 
   procedure Show_Stats (categ_map : Name_Maps.Map) is
     procedure Row_Details (row : Stats_Row) is
       denom : constant Integer := iterations * row.occ_per_category;
     begin
-      Put_Line ("   Images in this category      : " & row.occ_per_category'Image);
-      Put_Line ("   Average duration GID         : " &
+      Put_Line ("   Images in this category                    : " &
+        row.occ_per_category'Image);
+      Put_Line ("   Average duration GID                       : " &
         Duration'Image (row.cumulative_duration_gid / denom));
-      Put_Line ("   Average duration ImageMagick : " &
+      Put_Line ("   Average duration GID + simulated ext. call : " &
+        Duration'Image
+          (dur_external_call + row.cumulative_duration_gid / denom));
+      Put_Line ("   Average duration ImageMagick (ext. call)   : " &
         Duration'Image (row.cumulative_duration_other / denom));
-      Put_Line ("   Average difference score     : " &
-        Long_Float'Image (row.difference_score / Long_Float (row.occ_per_category)));
+      Put_Line ("   Average difference score                   : " &
+        Long_Float'Image
+          (row.difference_score / Long_Float (row.occ_per_category)));
       New_Line;
     end Row_Details;
   begin
@@ -284,8 +314,7 @@ begin
   Blurb;
   delay 4.0;
 
-  --  !! Here, add a loop for comparing the decoding of a tiny image,
-  --     in order to discount the invocation time of the external program.
+  Compute_Penalty_for_External_Calls (100);
 
   for iter in 1 .. iterations loop
     for row of stats_table loop
@@ -308,9 +337,13 @@ begin
     Process ("png_pixellized_lisboa.png");
   end loop;
   --
-  Put_Line ("=========================");
+  Put_Line ("==============================================================");
+  Put_Line ("Average time for external call" & dur_external_call'Image);
   Put_Line ("*** Statistics per image:");
   Show_Stats (image_stats);
+  New_Line;
+  Put_Line ("*** Statistics for all images:");
+  Show_Stats (global_stats);
   New_Line;
   Put_Line ("*** Statistics per image format:");
   Show_Stats (format_stats);
