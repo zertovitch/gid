@@ -5,6 +5,7 @@ with Ada.Calendar,
      Ada.Characters.Handling,
      Ada.Containers.Indefinite_Ordered_Maps,
      Ada.Containers.Vectors,
+     Ada.Directories,
      Ada.Environment_Variables,
      Ada.Streams.Stream_IO,
      Ada.Text_IO,
@@ -202,13 +203,19 @@ procedure Benchmark is
     up_name : constant String := To_Upper (name);
     next_frame : Ada.Calendar.Day_Duration := 0.0;
 
-    use Ada.Calendar;
+    use Ada.Calendar, Ada.Directories;
     res : Integer;
     T0, T1, T2 : Time;
     dur_gid, dur_magick : Duration;
 
     gid_name    : constant String := name & "_gid.ppm";
     magick_name : constant String := name & "_magick.ppm";
+
+    img_dir : constant String := "img/";
+
+    rel_name        : constant String := img_dir & name;
+    rel_gid_name    : constant String := img_dir & gid_name;
+    rel_magick_name : constant String := img_dir & magick_name;
 
     dist : Long_Float;
 
@@ -236,7 +243,7 @@ procedure Benchmark is
     --
     --  Load the image in its original format
     --
-    Open (f, In_File, "img/" & name);
+    Open (f, In_File, rel_name);
     Put ("Processing " & name & "... ");
     T0 := Clock;
     --
@@ -249,7 +256,7 @@ procedure Benchmark is
     --
     mem_buffer_last := force_allocate;
     Load_Raw_Image (i, img_buf, next_frame);
-    Dump_PPM ("img/" & gid_name, i);
+    Dump_PPM (rel_gid_name, i);
     New_Line;
     --
     Close (f);
@@ -257,7 +264,7 @@ procedure Benchmark is
     --
     --  Call the other tool.
     --
-    Sys ("magick img/" & name & " img/" & magick_name, res);
+    Sys ("magick " & rel_name & ' ' & rel_magick_name, res);
     if res /= 0 then
       Put_Line ("Error calling magick!");
       raise Program_Error;
@@ -268,7 +275,7 @@ procedure Benchmark is
     Put
       ("Durations: GID:" & dur_gid'Image &
        ", Magick:" & dur_magick'Image & "; difference score:");
-    dist := Comp_Img_Fct ("img/" & gid_name, "img/" & magick_name, False);
+    dist := Comp_Img_Fct (rel_gid_name, rel_magick_name, False);
     Put_Line (dist'Image);
     New_Line;
     --
@@ -280,6 +287,11 @@ procedure Benchmark is
        GID.Format (i)'Image & ' ' &
        GID.Detailed_format (i) &
        " Subformat" & GID.Subformat (i)'Image);
+    --
+    --  Cleanup
+    --
+    Delete_File (rel_gid_name);
+    Delete_File (rel_magick_name);
   end Process;
 
   iterations : constant := 20;
@@ -343,6 +355,7 @@ begin
     Put_Line ("---------------------------- Iteration" & iter'Image);
     Process ("gif_interlaced_hifi.gif");
     Process ("gif_non_interlaced_hifi.gif");
+    Process ("gif_sparse_10k_x_10k.gif");
     --
     Process ("jpeg_baseline_biarritz.jpg");     --  Olympus camera
     Process ("jpeg_baseline_hifi.jpg");         --  Canon EOS 100D
@@ -353,6 +366,7 @@ begin
     Process ("png_interlaced_hifi.png");
     Process ("png_non_interlaced_hifi.png");
     Process ("png_pixellized_lisboa.png");
+    Process ("png_sparse_10k_x_10k.png");
   end loop;
   --
   Put_Line ("==============================================================");
