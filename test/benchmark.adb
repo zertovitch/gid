@@ -284,22 +284,40 @@ procedure Benchmark is
 
   iterations : constant := 20;
 
+  dur_gid_as_ext_call, dur_magick : Duration;
+
   procedure Show_Stats (categ_map : Name_Maps.Map) is
     procedure Row_Details (row : Stats_Row) is
       denom : constant Integer := iterations * row.occ_per_category;
     begin
-      Put_Line ("   Images in this category                    : " &
-        row.occ_per_category'Image);
-      Put_Line ("   Average duration GID                       : " &
-        Duration'Image (row.cumulative_duration_gid / denom));
-      Put_Line ("   Average duration GID + simulated ext. call : " &
-        Duration'Image
-          (dur_external_call + row.cumulative_duration_gid / denom));
-      Put_Line ("   Average duration ImageMagick (ext. call)   : " &
-        Duration'Image (row.cumulative_duration_other / denom));
-      Put_Line ("   Average difference score                   : " &
-        Long_Float'Image
-          (row.difference_score / Long_Float (row.occ_per_category)));
+      Put_Line
+        ("    Images in this category                   : " &
+         row.occ_per_category'Image);
+      Put_Line
+        ("    Average duration GID                      : " &
+         Duration'Image (row.cumulative_duration_gid / denom));
+      dur_gid_as_ext_call :=
+        dur_external_call + row.cumulative_duration_gid / denom;
+      Put_Line
+        ("    Average duration GID + simulated ext. call: " &
+         dur_gid_as_ext_call'Image);
+      dur_magick := row.cumulative_duration_other / denom;
+      Put_Line
+        ("    Average duration ImageMagick (ext. call)  : " &
+         dur_magick'Image);
+      Put_Line
+        ("    " &
+         (if dur_gid_as_ext_call < dur_magick then
+            "GID + sim. ext. call is" &
+            Float'Image (Float (dur_magick) / Float (dur_gid_as_ext_call))
+          else
+            "IM is" &
+            Float'Image (Float (dur_gid_as_ext_call) / Float (dur_magick))) &
+         " faster");
+      Put_Line
+        ("    Average difference score                  : " &
+         Float'Image
+           (Float (row.difference_score) / Float (row.occ_per_category)));
       New_Line;
     end Row_Details;
   begin
@@ -342,13 +360,13 @@ begin
   Put_Line ("*** Statistics per image:");
   Show_Stats (image_stats);
   New_Line;
-  Put_Line ("*** Statistics for all images:");
-  Show_Stats (global_stats);
+  Put_Line ("*** Statistics per image format and subformat:");
+  Show_Stats (format_subformat_stats);
   New_Line;
   Put_Line ("*** Statistics per image format:");
   Show_Stats (format_stats);
   New_Line;
-  Put_Line ("*** Statistics per image format and subformat:");
-  Show_Stats (format_subformat_stats);
+  Put_Line ("*** Statistics for all images:");
+  Show_Stats (global_stats);
   New_Line;
 end Benchmark;
