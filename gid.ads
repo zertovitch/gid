@@ -197,8 +197,8 @@ package GID is
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String := "013 preview 2";
-  reference : constant String := "27-Feb-2024";
+  version   : constant String := "013 preview 3";
+  reference : constant String := "28-Feb-2024";
   web       : constant String := "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..........^
   --

@@ -362,12 +362,14 @@ begin
     Process ("gif_sparse_10k_x_10k.gif");
     Process ("car_mask_breaks_1024_stack_top.gif");
     --
-    Process ("jpeg_baseline_biarritz.jpg");     --  Olympus camera
-    Process ("jpeg_baseline_hifi.jpg");         --  Canon EOS 100D
-    Process ("jpeg_baseline_tirol.jpg");        --  Nokia 301 (!), panoramic
+    Process ("jpeg_baseline_biarritz.jpg");             --  Olympus camera
+    Process ("jpeg_baseline_hifi.jpg");                 --  Canon EOS 100D
+    Process ("jpeg_baseline_tirol.jpg");                --  Nokia 301 (!), panoramic
+    Process ("jpeg_baseline_hifi_25_pct_quality.jpg");  --  GIMP, 25% quality
     --
-    Process ("jpeg_progressive_lyon.jpg");      --  Rescaled by GIMP 2.10
-    Process ("jpeg_progressive_walensee.jpg");  --  Rescaled by WhatsApp
+    Process ("jpeg_progressive_lyon.jpg");                 --  Rescaled by GIMP 2.10
+    Process ("jpeg_progressive_walensee.jpg");             --  Rescaled by WhatsApp
+    Process ("jpeg_progressive_lyon_25_pct_quality.jpg");  --  GIMP, 25% quality
     --
     Process ("png_interlaced_hifi.png");
     Process ("png_non_interlaced_hifi.png");
@@ -391,5 +393,6 @@ begin
   New_Line;
 
   T1 := Clock;
-  Put_Line ("Total benchmark time:" & Duration'Image (T1 - T0) & " seconds.");
+  Put_Line
+    ("Total benchmark time:" & Duration'Image ((T1 - T0) / 60) & " minutes.");
 end Benchmark;
