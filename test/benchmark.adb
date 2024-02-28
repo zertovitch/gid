@@ -264,7 +264,7 @@ procedure Benchmark is
     --
     --  Call the other tool.
     --
-    Sys ("magick " & rel_name & ' ' & rel_magick_name, res);
+    Sys ("magick -limit thread 1 " & rel_name & ' ' & rel_magick_name, res);
     if res /= 0 then
       Put_Line ("Error calling magick!");
       raise Program_Error;
@@ -294,42 +294,41 @@ procedure Benchmark is
     Delete_File (rel_magick_name);
   end Process;
 
-  iterations : constant := 20;
-
-  dur_gid_as_ext_call, dur_magick : Duration;
+  iterations : constant := 40;
 
   procedure Show_Stats (categ_map : Name_Maps.Map) is
     procedure Row_Details (row : Stats_Row) is
       denom : constant Integer := iterations * row.occ_per_category;
+      dur_gid, dur_magick, dur_magick_less_ext_call : Duration;
     begin
       Put_Line
-        ("    Images in this category                   : " &
+        ("    Images in this category  . . . . . . . . . . . . . . . : " &
          row.occ_per_category'Image);
       Put_Line
-        ("    Average duration GID                      : " &
-         Duration'Image (row.cumulative_duration_gid / denom));
-      dur_gid_as_ext_call :=
-        dur_external_call + row.cumulative_duration_gid / denom;
-      Put_Line
-        ("    Average duration GID + simulated ext. call: " &
-         dur_gid_as_ext_call'Image);
-      dur_magick := row.cumulative_duration_other / denom;
-      Put_Line
-        ("    Average duration ImageMagick (ext. call)  : " &
-         dur_magick'Image);
-      Put_Line
-        ("    " &
-         (if dur_gid_as_ext_call < dur_magick then
-            "GID + sim. ext. call is" &
-            Float'Image (Float (dur_magick) / Float (dur_gid_as_ext_call))
-          else
-            "IM is" &
-            Float'Image (Float (dur_gid_as_ext_call) / Float (dur_magick))) &
-         " faster");
-      Put_Line
-        ("    Average difference score                  : " &
+        ("    Average color difference score . . . . . . . . . . . . : " &
          Float'Image
            (Float (row.difference_score) / Float (row.occ_per_category)));
+      dur_gid := row.cumulative_duration_gid / denom;
+      Put_Line
+        ("    Average duration GID . . . . . . . . . . . . . . . . . : " &
+         dur_gid'Image);
+      dur_magick := row.cumulative_duration_other / denom;
+      Put_Line
+        ("    Average duration ImageMagick (external call) . . . . . : " &
+         dur_magick'Image);
+      dur_magick_less_ext_call := dur_magick - dur_external_call;
+      Put_Line
+        ("    Average duration ImageMagick (as if internally called) : " &
+         dur_magick_less_ext_call'Image);
+      Put_Line
+        ("    " &
+         (if dur_gid < dur_magick_less_ext_call then
+            "GID is" &
+            Float'Image (Float (dur_magick_less_ext_call) / Float (dur_gid))
+          else
+            "ImageMagick (as if internally called) is" &
+            Float'Image (Float (dur_gid) / Float (dur_magick_less_ext_call))) &
+         " faster");
       New_Line;
     end Row_Details;
   begin
