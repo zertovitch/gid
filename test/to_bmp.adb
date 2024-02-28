@@ -430,7 +430,7 @@ procedure To_BMP is
        "  Image format: " & GID.Format (i)'Image);
     Put_Line
       (Standard_Error,
-       "  Image detailed format: " & GID.Detailed_format (i));
+       "  Image detailed format: " & GID.Detailed_Format (i));
     Put_Line
       (Standard_Error,
        "  Image sub-format ID (if any):" & GID.Subformat (i)'Image);

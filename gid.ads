@@ -156,7 +156,7 @@ package GID is
   --  NB: RIFF is a container for the WebP format.
 
   function Format (image : Image_Descriptor) return Image_Format_Type;
-  function Detailed_format (image : Image_Descriptor) return String;
+  function Detailed_Format (image : Image_Descriptor) return String;
   --  example: "GIF89a, interlaced"
   function Subformat (image : Image_Descriptor) return Integer;
   --  example the 'color type' in PNG

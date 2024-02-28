@@ -285,7 +285,7 @@ procedure Benchmark is
     Feed_Stat
       (format_subformat_stats,
        GID.Format (i)'Image & ' ' &
-       GID.Detailed_format (i) &
+       GID.Detailed_Format (i) &
        " Subformat" & GID.Subformat (i)'Image);
     --
     --  Cleanup

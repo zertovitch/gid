@@ -170,10 +170,10 @@ package body GID is
     return image.format;
   end Format;
 
-  function Detailed_format (image : Image_Descriptor) return String is
+  function Detailed_Format (image : Image_Descriptor) return String is
   begin
     return Bounded_255.To_String (image.detailed_format);
-  end Detailed_format;
+  end Detailed_Format;
 
   function Subformat (image : Image_Descriptor) return Integer is
   begin
