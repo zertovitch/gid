@@ -302,26 +302,26 @@ procedure Benchmark is
       dur_gid, dur_magick, dur_magick_less_ext_call : Duration;
     begin
       Put_Line
-        ("    Images in this category  . . . . . . . . . . . . . . . : " &
+        ("    Images in this category  . . . . . . . . . . . . . . . . . :" &
          row.occ_per_category'Image);
       Put_Line
-        ("    Average color difference score . . . . . . . . . . . . : " &
+        ("    Average color difference score . . . . . . . . . . . . . . :" &
          Float'Image
            (Float (row.difference_score) / Float (row.occ_per_category)));
       dur_gid := row.cumulative_duration_gid / denom;
       Put_Line
-        ("    Average duration GID . . . . . . . . . . . . . . . . . : " &
+        ("    Average duration GID [1] . . . . . . . . . . . . . . . . . :" &
          dur_gid'Image);
       dur_magick := row.cumulative_duration_other / denom;
       Put_Line
-        ("    Average duration ImageMagick (external call) . . . . . : " &
+        ("    Average duration ImageMagick (external call) . . . . . . . :" &
          dur_magick'Image);
       dur_magick_less_ext_call := dur_magick - dur_external_call;
       Put_Line
-        ("    Average duration ImageMagick (as if internally called) : " &
+        ("    Average duration ImageMagick (as if internally called) [2] :" &
          dur_magick_less_ext_call'Image);
       Put_Line
-        ("    " &
+        ("    [1] vs. [2]: " &
          (if dur_gid < dur_magick_less_ext_call then
             "GID is" &
             Float'Image (Float (dur_magick_less_ext_call) / Float (dur_gid))
@@ -339,7 +339,12 @@ procedure Benchmark is
     end loop;
   end Show_Stats;
 
+  use Ada.Calendar;
+
+  T0, T1 : Time;
+
 begin
+  T0 := Clock;
   Blurb;
 
   Compute_Penalty_for_External_Calls (100);
@@ -384,4 +389,7 @@ begin
   Put_Line ("*** Statistics for all images:");
   Show_Stats (global_stats);
   New_Line;
+
+  T1 := Clock;
+  Put_Line ("Total benchmark time:" & Duration'Image (T1 - T0) & " seconds.");
 end Benchmark;

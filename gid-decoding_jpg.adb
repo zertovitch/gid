@@ -27,11 +27,6 @@
 --      6. Image reconstruction
 
 --  !! ** Some optimizations to consider **
---  !! ssx, ssy ,ssxmax, ssymax
---       as generic parameters + specialized instances
---  !! consider only power-of-two upsampling factors ?
---  !! simplify upsampling loops in case of power-of-two upsampling factors
---       using Shift_Right
 --  !! Col_IDCT output direct to "flat", or something similar to NanoJPEG
 
 with GID.Buffering;
@@ -539,9 +534,50 @@ package body GID.Decoding_JPG is
     end if;
   end Read_EXIF;
 
-  --------------------
-  -- Image decoding --
-  --------------------
+  ---------------------------
+  --  JPEG image decoding  --
+  ---------------------------
+
+  type Block_8x8 is array (0 .. 63) of Integer;
+
+  --  Reverse the zig-zag. If you follow the sequence 0, 1, 2, 3, ...
+  --  in the array below you find the original zig-zag sequence.
+  --  See also:
+  --    Figure A.6 - Zig-zag sequence of quantized DCT coefficients.
+  --
+  undo_zig_zag : constant array (0 .. 63) of Integer :=
+    (0,  1,  5,  6, 14, 15, 27, 28,
+     2,  4,  7, 13, 16, 26, 29, 42,
+     3,  8, 12, 17, 25, 30, 41, 43,
+     9, 11, 18, 24, 31, 40, 44, 53,
+    10, 19, 23, 32, 39, 45, 52, 54,
+    20, 22, 33, 38, 46, 51, 55, 60,
+    21, 34, 37, 47, 50, 56, 59, 61,
+    35, 36, 48, 49, 57, 58, 62, 63);
+
+  --  Ordering within a 8x8 block, in zig-zag
+  --  See: Figure 5 - Preparation of quantized
+  --       coefficients for entropy encoding
+  --
+  zig_zag : constant Block_8x8 :=
+    (0,  1,  8, 16,  9,  2,  3, 10,
+    17, 24, 32, 25, 18, 11,  4,  5,
+    12, 19, 26, 33, 40, 48, 41, 34,
+    27, 20, 13,  6,  7, 14, 21, 28,
+    35, 42, 49, 56, 57, 50, 43, 36,
+    29, 22, 15, 23, 30, 37, 44, 51,
+    58, 59, 52, 45, 38, 31, 39, 46,
+    53, 60, 61, 54, 47, 55, 62, 63);
+
+  zag_zig : constant array (0 .. 63, 1 .. 2) of Integer_32 :=
+     ((0, 0), (1, 0), (0, 1), (0, 2), (1, 1), (2, 0), (3, 0), (2, 1),
+      (1, 2), (0, 3), (0, 4), (1, 3), (2, 2), (3, 1), (4, 0), (5, 0),
+      (4, 1), (3, 2), (2, 3), (1, 4), (0, 5), (0, 6), (1, 5), (2, 4),
+      (3, 3), (4, 2), (5, 1), (6, 0), (7, 0), (6, 1), (5, 2), (4, 3),
+      (3, 4), (2, 5), (1, 6), (0, 7), (1, 7), (2, 6), (3, 5), (4, 4),
+      (5, 3), (6, 2), (7, 1), (7, 2), (6, 3), (5, 4), (4, 5), (3, 6),
+      (2, 7), (3, 7), (4, 6), (5, 5), (6, 4), (7, 3), (7, 4), (6, 5),
+      (5, 6), (4, 7), (5, 7), (6, 6), (7, 5), (7, 6), (6, 7), (7, 7));
 
   procedure Load (image : in out Image_Descriptor) is
     --
@@ -722,22 +758,6 @@ package body GID.Decoding_JPG is
         return x;
       end if;
     end Clip;
-
-    type Block_8x8 is array (0 .. 63) of Integer;
-
-    --  Ordering within a 8x8 block, in zig-zag
-    --  See: Figure 5 - Preparation of quantized
-    --       coefficients for entropy encoding
-    --
-    zig_zag : constant Block_8x8 :=
-      (0,  1,  8, 16,  9,  2,  3, 10,
-      17, 24, 32, 25, 18, 11,  4,  5,
-      12, 19, 26, 33, 40, 48, 41, 34,
-      27, 20, 13,  6,  7, 14, 21, 28,
-      35, 42, 49, 56, 57, 50, 43, 36,
-      29, 22, 15, 23, 30, 37, 44, 51,
-      58, 59, 52, 45, 38, 31, 39, 46,
-      53, 60, 61, 54, 47, 55, 62, 63);
 
     procedure Decode_8x8_Block (c : Component; block : in out Block_8x8) is
       value, coef : Integer;
@@ -944,9 +964,10 @@ package body GID.Decoding_JPG is
 
       flat :
         array
-          (Component,
-           0 .. sample_shape_max_x - 1,
-           0 .. sample_shape_max_y - 1) of Integer;
+          (0 .. sample_shape_max_x - 1,
+           0 .. sample_shape_max_y - 1,
+           Component)
+        of Integer;
 
       generic
         color_space : Supported_color_space;
@@ -956,31 +977,31 @@ package body GID.Decoding_JPG is
         y_val, cb_val, cr_val, c_val, m_val, w_val : Integer;
         y_val_8 : U8;
       begin
-        for ymb in flat'Range (3) loop
+        for ymb in flat'Range (2) loop
           exit when y0 + Integer_32 (ymb) >= image.height;
           Set_X_Y (Integer (x0), Integer (image.height - 1 - (y0 + Integer_32 (ymb))));
-          for xmb in flat'Range (2) loop
+          for xmb in flat'Range (1) loop
             exit when x0 + Integer_32 (xmb) >= image.width;
             case color_space is
               when YCbCr =>
-                y_val  := flat (Y,  xmb, ymb) * 256;
-                cb_val := flat (Cb, xmb, ymb) - 128;
-                cr_val := flat (Cr, xmb, ymb) - 128;
+                y_val  := flat (xmb, ymb, Y) * 256;
+                cb_val := flat (xmb, ymb, Cb) - 128;
+                cr_val := flat (xmb, ymb, Cr) - 128;
                 Out_Pixel_8
                   (br => U8 (Clip ((y_val                + 359 * cr_val + 128) / 256)),
                    bg => U8 (Clip ((y_val -  88 * cb_val - 183 * cr_val + 128) / 256)),
                    bb => U8 (Clip ((y_val + 454 * cb_val                + 128) / 256)));
               when Y_Grey =>
-                y_val_8 := U8 (flat (Y,  xmb, ymb));
+                y_val_8 := U8 (flat (xmb, ymb, Y));
                 Out_Pixel_8 (y_val_8, y_val_8, y_val_8);
               when CMYK =>
                 --  !! find a working conversion formula.
                 --     perhaps it is more complicated (APP_2
                 --     color profile must be used ?)
-                c_val := flat (Y,  xmb, ymb);
-                m_val := flat (Cb, xmb, ymb);
-                y_val := flat (Cr, xmb, ymb);
-                w_val := flat (I,  xmb, ymb) - 255;
+                c_val := flat (xmb, ymb, Y);
+                m_val := flat (xmb, ymb, Cb);
+                y_val := flat (xmb, ymb, Cr);
+                w_val := flat (xmb, ymb, I) - 255;
                 Out_Pixel_8
                   (br => U8 (255 - Clip (c_val + w_val)),
                    bg => U8 (255 - Clip (m_val + w_val)),
@@ -1019,7 +1040,7 @@ package body GID.Decoding_JPG is
                     --  position (x8,y8).
                     for rx in reverse 0 .. upsx - 1 loop
                       for ry in reverse 0 .. upsy - 1 loop
-                        flat (c, rx + big_pixel_x, ry + big_pixel_y) := val;
+                        flat (rx + big_pixel_x, ry + big_pixel_y, c) := val;
                       end loop;
                     end loop;
                   end;
@@ -1169,9 +1190,16 @@ package body GID.Decoding_JPG is
     --  NB: this procedure is called multiple times for
     --      a single image encoded as progressive JPEG.
     is
-      refining : Boolean;
       x, y : Natural_32;
       repeat : Natural;
+
+      ---------------------------
+      --  Progressive DC Scan  --
+      ---------------------------
+
+      generic
+        refining : Boolean;  --  Invariant across the entire scan.
+      procedure Progressive_DC_Scan;
 
       procedure Progressive_DC_Scan is
         compo_idx : Natural;
@@ -1274,18 +1302,22 @@ package body GID.Decoding_JPG is
         end loop MCU_Loop;
       end Progressive_DC_Scan;
 
-      zag_zig : constant array (0 .. 63, 1 .. 2) of Integer_32 :=
-         ((0, 0), (1, 0), (0, 1), (0, 2), (1, 1), (2, 0), (3, 0), (2, 1),
-          (1, 2), (0, 3), (0, 4), (1, 3), (2, 2), (3, 1), (4, 0), (5, 0),
-          (4, 1), (3, 2), (2, 3), (1, 4), (0, 5), (0, 6), (1, 5), (2, 4),
-          (3, 3), (4, 2), (5, 1), (6, 0), (7, 0), (6, 1), (5, 2), (4, 3),
-          (3, 4), (2, 5), (1, 6), (0, 7), (1, 7), (2, 6), (3, 5), (4, 4),
-          (5, 3), (6, 2), (7, 1), (7, 2), (6, 3), (5, 4), (4, 5), (3, 6),
-          (2, 7), (3, 7), (4, 6), (5, 5), (6, 4), (7, 3), (7, 4), (6, 5),
-          (5, 6), (4, 7), (5, 7), (6, 6), (7, 5), (7, 6), (6, 7), (7, 7));
+      procedure Progressive_DC_Non_Refining_Scan
+        is new Progressive_DC_Scan (refining => False);
+
+      procedure Progressive_DC_Refining_Scan
+        is new Progressive_DC_Scan (refining => True);
+
+      ---------------------------
+      --  Progressive AC Scan  --
+      ---------------------------
+
+      generic
+        refining : Boolean;  --  Invariant across the entire scan.
+      procedure Progressive_AC_Scan;
 
       procedure Progressive_AC_Scan is
-        --  !! TBD: fix glitches in the AC scan.
+        --  !! TBD: fix following issue in the AC scan:
         --
         --  Images with Restart markers crash the decoder in the AC scan
         --  phase: for some reason, the RST_0 marker appears too early.
@@ -1300,12 +1332,12 @@ package body GID.Decoding_JPG is
 
         --  AC values that will be refined
 
-        max_refine_index : constant := 2000;
+        max_refine_index : constant := 2000;  --  Value used by libjpeg.
         refine_index_last : Natural := 0;
         refine_point_x, refine_point_y :
           array (1 .. max_refine_index) of Integer_32;
 
-        procedure Append (x, y : Integer_32) is
+        procedure Append (x, y : Integer_32) with Inline is
         begin
           refine_index_last := refine_index_last + 1;
           if refine_index_last > max_refine_index then
@@ -1595,7 +1627,14 @@ package body GID.Decoding_JPG is
         end loop MCU_Loop;
       end Progressive_AC_Scan;
 
+      procedure Progressive_AC_Non_Refining_Scan
+        is new Progressive_AC_Scan (refining => False);
+
+      procedure Progressive_AC_Refining_Scan
+        is new Progressive_AC_Scan (refining => True);
+
       kind : AC_DC;
+      refining : Boolean;
 
     begin
       rst_count := image.JPEG_stuff.restart_interval;
@@ -1632,10 +1671,17 @@ package body GID.Decoding_JPG is
         Put_Line ("Refining scan : "    & refining'Image);
       end if;
 
-      case kind is
-        when DC => Progressive_DC_Scan;  --  First scan
-        when AC => Progressive_AC_Scan;  --  Further scans
-      end case;
+      if refining then
+        case kind is
+          when DC => Progressive_DC_Refining_Scan;
+          when AC => Progressive_AC_Refining_Scan;
+        end case;
+      else
+        case kind is
+          when DC => Progressive_DC_Non_Refining_Scan;
+          when AC => Progressive_AC_Non_Refining_Scan;
+        end case;
+      end if;
     end Progressive_DCT_Decoding_Scan;
 
     procedure Finalize_Progressive_DCT_Decoding is
@@ -1654,21 +1700,6 @@ package body GID.Decoding_JPG is
         array (Component) of Integer_32 := (others => 0);
 
       qt_zz : array (Component) of JPEG_Defs.Quantization_Table;
-
-      --  Reverse the zig-zag. If you follow the sequence 0, 1, 2, 3, ...
-      --  in the array below you find the original zig-zag sequence.
-      --  See also:
-      --    Figure A.6 - Zig-zag sequence of quantized DCT coefficients.
-      --
-      undo_zig_zag : constant array (0 .. 63) of Integer :=
-        (0,  1,  5,  6, 14, 15, 27, 28,
-         2,  4,  7, 13, 16, 26, 29, 42,
-         3,  8, 12, 17, 25, 30, 41, 43,
-         9, 11, 18, 24, 31, 40, 44, 53,
-        10, 19, 23, 32, 39, 45, 52, 54,
-        20, 22, 33, 38, 46, 51, 55, 60,
-        21, 34, 37, 47, 50, 56, 59, 61,
-        35, 36, 48, 49, 57, 58, 62, 63);
 
     begin
       c_idx := 0;
@@ -1701,16 +1732,16 @@ package body GID.Decoding_JPG is
           if image.JPEG_stuff.compo_set (c) then
             c_idx := c_idx + 1;
             samples_y_loop :
-            for sby in 1 .. info_A (c).samples_ver loop
+            for sby in reverse 1 .. info_A (c).samples_ver loop
               samples_x_loop :
-              for sbx in 1 .. info_A (c).samples_hor loop
+              for sbx in reverse 1 .. info_A (c).samples_hor loop
                 declare
                   block : Block_8x8 renames mb (c, sbx, sby);
                   qt_local : JPEG_Defs.Quantization_Table renames qt_zz (c);
                 begin
                   --  Copy block data:
-                  for yb in 0 .. 7 loop
-                    for xb in 0 .. 7 loop
+                  for yb in reverse 0 .. 7 loop
+                    for xb in reverse 0 .. 7 loop
                       block (xb + yb * 8) :=
                         image_array
                           (x_image_array (c) + Integer_32 (8 * (sbx - 1) + xb),
@@ -1719,7 +1750,7 @@ package body GID.Decoding_JPG is
                     end loop;
                   end loop;
                   --  Undo quantization on the block:
-                  for i in 0 .. 63 loop
+                  for i in reverse 0 .. 63 loop
                     block (i) := block (i) * qt_local (i);
                   end loop;
                   Inverse_DCT_8x8_Block (block);
