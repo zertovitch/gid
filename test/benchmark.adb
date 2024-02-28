@@ -274,9 +274,9 @@ procedure Benchmark is
     dur_magick := T2 - T1;
     Put
       ("Durations: GID:" & dur_gid'Image &
-       ", Magick:" & dur_magick'Image & "; difference score:");
+       ", Magick:" & dur_magick'Image & "; color difference score:");
     dist := Comp_Img_Fct (rel_gid_name, rel_magick_name, False);
-    Put_Line (dist'Image);
+    Put_Line (Float (dist)'Image);
     New_Line;
     --
     Feed_Stat (image_stats, name);
@@ -342,7 +342,6 @@ procedure Benchmark is
 
 begin
   Blurb;
-  delay 4.0;
 
   Compute_Penalty_for_External_Calls (100);
 
@@ -350,18 +349,19 @@ begin
     for row of stats_table loop
       row.occ_per_category := 0;
       row.difference_score := 0.0;
-      --  ^ same for each iteration, so we avoid cumulating rounding errors uselessly.
+      --  ^ Value is the same for each iteration, so we avoid
+      --    cumulating rounding errors uselessly.
     end loop;
     Put_Line ("---------------------------- Iteration" & iter'Image);
     Process ("gif_interlaced_hifi.gif");
     Process ("gif_non_interlaced_hifi.gif");
-    --  Process ("gif_sparse_10k_x_10k.gif");
-    --  Huh, we get a CONSTRAINT_ERROR, "index check failed"
-    --  at gid-decoding_gif.adb:336 ...
+    Process ("gif_sparse_10k_x_10k.gif");
+    Process ("car_mask_breaks_1024_stack_top.gif");
     --
     Process ("jpeg_baseline_biarritz.jpg");     --  Olympus camera
     Process ("jpeg_baseline_hifi.jpg");         --  Canon EOS 100D
     Process ("jpeg_baseline_tirol.jpg");        --  Nokia 301 (!), panoramic
+    --
     Process ("jpeg_progressive_lyon.jpg");      --  Rescaled by GIMP 2.10
     Process ("jpeg_progressive_walensee.jpg");  --  Rescaled by WhatsApp
     --

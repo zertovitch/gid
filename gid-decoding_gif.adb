@@ -65,17 +65,17 @@ package body GID.Decoding_GIF is
     Y, tlY, brY : Natural;
 
     --  Code information
-    subtype Code_size_range is Natural range 2 .. 12;
-    CurrSize : Code_size_range;
+    subtype Code_Size_Range is Natural range 2 .. 12;
+    curr_size : Code_Size_Range;
 
-    subtype Color_type is U8;
-    Transp_color   : Color_type := 0;
+    subtype Color_Type is U8;
+    transp_color : Color_Type := 0;
 
     --  GIF data is stored in blocks and sub-blocks.
     --  We initialize block_read and block_size to force
     --  reading and buffering the next sub-block
-    block_size   : Natural := 0;
-    block_read   : Natural := 0;
+    block_size : Natural := 0;
+    block_read : Natural := 0;
 
     function Read_Byte return U8 is
     pragma Inline (Read_Byte);
@@ -101,7 +101,7 @@ package body GID.Decoding_GIF is
       code : Natural := 0;
     begin
       --  Read the code, bit by bit
-      for Counter  in reverse  0 .. CurrSize - 1  loop
+      for counter  in reverse  0 .. curr_size - 1  loop
         --  Next bit
         bits_in := bits_in + 1;
         --  Maybe, a new byte needs to be loaded with a further 8 bits
@@ -110,7 +110,7 @@ package body GID.Decoding_GIF is
           bits_in := 1;
         end if;
         --  Add the current bit to the code
-        if (bits_buf  and  1) > 0 then
+        if (bits_buf and 1) > 0 then
           code := code + bit_mask;
         end if;
         bit_mask := bit_mask * 2;
@@ -142,7 +142,7 @@ package body GID.Decoding_GIF is
         end Times_257;
         full_opaque : constant Primary_Color_Range := Primary_Color_Range'Last;
       begin
-        if transparency and then b = Transp_color then
+        if transparency and then b = transp_color then
           Put_Pixel (0, 0, 0, 0);
           return;
         end if;
@@ -173,7 +173,7 @@ package body GID.Decoding_GIF is
       --  Local procedure to draw a pixel
       procedure Next_Pixel (code : Natural) is
       pragma Inline (Next_Pixel);
-        c : constant Color_type := Color_type (U32 (code) and pixel_mask);
+        c : constant Color_Type := Color_Type (U32 (code) and pixel_mask);
       begin
         --  Actually draw the pixel on screen buffer
         if X < Integer (image.width) then
@@ -244,17 +244,18 @@ package body GID.Decoding_GIF is
       Suffix : array (0 .. 4096) of Natural := (others => 0);
       --  Top of Stack was 1024 until files from
       --    https://www.kaggle.com/c/carvana-image-masking-challenge
-      --  broke it (July 2017)...
-      Stack  : array (0 .. 2048) of Natural;
+      --  ...broke it (July 2017). -> Doubled.
+      --  Doubled again (Feb. 2024) for ./test/img/gif_sparse_10k_x_10k.gif.
+      Stack  : array (0 .. 4096) of Natural;
 
       --  Special codes (specific to GIF's flavour of LZW)
-      ClearCode : constant Natural := 2 ** CurrSize; -- Reset code
-      EndingCode : constant Natural := ClearCode + 1; -- End of file
-      FirstFree : constant Natural := ClearCode + 2; -- Strings start here
+      Clear_Code  : constant Natural := 2 ** curr_size;  --  Reset code
+      Ending_Code : constant Natural := Clear_Code + 1;  --  End of file
+      First_Free  : constant Natural := Clear_Code + 2;  --  Strings start here
 
-      Slot         : Natural := FirstFree;  --  Last read code
-      InitCodeSize : constant Code_size_range := CurrSize + 1;
-      TopSlot      : Natural := 2 ** InitCodeSize; --  Highest code for current size
+      Slot         : Natural := First_Free;  --  Last read code
+      InitCodeSize : constant Code_Size_Range := curr_size + 1;
+      TopSlot      : Natural := 2 ** InitCodeSize;  --  Highest code for current size
       Code         : Natural;
       StackPtr     : Integer := 0;
       Fc           : Integer := 0;
@@ -262,11 +263,11 @@ package body GID.Decoding_GIF is
       C            : Integer;
       BadCodeCount : Natural := 0;  --  the number of bad codes found
 
-    begin -- GIF_Decode
+    begin  --  GIF_Decode
       --  The decoder source and the cool comments are kindly donated by
       --  André van Splunter.
       --
-      CurrSize := InitCodeSize;
+      curr_size := InitCodeSize;
       --  This is the main loop.  For each code we get we pass through the
       --  linked list of prefix codes, pushing the corresponding "character"
       --  for each code onto the stack.  When the list reaches a single
@@ -275,21 +276,21 @@ package body GID.Decoding_GIF is
       --  included for the clear code, and the whole thing ends when we get
       --  an ending code.
       C := Read_Code;
-      while C /= EndingCode loop
+      while C /= Ending_Code loop
          --  If the code is a clear code, reinitialize all necessary items.
-         if C = ClearCode then
-            CurrSize := InitCodeSize;
-            Slot     := FirstFree;
-            TopSlot  := 2 ** CurrSize;
+         if C = Clear_Code then
+            curr_size := InitCodeSize;
+            Slot     := First_Free;
+            TopSlot  := 2 ** curr_size;
             --  Continue reading codes until we get a non-clear code
             --  (Another unlikely, but possible case...)
             C := Read_Code;
-            while C = ClearCode loop
+            while C = Clear_Code loop
                C := Read_Code;
             end loop;
             --  If we get an ending code immediately after a clear code
             --  (Yet another unlikely case), then break out of the loop.
-            exit when C = EndingCode;
+            exit when C = Ending_Code;
             --  Finally, if the code is beyond the range of already set codes,
             --  (This one had better NOT happen...  I have no idea what will
             --  result from this, but I doubt it will look good...) then set
@@ -322,7 +323,7 @@ package body GID.Decoding_GIF is
             end if;
             --  Here we scan back along the linked list of prefixes, pushing
             --  helpless characters (ie. suffixes) onto the stack as we do so.
-            while Code >= FirstFree loop
+            while Code >= First_Free loop
                Stack (StackPtr) := Suffix (Code);
                StackPtr := StackPtr + 1;
                Code := Prefix (Code);
@@ -342,9 +343,9 @@ package body GID.Decoding_GIF is
                Oc := C;
             end if;
             if Slot >= TopSlot then
-               if CurrSize < 12 then
+               if curr_size < 12 then
                   TopSlot := TopSlot * 2;
-                  CurrSize := CurrSize + 1;
+                  curr_size := curr_size + 1;
                end if;
             end if;
             --  Now that we've pushed the decoded string (in reverse order)
@@ -419,7 +420,7 @@ package body GID.Decoding_GIF is
             image.next_frame + Ada.Calendar.Day_Duration (delay_frame) / 100.0;
           next_frame := image.next_frame;
           Get_Byte (image.buffer, temp);
-          Transp_color := Color_type (temp);
+          transp_color := Color_Type (temp);
           --  Zero sub-block:
           Get_Byte (image.buffer, temp);
         when 16#FE# =>  --  See: 24. Comment Extension
@@ -556,16 +557,16 @@ package body GID.Decoding_GIF is
         (" - Image, interlaced: " & frame_interlaced'Image &
          "; local palette: " & local_palette'Image &
          "; transparency: " & frame_transparency'Image &
-         "; transparency index:" & Transp_color'Image);
+         "; transparency index:" & transp_color'Image);
     end if;
 
     --  Get initial code size
     Get_Byte (image.buffer, temp);
-    if Natural (temp) not in Code_size_range then
+    if Natural (temp) not in Code_Size_Range then
       raise error_in_image_data with
         "GIF: wrong LZW code size (must be in 2 .. 12), is" & temp'Image;
     end if;
-    CurrSize := Natural (temp);
+    curr_size := Natural (temp);
 
     --  Start at top left of image
     X := Natural (Descriptor.ImageLeft);
