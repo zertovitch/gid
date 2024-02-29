@@ -31,7 +31,7 @@ procedure Benchmark is
     New_Line;
     Put_Line ("In order to save your SDD / Hard Disk and to minimize file transaction times,");
     Put_Line ("it is recommended to copy the images (originally in ./test/img) to a RAM Disk");
-    Put_Line ("and run the program there. A subdirectory ""img"" (relative to the current"); 
+    Put_Line ("and run the program there. A subdirectory ""img"" (relative to the current");
     Put_Line ("directory) is expected by the program for reading the test images.");
     Put_Line ("This test might take 10 minutes or more. Be patient!");
     New_Line;
@@ -202,7 +202,7 @@ procedure Benchmark is
     dur_external_call := dur_external_call / iterations;
   end Compute_Penalty_for_External_Calls;
 
-  procedure Process (name : String) is
+  procedure Process (name : String; is_first_iteration : Boolean) is
     f : Ada.Streams.Stream_IO.File_Type;
     i : GID.Image_Descriptor;
     up_name : constant String := To_Upper (name);
@@ -229,8 +229,10 @@ procedure Benchmark is
       begin
         the_row.cumulative_duration_gid   := the_row.cumulative_duration_gid + dur_gid;
         the_row.cumulative_duration_other := the_row.cumulative_duration_other + dur_magick;
-        the_row.difference_score          := the_row.difference_score + dist;
-        the_row.occ_per_category          := the_row.occ_per_category + 1;
+        if is_first_iteration then
+          the_row.difference_score := the_row.difference_score + dist;
+          the_row.occ_per_category := the_row.occ_per_category + 1;
+        end if;
       end Feed_To;
     begin
       if not stat_map.Contains (stat_name) then
@@ -277,12 +279,13 @@ procedure Benchmark is
     T2 := Clock;
     dur_gid    := T1 - T0;
     dur_magick := T2 - T1;
-    Put
-      ("Durations: GID:" & dur_gid'Image &
-       ", Magick:" & dur_magick'Image & "; color difference score:");
-    dist := Comp_Img_Fct (rel_gid_name, rel_magick_name, False);
-    Put_Line (Float (dist)'Image);
-    New_Line;
+    Put ("Durations: GID:" & dur_gid'Image & ", Magick:" & dur_magick'Image);
+    if is_first_iteration then
+      Put ("; color difference score:");
+      dist := Comp_Img_Fct (rel_gid_name, rel_magick_name, False);
+      Put (Float (dist)'Image);
+    end if;
+    New_Line (2);
     --
     Feed_Stat (image_stats, name);
     Feed_Stat (global_stats, "All images");
@@ -357,31 +360,25 @@ begin
   Compute_Penalty_for_External_Calls (200);
 
   for iter in 1 .. iterations loop
-    for row of stats_table loop
-      row.occ_per_category := 0;
-      row.difference_score := 0.0;
-      --  ^ Value is the same for each iteration, so we avoid
-      --    cumulating rounding errors uselessly.
-    end loop;
     Put_Line ("---------------------------- Iteration" & iter'Image);
-    Process ("gif_interlaced_hifi.gif");
-    Process ("gif_non_interlaced_hifi.gif");
-    Process ("gif_sparse_10k_x_10k.gif");
-    Process ("car_mask_breaks_1024_stack_top.gif");
+    Process ("gif_interlaced_hifi.gif", iter = 1);
+    Process ("gif_non_interlaced_hifi.gif", iter = 1);
+    Process ("gif_sparse_10k_x_10k.gif", iter = 1);
+    Process ("car_mask_breaks_1024_stack_top.gif", iter = 1);
     --
-    Process ("jpeg_baseline_biarritz.jpg");             --  Olympus camera
-    Process ("jpeg_baseline_hifi.jpg");                 --  Canon EOS 100D
-    Process ("jpeg_baseline_tirol.jpg");                --  Nokia 301 (!), panoramic
-    Process ("jpeg_baseline_hifi_25_pct_quality.jpg");  --  GIMP, 25% quality
+    Process ("jpeg_baseline_biarritz.jpg", iter = 1);             --  Olympus camera
+    Process ("jpeg_baseline_hifi.jpg", iter = 1);                 --  Canon EOS 100D
+    Process ("jpeg_baseline_tirol.jpg", iter = 1);                --  Nokia 301 (!), panoramic
+    Process ("jpeg_baseline_hifi_25_pct_quality.jpg", iter = 1);  --  GIMP, 25% quality
     --
-    Process ("jpeg_progressive_lyon.jpg");                 --  Rescaled by GIMP 2.10
-    Process ("jpeg_progressive_walensee.jpg");             --  Rescaled by WhatsApp
-    Process ("jpeg_progressive_lyon_25_pct_quality.jpg");  --  GIMP, 25% quality
+    Process ("jpeg_progressive_lyon.jpg", iter = 1);                 --  Rescaled by GIMP 2.10
+    Process ("jpeg_progressive_walensee.jpg", iter = 1);             --  Rescaled by WhatsApp
+    Process ("jpeg_progressive_lyon_25_pct_quality.jpg", iter = 1);  --  GIMP, 25% quality
     --
-    Process ("png_interlaced_hifi.png");
-    Process ("png_non_interlaced_hifi.png");
-    Process ("png_pixellized_lisboa.png");
-    Process ("png_sparse_10k_x_10k.png");
+    Process ("png_interlaced_hifi.png", iter = 1);
+    Process ("png_non_interlaced_hifi.png", iter = 1);
+    Process ("png_pixellized_lisboa.png", iter = 1);
+    Process ("png_sparse_10k_x_10k.png", iter = 1);
   end loop;
   --
   Put_Line ("==============================================================");
