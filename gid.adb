@@ -47,15 +47,15 @@ package body GID is
       new Ada.Unchecked_Deallocation (Color_Table, p_Color_Table);
     procedure Dispose is
       new Ada.Unchecked_Deallocation
-        (JPEG_Defs.VLC_table,
-         JPEG_Defs.p_VLC_table);
+        (JPEG_Defs.VLC_Table,
+         JPEG_Defs.p_VLC_Table);
   begin
     --  Deterministic garbage collection of heap allocated objects.
     --  -> Palette
     Dispose (Object.palette);
     --  -> JPEG tables
-    for ad in JPEG_Defs.VLC_defs_type'Range (1) loop
-      for idx in JPEG_Defs.VLC_defs_type'Range (2) loop
+    for ad in JPEG_Defs.VLC_Defs_Type'Range (1) loop
+      for idx in JPEG_Defs.VLC_Defs_Type'Range (2) loop
         Dispose (Object.JPEG_stuff.vlc_defs (ad, idx));
       end loop;
     end loop;
@@ -229,11 +229,11 @@ package body GID is
       Object.palette := new Color_Table'(Object.palette.all);
     end if;
     --  -> JPEG tables
-    for ad in JPEG_Defs.VLC_defs_type'Range (1) loop
-      for idx in JPEG_Defs.VLC_defs_type'Range (2) loop
+    for ad in JPEG_Defs.VLC_Defs_Type'Range (1) loop
+      for idx in JPEG_Defs.VLC_Defs_Type'Range (2) loop
         if Object.JPEG_stuff.vlc_defs (ad, idx) /= null then
           Object.JPEG_stuff.vlc_defs (ad, idx) :=
-            new VLC_table'(Object.JPEG_stuff.vlc_defs (ad, idx).all);
+            new VLC_Table'(Object.JPEG_stuff.vlc_defs (ad, idx).all);
         end if;
       end loop;
     end loop;

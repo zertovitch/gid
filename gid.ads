@@ -288,33 +288,33 @@ private
 
     type Component_Info_A is array (Component) of Info_per_Component_A;
 
-    type Supported_color_space is
+    type Supported_Color_Space is
       (YCbCr,   --  3-dim color space
        Y_Grey,  --  1-dim greyscale
        CMYK);   --  4-dim Cyan, Magenta, Yellow, blacK
 
     type AC_DC is (AC, DC);
 
-    type VLC_code is record
+    type VLC_Code is record
       bits, code : U8;
     end record;
 
-    type VLC_table is array (0 .. 65_535) of VLC_code;
+    type VLC_Table is array (0 .. 65_535) of VLC_Code;
 
-    type p_VLC_table is access VLC_table;
+    type p_VLC_Table is access VLC_Table;
 
-    type VLC_defs_type is array (AC_DC, 0 .. 7) of p_VLC_table;
+    type VLC_Defs_Type is array (AC_DC, 0 .. 7) of p_VLC_Table;
 
   end JPEG_Defs;
 
   type JPEG_Stuff_Type is record
     compo_set        : JPEG_Defs.Compo_Set_Type := (others => False);
-    color_space      : JPEG_Defs.Supported_color_space;
+    color_space      : JPEG_Defs.Supported_Color_Space;
     info             : JPEG_Defs.Component_Info_A;
     max_samples_hor  : Natural;
     max_samples_ver  : Natural;
     qt_list          : JPEG_Defs.Quantization_Table_List;
-    vlc_defs         : JPEG_Defs.VLC_defs_type := (others => (others => null));
+    vlc_defs         : JPEG_Defs.VLC_Defs_Type := (others => (others => null));
     restart_interval : Natural;  --  Predictor restarts every... (0: never)
   end record;
 

@@ -24,14 +24,16 @@ procedure Benchmark is
     Put_Line ("URL: " & GID.web);
     New_Line;
     Put_Line ("GID is compared against results of ImageMagick ( https://imagemagick.org/ ).");
-    Put_Line ("The executable magick needs to be visible on the path.");
+    Put_Line ("The executable ""magick[.exe]"" needs to be visible on the path.");
     New_Line;
     Put_Line ("Syntax:");
     Put_Line ("benchmark");
     New_Line;
     Put_Line ("In order to save your SDD / Hard Disk and to minimize file transaction times,");
-    Put_Line ("it is recommended to copy the images (in ./test/img) to a RAM Disk");
-    Put_Line ("and run the program there.");
+    Put_Line ("it is recommended to copy the images (originally in ./test/img) to a RAM Disk");
+    Put_Line ("and run the program there. A subdirectory ""img"" (relative to the current"); 
+    Put_Line ("directory) is expected by the program for reading the test images.");
+    Put_Line ("This test might take 10 minutes or more. Be patient!");
     New_Line;
   end Blurb;
 
@@ -185,16 +187,19 @@ procedure Benchmark is
       "magick -version >" &
       (if Value ("OS") = "Windows_NT" then "nul" else "/dev/null");
   begin
-    T0 := Clock;
+    dur_external_call := 0.0;
     for iter in 1 .. iterations loop
+      T0 := Clock;
       Sys (command, res);
       if res /= 0 then
         Put_Line ("Error calling magick!");
         raise Program_Error;
       end if;
+      T1 := Clock;
+      dur_external_call := dur_external_call + (T1 - T0);
+      delay 0.001 / iter;
     end loop;
-    T1 := Clock;
-    dur_external_call := (T1 - T0) / iterations;
+    dur_external_call := dur_external_call / iterations;
   end Compute_Penalty_for_External_Calls;
 
   procedure Process (name : String) is
@@ -294,10 +299,11 @@ procedure Benchmark is
     Delete_File (rel_magick_name);
   end Process;
 
-  iterations : constant := 40;
+  iterations : constant := 50;
 
-  procedure Show_Stats (categ_map : Name_Maps.Map) is
-    procedure Row_Details (row : Stats_Row) is
+  procedure Show_Stats (category_map : Name_Maps.Map) is
+
+    procedure Show_Row_Details (row : Stats_Row) is
       denom : constant Integer := iterations * row.occ_per_category;
       dur_gid, dur_magick, dur_magick_less_ext_call : Duration;
     begin
@@ -321,21 +327,22 @@ procedure Benchmark is
         ("    Average duration ImageMagick (as if internally called) [2] :" &
          dur_magick_less_ext_call'Image);
       Put_Line
-        ("    [1] vs. [2]: " &
+        ("    [1]  vs. [2]: " &
          (if dur_gid < dur_magick_less_ext_call then
             "GID is" &
             Float'Image (Float (dur_magick_less_ext_call) / Float (dur_gid))
           else
             "ImageMagick (as if internally called) is" &
             Float'Image (Float (dur_gid) / Float (dur_magick_less_ext_call))) &
-         " faster");
+         " times faster");
       New_Line;
-    end Row_Details;
+    end Show_Row_Details;
+
   begin
     New_Line;
-    for curs in categ_map.Iterate loop
+    for curs in category_map.Iterate loop
       Put_Line (Name_Maps.Key (curs));
-      Row_Details (stats_table (Name_Maps.Element (curs)));
+      Show_Row_Details (stats_table (Name_Maps.Element (curs)));
     end loop;
   end Show_Stats;
 
@@ -347,7 +354,7 @@ begin
   T0 := Clock;
   Blurb;
 
-  Compute_Penalty_for_External_Calls (100);
+  Compute_Penalty_for_External_Calls (200);
 
   for iter in 1 .. iterations loop
     for row of stats_table loop

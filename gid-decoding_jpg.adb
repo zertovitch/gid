@@ -1,11 +1,11 @@
 --  GID's JPEG baseline DCT decoder is largely inspired
---  by the NanoJPEG code by Martin J. Fiedler.
---  With the author's permission. Web link:
+--  by the NanoJPEG code by Martin J. Fiedler,
+--  available under the MIT Licence. Web link:
 --    https://keyj.emphy.de/nanojpeg/
---
+
 --  The JPEG progressive DCT decoder is largely inspired
 --  by the PyJpegDecoder code by Tiago Becerra Paolini,
---  available under MIT Licence. Web link:
+--  available under the MIT Licence. Web link:
 --    https://github.com/tbpaolini/PyJpegDecoder
 
 --  Other informations:
@@ -25,9 +25,6 @@
 --      4. Upsampling
 --      5. Color transformation
 --      6. Image reconstruction
-
---  !! ** Some optimizations to consider **
---  !! Col_IDCT output direct to "flat", or something similar to NanoJPEG
 
 with GID.Buffering;
 
@@ -337,7 +334,7 @@ package body GID.Decoding_JPG is
            ", of kind (AC/DC): " & kind'Image);
       end if;
       if image.JPEG_stuff.vlc_defs (kind, ht_idx) = null then
-        image.JPEG_stuff.vlc_defs (kind, ht_idx) := new VLC_table;
+        image.JPEG_stuff.vlc_defs (kind, ht_idx) := new VLC_Table;
       end if;
       for i in counts'Range loop
         Get_Byte (image.buffer, b);
@@ -700,7 +697,7 @@ package body GID.Decoding_JPG is
     info_B : array (Component) of Info_per_component_B;
 
     procedure Get_VLC
-      (vlc       : in     VLC_table;
+      (vlc       : in     VLC_Table;
        code      :    out U8;
        value_ret :    out Integer)
     is
@@ -727,7 +724,7 @@ package body GID.Decoding_JPG is
       end if;
     end Get_VLC;
 
-    function Next_Huffval (vlc : VLC_table) return Integer is
+    function Next_Huffval (vlc : VLC_Table) return Integer is
       value : constant Integer := Show_Bits (16);
       bits  : constant Natural := Natural (vlc (value).bits);
     begin
@@ -958,10 +955,8 @@ package body GID.Decoding_JPG is
     of Block_8x8;
 
     procedure Upsampling_and_Output
-      (macro_block : Macro_8x8_Block;
-       x0, y0      : Natural_32)
+      (macro_block : Macro_8x8_Block; x0, y0 : Natural_32)
     is
-
       flat :
         array
           (0 .. sample_shape_max_x - 1,
@@ -970,7 +965,7 @@ package body GID.Decoding_JPG is
         of Integer;
 
       generic
-        color_space : Supported_color_space;
+        color_space : Supported_Color_Space;
       procedure Color_Transformation_and_Output;
       --
       procedure Color_Transformation_and_Output is
