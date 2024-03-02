@@ -590,10 +590,10 @@ package body GID.Decoding_GIF is
       --  "Rare" formats -> no need of best speed
       declare
         --  We create an instance with dynamic parameters
-        procedure GIF_Decode_general is
+        procedure GIF_Decode_General is
           new GIF_Decode_Frame (frame_interlaced, frame_transparency, custom_pixel_mask);
       begin
-        GIF_Decode_general;
+        GIF_Decode_General;
       end;
     else
       --  8 bit, usual format: we try to make things

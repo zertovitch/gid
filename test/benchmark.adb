@@ -8,6 +8,7 @@ with Ada.Calendar,
      Ada.Directories,
      Ada.Environment_Variables,
      Ada.Streams.Stream_IO,
+     Ada.Strings.Fixed,
      Ada.Text_IO,
      Ada.Unchecked_Deallocation;
 
@@ -15,13 +16,16 @@ with Interfaces.C;
 
 procedure Benchmark is
 
-  use Ada.Characters.Handling, Ada.Streams.Stream_IO, Ada.Text_IO, Interfaces;
+  use Ada.Characters.Handling, Ada.Streams.Stream_IO,
+      Ada.Strings.Fixed, Ada.Text_IO, Interfaces;
 
   procedure Blurb is
   begin
     Put_Line ("Benchmark for the GID (Generic Image Decoder) package");
     Put_Line ("Package version " & GID.version & " dated " & GID.reference);
     Put_Line ("URL: " & GID.web);
+    New_Line;
+    Put_Line ("Benchmark must be built by GNAT in the ""Fast_unchecked"" mode.");
     New_Line;
     Put_Line ("GID is compared against results of ImageMagick ( https://imagemagick.org/ ).");
     Put_Line ("The executable ""magick[.exe]"" needs to be visible on the path.");
@@ -77,7 +81,7 @@ procedure Benchmark is
 
     stars : Natural := 0;
     procedure Feedback (percents : Natural) is
-      so_far : constant Natural := percents / 10;
+      so_far : constant Natural := percents / 20;
     begin
       for i in stars + 1 .. so_far loop
         Put ('*');
@@ -197,10 +201,13 @@ procedure Benchmark is
       end if;
       T1 := Clock;
       dur_external_call := dur_external_call + (T1 - T0);
-      delay 0.001 / iter;
+      delay 0.001 / (1 + iter mod 23);
     end loop;
     dur_external_call := dur_external_call / iterations;
   end Compute_Penalty_for_External_Calls;
+
+  package DIO is new Fixed_IO (Duration);
+  package FIO is new Float_IO (Float);
 
   procedure Process (name : String; is_first_iteration : Boolean) is
     f : Ada.Streams.Stream_IO.File_Type;
@@ -251,7 +258,7 @@ procedure Benchmark is
     --  Load the image in its original format
     --
     Open (f, In_File, rel_name);
-    Put ("Processing " & name & "... ");
+    Put (name & (42 - name'Length) * ' ');
     T0 := Clock;
     --
     GID.Load_Image_Header
@@ -264,14 +271,13 @@ procedure Benchmark is
     mem_buffer_last := force_allocate;
     Load_Raw_Image (i, img_buf, next_frame);
     Dump_PPM (rel_gid_name, i);
-    New_Line;
     --
     Close (f);
     T1 := Clock;
     --
     --  Call the other tool.
     --
-    Sys ("magick -limit thread 1 " & rel_name & ' ' & rel_magick_name, res);
+    Sys ("magick " & rel_name & ' ' & rel_magick_name, res);
     if res /= 0 then
       Put_Line ("Error calling magick!");
       raise Program_Error;
@@ -279,13 +285,18 @@ procedure Benchmark is
     T2 := Clock;
     dur_gid    := T1 - T0;
     dur_magick := T2 - T1;
-    Put ("Durations: GID:" & dur_gid'Image & ", Magick:" & dur_magick'Image);
+    Put (" GID: ");
+    DIO.Put (dur_gid, 0, 3);
+    Put ("s, IM: ");
+    DIO.Put (dur_magick, 0, 3);
     if is_first_iteration then
-      Put ("; color difference score:");
+      Put ("s; col. diff.: ");
       dist := Comp_Img_Fct (rel_gid_name, rel_magick_name, False);
-      Put (Float (dist)'Image);
+      FIO.Put (Float (dist), 0, 4, 0);
+    else
+      Put ('s');
     end if;
-    New_Line (2);
+    New_Line;
     --
     Feed_Stat (image_stats, name);
     Feed_Stat (global_stats, "All images");
@@ -357,14 +368,13 @@ begin
   T0 := Clock;
   Blurb;
 
-  Compute_Penalty_for_External_Calls (200);
+  Compute_Penalty_for_External_Calls (400);
 
   for iter in 1 .. iterations loop
     Put_Line ("---------------------------- Iteration" & iter'Image);
     Process ("gif_interlaced_hifi.gif", iter = 1);
     Process ("gif_non_interlaced_hifi.gif", iter = 1);
     Process ("gif_sparse_10k_x_10k.gif", iter = 1);
-    Process ("car_mask_breaks_1024_stack_top.gif", iter = 1);
     --
     Process ("jpeg_baseline_biarritz.jpg", iter = 1);             --  Olympus camera
     Process ("jpeg_baseline_hifi.jpg", iter = 1);                 --  Canon EOS 100D

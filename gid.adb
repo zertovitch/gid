@@ -220,6 +220,29 @@ package body GID is
     blend_operation   := image.PNG_stuff.blend_op;
   end Get_Next_Frame_Informations;
 
+  package body JPEG_Defs is
+
+    function Identify
+      (param : Upsampling_Parameters) return Upsampling_Profile_Type
+    is
+      subtype Defined_Upsampling_Profile_Type is Upsampling_Profile_Type
+        range hor_1_1_ver_1_1 .. hor_2_1_ver_2_1;
+      profile_catalogue : constant array (Defined_Upsampling_Profile_Type)
+        of Upsampling_Parameters :=
+        (hor_1_1_ver_1_1 => (1, 1, 1, 1),
+         hor_1_2_ver_1_2 => (1, 2, 1, 2),
+         hor_2_1_ver_2_1 => (2, 1, 2, 1));
+    begin
+      for p in Defined_Upsampling_Profile_Type loop
+        if profile_catalogue (p) = param then
+          return p;
+        end if;
+      end loop;
+      return other_profile;
+    end Identify;
+
+  end JPEG_Defs;
+
   overriding procedure Adjust (Object : in out Image_Descriptor) is
     use JPEG_Defs;
   begin

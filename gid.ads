@@ -197,8 +197,8 @@ package GID is
   --  Information about this package - e.g. for an "about" box  --
   ----------------------------------------------------------------
 
-  version   : constant String := "013 preview 3";
-  reference : constant String := "28-Feb-2024";
+  version   : constant String := "013 preview 4";
+  reference : constant String := "02-Mar-2024";
   web       : constant String := "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..........^
   --
@@ -273,17 +273,31 @@ private
 
     type Compo_Set_Type is array (Component) of Boolean;
 
-    type Info_per_Component_A is record  --  B is defined inside the decoder
-      qt_assoc    : Natural;
+    type Upsampling_Profile_Type is
+      (component_not_covered,
+       --  Value pairs: (#samples, upsampling factor)
+       hor_1_1_ver_1_1,
+       hor_1_2_ver_1_2,
+       hor_2_1_ver_2_1,
+       other_profile);
+
+    type Upsampling_Parameters is record
       samples_hor : Natural := 0;
-      samples_ver : Natural := 0;
-      repeat      : Natural;
-      shape_x     : Natural;  --  x dimension (in pixels) of the MCU
-      shape_y     : Natural;  --  y dimension (in pixels) of the MCU
       up_factor_x : Natural;  --  how much we must repeat horizontally
+      samples_ver : Natural := 0;
       up_factor_y : Natural;  --  how much we must repeat vertically
-      shift_x     : Natural;  --  shift for repeating pixels horizontally
-      shift_y     : Natural;  --  shift for repeating pixels vertically
+    end record;
+
+    function Identify
+      (param : Upsampling_Parameters) return Upsampling_Profile_Type;
+
+    type Info_per_Component_A is record  --  B is defined inside the decoder
+      qt_assoc           : Natural;
+      repeat             : Natural;
+      shape_x            : Natural;  --  x dimension (in pixels) of the MCU
+      shape_y            : Natural;  --  y dimension (in pixels) of the MCU
+      ups                : Upsampling_Parameters;
+      upsampling_profile : Upsampling_Profile_Type := component_not_covered;
     end record;
 
     type Component_Info_A is array (Component) of Info_per_Component_A;

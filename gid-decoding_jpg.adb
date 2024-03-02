@@ -178,10 +178,7 @@ package body GID.Decoding_JPG is
     for i in 1 .. head.length loop
       Get_Byte (image.buffer, dummy);
     end loop;
- end Skip_Segment_Data;
-
-  shift_arg : constant array (0 .. 15) of Integer :=
-    (1 => 0, 2 => 1, 4 => 2, 8 => 3, others => -1);
+  end Skip_Segment_Data;
 
   --  SOF - Start Of Frame (the real header)
   procedure Read_SOF (image : in out Image_Descriptor; sh : Segment_Head) is
@@ -246,43 +243,57 @@ package body GID.Decoding_JPG is
       begin
         --  Sampling factors (bit 0-3 vert., 4-7 hor.)
         Get_Byte (image.buffer, b);
-        info.samples_hor := Natural (b  /  16);
-        info.samples_ver := Natural (b mod 16);
-        info.repeat      := info.samples_hor * info.samples_ver;
-        info.shape_x     := info.samples_hor * 8;
-        info.shape_y     := info.samples_ver * 8;
+        info.ups.samples_hor := Natural (b  /  16);
+        info.ups.samples_ver := Natural (b mod 16);
+        info.repeat      := info.ups.samples_hor * info.ups.samples_ver;
+        info.shape_x     := info.ups.samples_hor * 8;
+        info.shape_y     := info.ups.samples_ver * 8;
         stuff.max_samples_hor :=
-          Integer'Max (stuff.max_samples_hor, info.samples_hor);
+          Integer'Max (stuff.max_samples_hor, info.ups.samples_hor);
         stuff.max_samples_ver :=
-          Integer'Max (stuff.max_samples_ver, info.samples_ver);
+          Integer'Max (stuff.max_samples_ver, info.ups.samples_ver);
         --  Quantization table number
         Get_Byte (image.buffer, b);
         info.qt_assoc := Natural (b);
       end;
     end loop;
 
+    if some_trace then
+      Put_Line ("Frame has following components:");
+      for c in JPEG_Defs.Component loop
+        Put_Line (c'Image & " -> " & image.JPEG_stuff.compo_set (c)'Image);
+      end loop;
+      New_Line;
+    end if;
     for c in Component loop
       if image.JPEG_stuff.compo_set (c) then
         declare
           stuff : JPEG_Stuff_Type renames image.JPEG_stuff;
           info : JPEG_Defs.Info_per_Component_A renames stuff.info (c);
         begin
-          info.up_factor_x := stuff.max_samples_hor / info.samples_hor;
-          info.up_factor_y := stuff.max_samples_ver / info.samples_ver;
-          info.shift_x := shift_arg (info.up_factor_x);
-          info.shift_y := shift_arg (info.up_factor_y);
+          info.ups.up_factor_x := stuff.max_samples_hor / info.ups.samples_hor;
+          info.ups.up_factor_y := stuff.max_samples_ver / info.ups.samples_ver;
+          info.upsampling_profile := Identify (info.ups);
+
+          if some_trace then
+            Put_Line ("For component " & c'Image);
+            Put_Line
+              ("    samples . . . . .  :" &
+                info.ups.samples_hor'Image & " horizontal and" &
+                info.ups.samples_ver'Image & " vertical");
+            Put_Line
+              ("     upsampling factors:" &
+               info.ups.up_factor_x'Image & " horizontally and" &
+               info.ups.up_factor_y'Image & " vertically");
+            Put_Line
+              ("     upsampling profile: " & info.upsampling_profile'Image);
+          end if;
         end;
       end if;
     end loop;
 
     if Natural (sh.length) < 6 + 3 * image.subformat_id then
       raise error_in_image_data with "JPEG: SOF segment too short";
-    end if;
-    if some_trace then
-      Put_Line ("Frame has following components:");
-      for c in JPEG_Defs.Component loop
-        Put_Line (c'Image & " -> " & image.JPEG_stuff.compo_set (c)'Image);
-      end loop;
     end if;
     if image.JPEG_stuff.compo_set = YCbCr_set then
       image.JPEG_stuff.color_space := YCbCr;
@@ -954,15 +965,65 @@ package body GID.Decoding_JPG is
        Positive range <>)   --  y sample range
     of Block_8x8;
 
-    procedure Upsampling_and_Output
+    generic
+      flat_last_x : Natural;  --  Often 8 - 1, sometimes 16 - 1
+      flat_last_y : Natural;  --  Often 8 - 1, sometimes 16 - 1
+    procedure Upsampling_and_Output_Fixed_Dims
+      (macro_block : Macro_8x8_Block; x0, y0 : Natural_32);
+
+    procedure Upsampling_and_Output_Fixed_Dims
       (macro_block : Macro_8x8_Block; x0, y0 : Natural_32)
     is
       flat :
-        array
-          (0 .. sample_shape_max_x - 1,
-           0 .. sample_shape_max_y - 1,
-           Component)
-        of Integer;
+        array (0 .. flat_last_x, 0 .. flat_last_y, Component) of Integer;
+
+      generic
+        samples_x   : Positive;  --  Invariants of the image
+        up_factor_x : Positive;  --  Invariants of the image
+        samples_y   : Positive;  --  Invariants of the image
+        up_factor_y : Positive;  --  Invariants of the image
+      procedure Perform_Upsampling (c : Component)
+      with Inline;
+
+      procedure Perform_Upsampling (c : Component)
+      is
+        blk_idx : Integer;
+      begin
+        --  NB: when the four generic parameters are = 1,
+        --      the macro_block (c, 1, 1) (idx), for idx in 0 .. 63, is
+        --      just copied to flat (x8, y8, c), for x8, y8 in 0 .. 7,
+        --      without actual upsampling.
+        --      !!  To do: in this case, bypass this step and make
+        --          Col_IDCT write directly to flat.
+        for x in reverse 1 .. samples_x loop
+          for y in reverse 1 .. samples_y loop
+            --  We are at the 8x8 block level
+            blk_idx := 63;
+            for y8 in reverse 0 .. 7 loop
+              for x8 in reverse 0 .. 7 loop
+                declare
+                  val : constant Integer := macro_block (c, x, y)(blk_idx);
+                  big_pixel_x : constant Natural := up_factor_x * (x8 + 8 * (x - 1));
+                  big_pixel_y : constant Natural := up_factor_y * (y8 + 8 * (y - 1));
+                begin
+                  --  Repeat pixels for component c, sample (x, y),
+                  --  position (x8, y8).
+                  for rx in reverse 0 .. up_factor_x - 1 loop
+                    for ry in reverse 0 .. up_factor_y - 1 loop
+                      flat (rx + big_pixel_x, ry + big_pixel_y, c) := val;
+                    end loop;
+                  end loop;
+                end;
+                blk_idx := blk_idx - 1;
+              end loop;
+            end loop;
+          end loop;
+        end loop;
+      end Perform_Upsampling;
+      --
+      procedure Ups_Hor_1_1_Ver_1_1 is new Perform_Upsampling (1, 1, 1, 1);
+      procedure Ups_Hor_1_2_Ver_1_2 is new Perform_Upsampling (1, 2, 1, 2);
+      procedure Ups_Hor_2_1_Ver_2_1 is new Perform_Upsampling (2, 1, 2, 1);
 
       generic
         color_space : Supported_Color_Space;
@@ -1010,41 +1071,28 @@ package body GID.Decoding_JPG is
       procedure Ct_Y_Grey is new Color_Transformation_and_Output (Y_Grey);
       procedure Ct_CMYK   is new Color_Transformation_and_Output (CMYK);
 
-      blk_idx : Integer;
-      upsx, upsy : Natural;
     begin
       ---------------------------------------
       --  Step 4 happens here: Upsampling  --
       ---------------------------------------
       for c in Component loop
-        if image.JPEG_stuff.compo_set (c) then
-          upsx := info_A (c).up_factor_x;
-          upsy := info_A (c).up_factor_y;
-          for x in reverse 1 .. info_A (c).samples_hor loop
-            for y in reverse 1 .. info_A (c).samples_ver loop
-              --  We are at the 8x8 block level
-              blk_idx := 63;
-              for y8 in reverse 0 .. 7 loop
-                for x8 in reverse 0 .. 7 loop
-                  declare
-                    val : constant Integer := macro_block (c, x, y)(blk_idx);
-                    big_pixel_x : constant Natural := upsx * (x8 + 8 * (x - 1));
-                    big_pixel_y : constant Natural := upsy * (y8 + 8 * (y - 1));
-                  begin
-                    --  Repeat pixels for component c, sample (x,y),
-                    --  position (x8,y8).
-                    for rx in reverse 0 .. upsx - 1 loop
-                      for ry in reverse 0 .. upsy - 1 loop
-                        flat (rx + big_pixel_x, ry + big_pixel_y, c) := val;
-                      end loop;
-                    end loop;
-                  end;
-                  blk_idx := blk_idx - 1;
-                end loop;
-              end loop;
-            end loop;
-          end loop;
-        end if;
+        case info_A (c).upsampling_profile is
+          when component_not_covered => null;
+          when hor_1_1_ver_1_1       => Ups_Hor_1_1_Ver_1_1 (c);
+          when hor_1_2_ver_1_2       => Ups_Hor_1_2_Ver_1_2 (c);
+          when hor_2_1_ver_2_1       => Ups_Hor_2_1_Ver_2_1 (c);
+          when other_profile =>
+            declare
+              procedure General_Upsampling is
+                new Perform_Upsampling
+                  (samples_x   => info_A (c).ups.samples_hor,
+                   up_factor_x => info_A (c).ups.up_factor_x,
+                   samples_y   => info_A (c).ups.samples_ver,
+                   up_factor_y => info_A (c).ups.up_factor_y);
+            begin
+              General_Upsampling (c);
+            end;
+        end case;
       end loop;
       -----------------------------------------------------------------
       --  Step 5 and 6 happen here: Color transformation and output  --
@@ -1056,6 +1104,36 @@ package body GID.Decoding_JPG is
           Ct_Y_Grey;
         when CMYK =>
           Ct_CMYK;
+      end case;
+    end Upsampling_and_Output_Fixed_Dims;
+
+    procedure Upsampling_and_Output_8x8   is new Upsampling_and_Output_Fixed_Dims  (7,  7);
+    procedure Upsampling_and_Output_8x16  is new Upsampling_and_Output_Fixed_Dims  (7, 15);
+    procedure Upsampling_and_Output_16x8  is new Upsampling_and_Output_Fixed_Dims (15,  7);
+    procedure Upsampling_and_Output_16x16 is new Upsampling_and_Output_Fixed_Dims (15, 15);
+
+    procedure Upsampling_and_Output_General is
+      new Upsampling_and_Output_Fixed_Dims
+            (sample_shape_max_x - 1, sample_shape_max_y - 1);
+
+    procedure Upsampling_and_Output
+      (macro_block : Macro_8x8_Block; x0, y0 : Natural_32)
+    is
+    begin
+      case sample_shape_max_x is
+        when 8 =>
+          case sample_shape_max_y is
+            when 8      => Upsampling_and_Output_8x8     (macro_block, x0, y0);
+            when 16     => Upsampling_and_Output_8x16    (macro_block, x0, y0);
+            when others => Upsampling_and_Output_General (macro_block, x0, y0);
+          end case;
+        when 16 =>
+          case sample_shape_max_y is
+            when 8      => Upsampling_and_Output_16x8    (macro_block, x0, y0);
+            when 16     => Upsampling_and_Output_16x16   (macro_block, x0, y0);
+            when others => Upsampling_and_Output_General (macro_block, x0, y0);
+          end case;
+        when others => Upsampling_and_Output_General (macro_block, x0, y0);
       end case;
     end Upsampling_and_Output;
 
@@ -1126,9 +1204,9 @@ package body GID.Decoding_JPG is
         for c in Component loop
           if image.JPEG_stuff.compo_set (c) then
             samples_y_loop :
-            for sby in 1 .. info_A (c).samples_ver loop
+            for sby in 1 .. info_A (c).ups.samples_ver loop
               samples_x_loop :
-              for sbx in 1 .. info_A (c).samples_hor loop
+              for sbx in 1 .. info_A (c).ups.samples_hor loop
                 --  Steps 1 and 2 happen here:
                 Decode_8x8_Block (c, mb (c, sbx, sby));
                 --  Step 3 happens here:
@@ -1248,8 +1326,8 @@ package body GID.Decoding_JPG is
                 --  Blocks of 8 x 8 pixels for the color component
                 for block_count in 0 .. repeat - 1 loop
                   --  Coordinates of the block on the current MCU
-                  block_x := Natural_32 (block_count mod info.samples_hor);
-                  block_y := Natural_32 (block_count  /  info.samples_hor);
+                  block_x := Natural_32 (block_count mod info.ups.samples_hor);
+                  block_y := Natural_32 (block_count  /  info.ups.samples_hor);
                   delta_x := 8 * block_x;
                   delta_y := 8 * block_y;
                   if refining then
@@ -1726,10 +1804,12 @@ package body GID.Decoding_JPG is
         for c in Component loop
           if image.JPEG_stuff.compo_set (c) then
             c_idx := c_idx + 1;
+            --  !!  To do: make specialized instances called
+            --             depending on info_A (c).upsampling_profile.
             samples_y_loop :
-            for sby in reverse 1 .. info_A (c).samples_ver loop
+            for sby in reverse 1 .. info_A (c).ups.samples_ver loop
               samples_x_loop :
-              for sbx in reverse 1 .. info_A (c).samples_hor loop
+              for sbx in reverse 1 .. info_A (c).ups.samples_hor loop
                 declare
                   block : Block_8x8 renames mb (c, sbx, sby);
                   qt_local : JPEG_Defs.Quantization_Table renames qt_zz (c);
@@ -1754,7 +1834,7 @@ package body GID.Decoding_JPG is
             end loop samples_y_loop;
           end if;
           x_image_array (c) :=
-            x_image_array (c) + Integer_32 (info_A (c).samples_hor * 8);
+            x_image_array (c) + Integer_32 (info_A (c).ups.samples_hor * 8);
         end loop components_loop;
         --  All components of the current macro-block are now processed.
         --  Steps 4, 5, 6 happen here:
@@ -1770,7 +1850,7 @@ package body GID.Decoding_JPG is
           for c in Component loop
             x_image_array (c) := 0;
             y_image_array (c) :=
-              y_image_array (c) + Integer_32 (info_A (c).samples_ver * 8);
+              y_image_array (c) + Integer_32 (info_A (c).ups.samples_ver * 8);
           end loop;
           Feedback (50 + (50 * mb_y) / mcu_count_image_v);
           exit macro_blocks_loop when mb_y >= mcu_count_image_v;
@@ -1923,14 +2003,14 @@ package body GID.Decoding_JPG is
 
       for c in Component loop
         if scan_compo_set (c) then
-          info_B (c).width  := (Integer (image.width)  * info_A (c).samples_hor + ssxmax - 1) / ssxmax;
-          info_B (c).height := (Integer (image.height) * info_A (c).samples_ver + ssymax - 1) / ssymax;
-          info_B (c).stride := (mcu_count_h * mcu_width * info_A (c).samples_hor) / ssxmax;
+          info_B (c).width  := (Integer (image.width)  * info_A (c).ups.samples_hor + ssxmax - 1) / ssxmax;
+          info_B (c).height := (Integer (image.height) * info_A (c).ups.samples_ver + ssymax - 1) / ssymax;
+          info_B (c).stride := (mcu_count_h * mcu_width * info_A (c).ups.samples_hor) / ssxmax;
           if some_trace then
             New_Line;
             Put_Line ("    Details for component: . . . . . " & c'Image);
-            Put_Line ("      samples in x " & info_A (c).samples_hor'Image);
-            Put_Line ("      samples in y " & info_A (c).samples_ver'Image);
+            Put_Line ("      samples in x " & info_A (c).ups.samples_hor'Image);
+            Put_Line ("      samples in y " & info_A (c).ups.samples_ver'Image);
             Put_Line ("      width  " & info_B (c).width'Image);
             Put_Line ("      height " & info_B (c).height'Image);
             Put_Line ("      stride " & info_B (c).stride'Image);
@@ -1939,8 +2019,8 @@ package body GID.Decoding_JPG is
                info_B (compo).ht_idx_AC'Image & ", DC:" &
                info_B (compo).ht_idx_DC'Image);
           end if;
-          if (info_B (c).width < 3 and info_A (c).samples_hor /= ssxmax) or
-             (info_B (c).height < 3 and info_A (c).samples_ver /= ssymax)
+          if (info_B (c).width < 3 and info_A (c).ups.samples_hor /= ssxmax) or
+             (info_B (c).height < 3 and info_A (c).ups.samples_ver /= ssymax)
           then
             raise error_in_image_data with
               "JPEG: component " & c'Image & ": sample dimension mismatch";
