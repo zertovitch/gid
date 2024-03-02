@@ -313,7 +313,7 @@ procedure Benchmark is
     Delete_File (rel_magick_name);
   end Process;
 
-  iterations : constant := 50;
+  iterations : constant := 25;
 
   procedure Show_Stats (category_map : Name_Maps.Map) is
 
@@ -372,21 +372,20 @@ begin
 
   for iter in 1 .. iterations loop
     Put_Line ("---------------------------- Iteration" & iter'Image);
-    Process ("gif_interlaced_hifi.gif", iter = 1);
-    Process ("gif_non_interlaced_hifi.gif", iter = 1);
+    Process ("gif_interlaced_bush.gif", iter = 1);
+    Process ("gif_non_interlaced_bush.gif", iter = 1);
     Process ("gif_sparse_10k_x_10k.gif", iter = 1);
     --
     Process ("jpeg_baseline_biarritz.jpg", iter = 1);             --  Olympus camera
-    Process ("jpeg_baseline_hifi.jpg", iter = 1);                 --  Canon EOS 100D
     Process ("jpeg_baseline_tirol.jpg", iter = 1);                --  Nokia 301 (!), panoramic
-    Process ("jpeg_baseline_hifi_25_pct_quality.jpg", iter = 1);  --  GIMP, 25% quality
+    Process ("jpeg_baseline_bush.jpg", iter = 1);                 --  Canon EOS 100D, Size S1
     --
     Process ("jpeg_progressive_lyon.jpg", iter = 1);                 --  Rescaled by GIMP 2.10
     Process ("jpeg_progressive_walensee.jpg", iter = 1);             --  Rescaled by WhatsApp
     Process ("jpeg_progressive_lyon_25_pct_quality.jpg", iter = 1);  --  GIMP, 25% quality
     --
-    Process ("png_interlaced_hifi.png", iter = 1);
-    Process ("png_non_interlaced_hifi.png", iter = 1);
+    Process ("png_interlaced_bush.png", iter = 1);
+    Process ("png_non_interlaced_bush.png", iter = 1);
     Process ("png_pixellized_lisboa.png", iter = 1);
     Process ("png_sparse_10k_x_10k.png", iter = 1);
   end loop;
