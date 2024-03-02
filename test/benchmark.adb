@@ -191,7 +191,7 @@ procedure Benchmark is
       "magick -version >" &
       (if Value ("OS") = "Windows_NT" then "nul" else "/dev/null");
   begin
-    dur_external_call := 0.0;
+    dur_external_call := Duration'Last;
     for iter in 1 .. iterations loop
       T0 := Clock;
       Sys (command, res);
@@ -200,10 +200,9 @@ procedure Benchmark is
         raise Program_Error;
       end if;
       T1 := Clock;
-      dur_external_call := dur_external_call + (T1 - T0);
+      dur_external_call := Duration'Min (dur_external_call, (T1 - T0));
       delay 0.001 / (1 + iter mod 23);
     end loop;
-    dur_external_call := dur_external_call / iterations;
   end Compute_Penalty_for_External_Calls;
 
   package DIO is new Fixed_IO (Duration);
@@ -368,7 +367,7 @@ begin
   T0 := Clock;
   Blurb;
 
-  Compute_Penalty_for_External_Calls (400);
+  Compute_Penalty_for_External_Calls (100);
 
   for iter in 1 .. iterations loop
     Put_Line ("---------------------------- Iteration" & iter'Image);
@@ -376,9 +375,18 @@ begin
     Process ("gif_non_interlaced_bush.gif", iter = 1);
     Process ("gif_sparse_10k_x_10k.gif", iter = 1);
     --
-    Process ("jpeg_baseline_biarritz.jpg", iter = 1);             --  Olympus camera
-    Process ("jpeg_baseline_tirol.jpg", iter = 1);                --  Nokia 301 (!), panoramic
+    Process ("jpeg_baseline_biarritz.jpg", iter = 1);      --  Olympus camera
+    Process ("jpeg_baseline_tirol.jpg", iter = 1);         --  Nokia 301, panoramic
+    Process ("jpeg_baseline_neuchatel_1.jpg", iter = 1);   --  Nokia 301, panoramic
+    Process ("jpeg_baseline_neuchatel_2.jpg", iter = 1);   --  Nokia 301, panoramic
+    Process ("jpeg_baseline_horgenberg.jpg", iter = 1);    --  Nokia 301, panoramic
+    Process ("jpeg_baseline_maschgenkamm.jpg", iter = 1);  --  Nokia 301, panoramic
+    Process ("jpeg_baseline_pfannenstiel.jpg", iter = 1);  --  Nokia 301, panoramic
+    Process ("jpeg_baseline_saint_malo.jpg", iter = 1);    --  Nokia 301, panoramic
+    Process ("jpeg_baseline_waedenswil.jpg", iter = 1);    --  Nokia 301, panoramic
+
     Process ("jpeg_baseline_bush.jpg", iter = 1);                 --  Canon EOS 100D, Size S1
+    Process ("jpeg_baseline_bush_25_pct_quality.jpg", iter = 1);  --  GIMP, 25% quality
     --
     Process ("jpeg_progressive_lyon.jpg", iter = 1);                 --  Rescaled by GIMP 2.10
     Process ("jpeg_progressive_walensee.jpg", iter = 1);             --  Rescaled by WhatsApp
