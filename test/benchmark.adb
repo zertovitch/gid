@@ -201,7 +201,8 @@ procedure Benchmark is
       end if;
       T1 := Clock;
       dur_external_call := Duration'Min (dur_external_call, (T1 - T0));
-      delay 0.001 / (1 + iter mod 23);
+      delay 0.002 / (1 + iter mod 37);
+      --  ^ Add some randomness in thread's scheduling
     end loop;
   end Compute_Penalty_for_External_Calls;
 
@@ -312,7 +313,7 @@ procedure Benchmark is
     Delete_File (rel_magick_name);
   end Process;
 
-  iterations : constant := 25;
+  iterations : constant := 100;
 
   procedure Show_Stats (category_map : Name_Maps.Map) is
 
@@ -367,10 +368,11 @@ begin
   T0 := Clock;
   Blurb;
 
-  Compute_Penalty_for_External_Calls (100);
+  Compute_Penalty_for_External_Calls (400);
 
   for iter in 1 .. iterations loop
     Put_Line ("---------------------------- Iteration" & iter'Image);
+    Put_Line (Current_Error, iter'Image & " /" & iterations'Image);
     Process ("gif_interlaced_bush.gif", iter = 1);
     Process ("gif_non_interlaced_bush.gif", iter = 1);
     Process ("gif_sparse_10k_x_10k.gif", iter = 1);
@@ -384,6 +386,7 @@ begin
     Process ("jpeg_baseline_pfannenstiel.jpg", iter = 1);  --  Nokia 301, panoramic
     Process ("jpeg_baseline_saint_malo.jpg", iter = 1);    --  Nokia 301, panoramic
     Process ("jpeg_baseline_waedenswil.jpg", iter = 1);    --  Nokia 301, panoramic
+    Process ("jpeg_baseline_sparse_10k_x_10k.jpg", iter = 1);
 
     Process ("jpeg_baseline_bush.jpg", iter = 1);                 --  Canon EOS 100D, Size S1
     Process ("jpeg_baseline_bush_25_pct_quality.jpg", iter = 1);  --  GIMP, 25% quality
@@ -391,6 +394,7 @@ begin
     Process ("jpeg_progressive_lyon.jpg", iter = 1);                 --  Rescaled by GIMP 2.10
     Process ("jpeg_progressive_walensee.jpg", iter = 1);             --  Rescaled by WhatsApp
     Process ("jpeg_progressive_lyon_25_pct_quality.jpg", iter = 1);  --  GIMP, 25% quality
+    Process ("jpeg_progressive_sparse_10k_x_10k.jpg", iter = 1);
     --
     Process ("png_interlaced_bush.png", iter = 1);
     Process ("png_non_interlaced_bush.png", iter = 1);
@@ -399,7 +403,8 @@ begin
   end loop;
   --
   Put_Line ("==============================================================");
-  Put_Line ("Average time for external call" & dur_external_call'Image);
+  Put_Line ("Measured time for empty external call" & dur_external_call'Image);
+  New_Line;
   Put_Line ("*** Statistics per image:");
   Show_Stats (image_stats);
   New_Line;
