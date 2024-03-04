@@ -8,15 +8,14 @@ package body GID.Decoding_BMP is
     b01, b, br, bg, bb : U8 := 0;
     x, x_max, y : Natural;
     --
-    function Times_257 (x : Primary_Color_Range) return Primary_Color_Range is
-    pragma Inline (Times_257);
-    begin
-      return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
-      --  Numbers 8-bit -> no OA warning at instantiation.
-      --  Returns x if type Primary_color_range is mod 2**8.
-    end Times_257;
+    function Times_257 (x : Primary_Color_Range) return Primary_Color_Range
+    is
+    (16 * (16 * x) + x) with Inline;  --  This is 257 * x, = 16#0101# * x
+    --  Numbers are 8-bit -> no OA warning at instantiation.
+    --  Returns x if type Primary_Color_Range is mod 2**8.
+
     full_opaque : constant Primary_Color_Range := Primary_Color_Range'Last;
-    --
+
     procedure Pixel_with_palette is
     pragma Inline (Pixel_with_palette);
     begin

@@ -747,25 +747,13 @@ package body GID.Decoding_JPG is
     end Next_Huffval;
 
     function Bin_Twos_Complement (value, bit_length : Integer) return Integer is
-    begin
-      if value < Integer (Shift_Left (U32'(1), bit_length - 1)) then
-        return value + 1 - Integer (Shift_Left (U32'(1), bit_length));
-      else
-        return value;
-      end if;
-    end Bin_Twos_Complement;
+    (if value < Integer (Shift_Left (U32'(1), bit_length - 1)) then
+       value + 1 - Integer (Shift_Left (U32'(1), bit_length))
+     else
+       value);
 
     function Clip (x : Integer) return Integer is
-    pragma Inline (Clip);
-    begin
-      if x < 0 then
-        return 0;
-      elsif x > 255 then
-        return 255;
-      else
-        return x;
-      end if;
-    end Clip;
+    (if x < 0 then 0 elsif x > 255 then 255 else x) with Inline;
 
     procedure Decode_8x8_Block (c : Component; block : in out Block_8x8) is
       value, coef : Integer;
@@ -920,16 +908,14 @@ package body GID.Decoding_JPG is
 
     procedure Out_Pixel_8 (br, bg, bb : U8) is
     pragma Inline (Out_Pixel_8);
-      function Times_257 (x : Primary_Color_Range) return Primary_Color_Range is
-      pragma Inline (Times_257);
-      begin
-        --  Returns x if type Primary_Color_Range is mod 2**8.
-        return 16 * (16 * x) + x;
-        --  ^ This is 257 * x, that is 16#0101# * x
-        --  All literal numbers are 8-bit ->
-        --  no OA warning at instantiation.
-      end Times_257;
+      function Times_257 (x : Primary_Color_Range) return Primary_Color_Range
+      is
+      (16 * (16 * x) + x) with Inline;  --  This is 257 * x, = 16#0101# * x
+      --  Numbers are 8-bit -> no OA warning at instantiation.
+      --  Returns x if type Primary_Color_Range is mod 2**8.
+
       full_opaque : constant Primary_Color_Range := Primary_Color_Range'Last;
+
     begin
       case Primary_Color_Range'Modulus is
         when 256 =>

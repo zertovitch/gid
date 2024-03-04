@@ -116,13 +116,11 @@ package body GID.Decoding_TGA is
 
     procedure Output_Pixel is
     pragma Inline (Output_Pixel);
-      function Times_257 (x : Primary_Color_Range) return Primary_Color_Range is
-      pragma Inline (Times_257);
-      begin
-        return 16 * (16 * x) + x;  --  this is 257 * x, = 16#0101# * x
-        --  Numbers 8-bit -> no OA warning at instantiation.
-        --  Returns x if type Primary_color_range is mod 2**8.
-      end Times_257;
+      function Times_257 (x : Primary_Color_Range) return Primary_Color_Range
+      is
+      (16 * (16 * x) + x) with Inline;  --  This is 257 * x, = 16#0101# * x
+      --  Numbers are 8-bit -> no OA warning at instantiation.
+      --  Returns x if type Primary_Color_Range is mod 2**8.
     begin
       case Primary_Color_Range'Modulus is
         when 256 =>
