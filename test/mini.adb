@@ -22,14 +22,14 @@ procedure Mini is
 
   procedure Blurb is
   begin
-    Put_Line (Standard_Error, "Mini * Converts any image file to a PPM file");
-    Put_Line (Standard_Error, "Simple test for the GID (Generic Image Decoder) package");
-    Put_Line (Standard_Error, "Package version " & GID.version & " dated " & GID.reference);
-    Put_Line (Standard_Error, "URL: " & GID.web);
-    New_Line (Standard_Error);
-    Put_Line (Standard_Error, "Syntax:");
-    Put_Line (Standard_Error, "mini <image_1> [<image_2>...]");
-    New_Line (Standard_Error);
+    Put_Line (Current_Error, "Mini * Converts any image file to a PPM file");
+    Put_Line (Current_Error, "Simple test for the GID (Generic Image Decoder) package");
+    Put_Line (Current_Error, "Package version " & GID.version & " dated " & GID.reference);
+    Put_Line (Current_Error, "URL: " & GID.web);
+    New_Line (Current_Error);
+    Put_Line (Current_Error, "Syntax:");
+    Put_Line (Current_Error, "mini <image_1> [<image_2>...]");
+    New_Line (Current_Error);
   end Blurb;
 
   use Interfaces;
@@ -75,7 +75,7 @@ procedure Mini is
       so_far : constant Natural := percents / 5;
     begin
       for i in stars + 1 .. so_far loop
-        Put (Standard_Error, '*');
+        Put (Current_Error, '*');
       end loop;
       stars := so_far;
     end Feedback;
@@ -117,13 +117,17 @@ procedure Mini is
     i : GID.Image_Descriptor;
     up_name : constant String := To_Upper (name);
     --
-    next_frame, current_frame : Ada.Calendar.Day_Duration := 0.0;
+    use Ada.Calendar;
+    next_frame, current_frame : Day_Duration := 0.0;
+    t0, t1 : Time;
   begin
     --
-    --  Load the image in its original format
+    --  Load the image in its original format.
+    --  JPEG's EXIF orientation correction is not done
+    --  here (see to_bmp for that).
     --
     Open (f, In_File, name);
-    Put_Line (Standard_Error, "Processing " & name & "...");
+    Put_Line (Current_Error, "Processing " & name & "...");
     --
     GID.Load_Image_Header
       (i,
@@ -131,14 +135,19 @@ procedure Mini is
        try_tga =>
          name'Length >= 4 and then
          up_name (up_name'Last - 3 .. up_name'Last) = ".TGA");
-    Put_Line (Standard_Error, ".........v.........v");
+    Put_Line (Current_Error, ".........v.........v");
     --
     mem_buffer_last := force_allocate;
     Animation_Loop :
     loop
+      t0 := Clock;
       Load_Raw_Image (i, img_buf, next_frame);
+      t1 := Clock;
+      Put
+        (Current_Error,
+         "  Decoded in" & Duration'Image (t1 - t0) & " seconds");
       Dump_PPM (name & current_frame'Image, i);
-      New_Line (Standard_Error);
+      New_Line (Current_Error);
       exit Animation_Loop when next_frame = 0.0;
       current_frame := next_frame;
     end loop Animation_Loop;
