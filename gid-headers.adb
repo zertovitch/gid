@@ -8,6 +8,7 @@
 
 with GID.Buffering,
      GID.Color_tables,
+     GID.Decoding_BMP,
      GID.Decoding_JPG,
      GID.Decoding_PNG,
      GID.Decoding_PNM;
@@ -252,7 +253,8 @@ package body GID.Headers is
     n, dummy, header_size : U32;
     w, dummy16 : U16;
     dummy8 : U8;
-    use Bounded_255;
+    use Bounded_255, Decoding_BMP;
+    compression : BMP_Compression;
   begin
     --   Pos= 3, read the file size
     Read_Intel (image.stream, dummy);
@@ -281,24 +283,59 @@ package body GID.Headers is
     Read_Intel (image.stream, n);
     image.height := Positive_32 (n);
     --   Pos= 27: Bitmap planes: biPlanes, bV5Planes
-    Read_Intel (image.stream, dummy16);
+    Read_Intel (image.stream, w);
+    --  "The number of planes for the target device.
+    --   This value must be set to 1."
+    if w /= 1 then
+      raise error_in_image_data
+        with "BMP: invalid number of planes:" & w'Image & "; must be 1";
+    end if;
     --   Pos= 29, Number of bits per pixel: biBitCount, bV5BitCount
     Read_Intel (image.stream, w);
     case w is
       when 1 | 4 | 8 | 24 =>
         null;
+      when 0 | 16 | 32 =>
+        raise unsupported_image_subformat with "BMP bit depth" & w'Image;
       when others =>
-        raise unsupported_image_subformat
-          with "BMP bit depth =" & U16'Image (w);
+        raise error_in_image_data with "BMP invalid bit depth" & w'Image;
     end case;
     image.bits_per_pixel := Integer (w);
     --   Pos= 31, Type of compression: biCompression, bV5Compression
     Read_Intel (image.stream, n);
-    --  BI_RLE8 = 1
-    --  BI_RLE4 = 2
-    if n /= 0 then
+    if n > BMP_Compression'Pos (BMP_Compression'Last) then
       raise unsupported_image_subformat
-        with "BMP: compression code" & n'Image;
+        with "BMP: unknown compression code" & n'Image;
+    else
+      compression := BMP_Compression'Val (n);
+      case compression is
+        when BI_RGB =>
+          image.RLE_encoded := False;
+        when BI_RLE8 =>
+          image.RLE_encoded := True;
+          if image.bits_per_pixel /= 8 then
+            raise error_in_image_data
+              with
+                "BMP: for BI_RLE8 compression, invalid number of bpp:" &
+                image.bits_per_pixel'Image & "; must be 8";
+          end if;
+        when BI_RLE4 =>
+          if image.bits_per_pixel /= 4 then
+            raise error_in_image_data
+              with
+                "BMP: for BI_RLE4 compression, invalid number of bpp:" &
+                image.bits_per_pixel'Image & "; must be 4";
+          end if;
+        when others =>
+          image.RLE_encoded := False;
+      end case;
+      case compression is
+        when BI_RGB =>
+          null;  --  Supported -    !!  TBD: support BI_RLE8, BI_RLE4.
+        when others =>
+          raise unsupported_image_subformat
+            with "BMP: unsupported compression: " & compression'Image;
+      end case;
     end if;
     --
     --   Pos= 35, Image size: biSizeImage, bV5SizeImage

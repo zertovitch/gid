@@ -1,5 +1,13 @@
 private package GID.Decoding_BMP is
 
+  type BMP_Compression is
+    (BI_RGB,         --  Uncompressed
+     BI_RLE8,
+     BI_RLE4,
+     BI_BITFIELDS,   --  Uncompressed
+     BI_JPEG,
+     BI_PNG);
+
   --------------------
   -- Image decoding --
   --------------------
