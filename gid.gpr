@@ -89,12 +89,12 @@ project GID is
          when "Debug" =>
             for Local_Configuration_Pragmas use project'Project_Dir & "debug.pra";
             for Default_Switches ("ada") use Compiler_Debug_Options ;
+         when "Fast_but_checked" =>
+            for Default_Switches ("ada") use Compiler_Fast_Options & ("-gnatn",  "-ffunction-sections");
          when "Fast_unchecked" =>
             for Default_Switches ("ada") use Compiler_Fast_Options & ("-gnatpn", "-ffunction-sections");
          when "Profiling" =>
             for Default_Switches ("ada") use Compiler_Fast_Options & ("-gnatp",  "-fno-inline", "-g", "-pg");
-         when "Fast_but_checked" =>
-            for Default_Switches ("ada") use Compiler_Fast_Options & ("-gnato",  "-ffunction-sections");
          when "Small" =>
             for Default_Switches ("ada") use Compiler_Small_Options & ("-gnatpn");
          when "Smallest" =>
