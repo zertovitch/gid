@@ -123,7 +123,7 @@ procedure Steg is
   procedure Process (image_name, data_name : String; op : Operation) is
     f_im, f_dt : Ada.Streams.Stream_IO.File_Type;
     --
-    procedure Encode is
+    procedure Encode (info_width, info_height : Natural) is
       idx : Natural := img_buf'Last;
       --  ^ Start with buffer's end (the image's bottom), with the hope it
       --    is "noisier": often there is a blue sky, or some smooth
@@ -160,7 +160,9 @@ procedure Steg is
         factor := factor + 0.01;  --  Adjust for avoiding exception message with exactly "100%".
         raise Data_too_large with
           "Needs around" & Percents_Image (factor) & " raw size scaling, i.e. around" &
-          Suggested_Scaling_Percents & " image scaling in both dimensions";
+          Suggested_Scaling_Percents & " image scaling in each of both dimensions, that is as" &
+          Integer (Sqrt (factor) * Float (info_width))'Image & " x" &
+          Integer (Sqrt (factor) * Float (info_height))'Image & " bitmap";
       end if;
       Put (Standard_Error, "Data size:" & data_size'Image & ", using ");
       Put (Standard_Error, 100.0 * factor, 0, 3, 0);
@@ -169,7 +171,7 @@ procedure Steg is
         Put_Line
           (Standard_Error,
            "You could still encode the data on a reduced image, scaled down to" &
-           Suggested_Scaling_Percents & " in both dimensions");
+           Suggested_Scaling_Percents & " in each of both dimensions");
       end if;
       for i in 1 .. 8 loop
         Encode_Byte (Unsigned_8 (data_size and 16#FF#));
@@ -220,7 +222,7 @@ procedure Steg is
       Close (f_dt);
     end Decode;
     --
-    i : GID.Image_Descriptor;
+    img : GID.Image_Descriptor;
     up_name : constant String := To_Upper (image_name);
     --
     next_frame : Ada.Calendar.Day_Duration;
@@ -232,20 +234,20 @@ procedure Steg is
     Put_Line (Standard_Error, "Processing " & image_name & "...");
     --
     GID.Load_Image_Header
-      (i,
+      (img,
        Stream (f_im).all,
        try_tga =>
          image_name'Length >= 4 and then
          up_name (up_name'Last - 3 .. up_name'Last) = ".TGA");
     Put_Line (Standard_Error, ".........v.........v");
     --
-    Load_Raw_Image (i, img_buf, next_frame);
+    Load_Raw_Image (img, img_buf, next_frame);
     New_Line (Standard_Error);
     Close (f_im);
     case op is
       when encoding =>
-        Encode;
-        Dump_PPM (image_name, i);  --  Output encoded image
+        Encode (GID.Pixel_Width (img), GID.Pixel_Height (img));
+        Dump_PPM (image_name, img);  --  Output encoded image
       when decoding =>
         Decode;
     end case;
