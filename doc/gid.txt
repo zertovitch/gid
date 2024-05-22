@@ -93,9 +93,9 @@ in your project.
     test/comp_img.adb   Image comparison tool
                           (result is from 0: identical, to 1: black/white)
 
-    test/recurve.adb    Image processing demo: Recurve is a digitalization
+    test/recurve.adb    Image processing demo: Recurve is a digitization
                           tool which recovers curves from a chart and outputs
-                          corresponding data.
+                          corresponding data values.
 
     test/steg.adb       Steganography tool: Steg hides a data into an image.
 

@@ -1,4 +1,6 @@
---  Recurve  -  recover curves from a chart (in JPEG, PNG, or other image format)
+--
+--  Recurve  -  Digitization tool that recovers curves from a
+--              chart shown in a JPEG, PNG, or another image format.
 --
 --  Currently supports only charts on a white background
 --  Test images in ./img/recurve_test_*.png
