@@ -116,12 +116,22 @@ procedure Steg is
     Close (f);
   end Dump_PPM;
 
+  procedure Show_Sizes (data_size, available_size : Unsigned_64) is
+    factor : constant Float := Float (data_size) / Float (available_size);
+    use Ada.Float_Text_IO;
+  begin
+    Put (Standard_Error, "Data size:" & data_size'Image & ", using ");
+    Put (Standard_Error, 100.0 * factor, 0, 3, 0);
+    Put_Line (Standard_Error,  "% of image data");
+  end Show_Sizes;
+
   type Operation is (encoding, decoding);
 
   Data_too_large : exception;
 
   procedure Process (image_name, data_name : String; op : Operation) is
     f_im, f_dt : Ada.Streams.Stream_IO.File_Type;
+    available_size : Unsigned_64;
     --
     procedure Encode (info_width, info_height : Natural) is
       idx : Natural := img_buf'Last;
@@ -146,9 +156,8 @@ procedure Steg is
       b : Unsigned_8;
       data_size : Unsigned_64;
       needed_size : Unsigned_64;
-      available_size : constant Unsigned_64 := img_buf'Length / 3;  --  1 byte per pixel;
       factor : Float;
-      use Ada.Float_Text_IO, Ada.Numerics.Elementary_Functions;
+      use Ada.Numerics.Elementary_Functions;
       function Percents_Image (x : Float) return String is (Integer (100.0 * x)'Image & '%');
       function Suggested_Scaling_Percents return String is (Percents_Image (Sqrt (factor)));
     begin
@@ -164,9 +173,7 @@ procedure Steg is
           Integer (Sqrt (factor) * Float (info_width))'Image & " x" &
           Integer (Sqrt (factor) * Float (info_height))'Image & " bitmap";
       end if;
-      Put (Standard_Error, "Data size:" & data_size'Image & ", using ");
-      Put (Standard_Error, 100.0 * factor, 0, 3, 0);
-      Put_Line (Standard_Error,  "% of image data");
+      Show_Sizes (data_size, available_size);
       if factor < 0.98 then
         Put_Line
           (Standard_Error,
@@ -214,6 +221,7 @@ procedure Steg is
           " capacity. It seems that either the steganography has been" &
           " altered, or that there is no steganography at all.";
       end if;
+      Show_Sizes (data_size, available_size);
       Create (f_dt, Out_File, data_name);
       for i in 1 .. data_size loop
         Decode_Byte (b);
@@ -244,6 +252,7 @@ procedure Steg is
     Load_Raw_Image (img, img_buf, next_frame);
     New_Line (Standard_Error);
     Close (f_im);
+    available_size := img_buf'Length / 3;  --  1 byte per pixel;
     case op is
       when encoding =>
         Encode (GID.Pixel_Width (img), GID.Pixel_Height (img));
