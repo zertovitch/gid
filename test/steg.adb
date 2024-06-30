@@ -255,9 +255,11 @@ procedure Steg is
     available_size := img_buf'Length / 3;  --  1 byte per pixel;
     case op is
       when encoding =>
+        Put_Line (Standard_Error, "Encoding data...");
         Encode (GID.Pixel_Width (img), GID.Pixel_Height (img));
         Dump_PPM (image_name, img);  --  Output encoded image
       when decoding =>
+        Put_Line (Standard_Error, "Decoding data...");
         Decode;
     end case;
   end Process;
