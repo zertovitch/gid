@@ -4,9 +4,6 @@
 --  This demo is derived from mini.adb.
 --
 
---  To do:
---    - encryption
-
 with GID;
 
 with Ada.Calendar,
@@ -26,20 +23,24 @@ procedure Steg is
 
   procedure Blurb is
   begin
-    Put_Line (Standard_Error, "Steg * Minimal steganography tool");
-    New_Line (Standard_Error);
-    Put_Line (Standard_Error, "  Encoding: converts any image file to a PPM image file, with");
-    Put_Line (Standard_Error, "            inclusion of a hidden data file. The PPM image can then");
-    Put_Line (Standard_Error, "            be converted to a lossless-compressed format like PNG.");
-    New_Line (Standard_Error);
-    Put_Line (Standard_Error, "  Decoding: extracts a hidden file from an image.");
-    New_Line (Standard_Error);
-    Put_Line (Standard_Error, "GID version " & GID.version & " dated " & GID.reference);
-    Put_Line (Standard_Error, "URL: " & GID.web);
-    New_Line (Standard_Error);
-    Put_Line (Standard_Error, "Syntax:");
-    Put_Line (Standard_Error, " steg [e|d] <image> <file>");
-    New_Line (Standard_Error);
+    Put_Line (Current_Error, "Steg * Minimal steganography tool");
+    New_Line (Current_Error);
+    Put_Line (Current_Error, "Syntax:");
+    Put_Line (Current_Error, "  steg [e|d] <image_file_name> <data_file_name>");
+    New_Line (Current_Error);
+    Put_Line (Current_Error, "  (e)ncoding: converts any image file to a PPM image file, with a data");
+    Put_Line (Current_Error, "              file hidden in it. The PPM image can then be converted");
+    Put_Line (Current_Error, "              to a lossless-compressed format like PNG or QOI.");
+    New_Line (Current_Error);
+    Put_Line (Current_Error, "  (d)ecoding: extracts a data file hidden in an image.");
+    New_Line (Current_Error);
+    Put_Line (Current_Error, "Encryption must be independently applied to the data file.");
+    New_Line (Current_Error);
+    Put_Line (Current_Error, "GID version " & GID.version & " dated " & GID.reference);
+    Put_Line (Current_Error, "URL: " & GID.web);
+    New_Line (Current_Error);
+    Put ("Press return");
+    Skip_Line;
   end Blurb;
 
   use Interfaces;
@@ -82,7 +83,7 @@ procedure Steg is
       so_far : constant Natural := percents / 5;
     begin
       for i in stars + 1 .. so_far loop
-        Put (Standard_Error, '*');
+        Put (Current_Error, '*');
       end loop;
       stars := so_far;
     end Feedback;
@@ -103,7 +104,7 @@ procedure Steg is
     ppm_name : constant String := name & ".ppm";
   begin
     Create (f, Out_File, ppm_name);
-    Put_Line (Standard_Error, "Creating PPM image, name = " & ppm_name & " ...");
+    Put_Line (Current_Error, "Creating PPM image, name = " & ppm_name & " ...");
     --  PPM Header:
     String'Write
       (Stream (f),
@@ -120,9 +121,9 @@ procedure Steg is
     factor : constant Float := Float (data_size) / Float (available_size);
     use Ada.Float_Text_IO;
   begin
-    Put (Standard_Error, "Data size:" & data_size'Image & ", using ");
-    Put (Standard_Error, 100.0 * factor, 0, 3, 0);
-    Put_Line (Standard_Error,  "% of image data");
+    Put (Current_Error, "Data size:" & data_size'Image & ", using ");
+    Put (Current_Error, 100.0 * factor, 0, 3, 0);
+    Put_Line (Current_Error,  "% of image data");
   end Show_Sizes;
 
   type Operation is (encoding, decoding);
@@ -176,7 +177,7 @@ procedure Steg is
       Show_Sizes (data_size, available_size);
       if factor < 0.98 then
         Put_Line
-          (Standard_Error,
+          (Current_Error,
            "You could still encode the data on a reduced image, scaled down to" &
            Suggested_Scaling_Percents & " in each of both dimensions");
       end if;
@@ -239,7 +240,7 @@ procedure Steg is
     --  Load the image in its original format
     --
     Open (f_im, In_File, image_name);
-    Put_Line (Standard_Error, "Processing " & image_name & "...");
+    Put_Line (Current_Error, "Processing " & image_name & "...");
     --
     GID.Load_Image_Header
       (img,
@@ -247,19 +248,19 @@ procedure Steg is
        try_tga =>
          image_name'Length >= 4 and then
          up_name (up_name'Last - 3 .. up_name'Last) = ".TGA");
-    Put_Line (Standard_Error, ".........v.........v");
+    Put_Line (Current_Error, ".........v.........v");
     --
     Load_Raw_Image (img, img_buf, next_frame);
-    New_Line (Standard_Error);
+    New_Line (Current_Error);
     Close (f_im);
     available_size := img_buf'Length / 3;  --  1 byte per pixel;
     case op is
       when encoding =>
-        Put_Line (Standard_Error, "Encoding data...");
+        Put_Line (Current_Error, "Encoding data...");
         Encode (GID.Pixel_Width (img), GID.Pixel_Height (img));
         Dump_PPM (image_name, img);  --  Output encoded image
       when decoding =>
-        Put_Line (Standard_Error, "Decoding data...");
+        Put_Line (Current_Error, "Decoding data...");
         Decode;
     end case;
   end Process;
