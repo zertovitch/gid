@@ -218,8 +218,9 @@ procedure Steg is
       end loop;
       if data_size * 3 > Unsigned_64 (idx + 1) then
         raise Data_too_large with
-          "Data size (as stored in the image) exceeds the image's" &
-          " capacity. It seems that either the steganography has been" &
+          "Data size (as stored in the image) exceeds the image's capacity." &
+          ASCII.LF &
+          "It seems that either the steganography has been" &
           " altered, or that there is no steganography at all.";
       end if;
       Show_Sizes (data_size, available_size);
