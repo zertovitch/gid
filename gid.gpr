@@ -32,6 +32,7 @@ project GID is
       --  Tests / Tools
       "all_rgb.adb",
       "benchmark.adb",
+      "color_avg.adb",
       "comp_img.adb",
       "is_opaque.adb",
       "recurve.adb",
