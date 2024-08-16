@@ -35,24 +35,24 @@ procedure To_BMP is
 
   procedure Blurb is
   begin
-    Put_Line (Standard_Error, "To_BMP * Converts any image file to a BMP file");
-    Put_Line (Standard_Error, "Simple test for the GID (Generic Image Decoder) package");
-    Put_Line (Standard_Error, "Package version " & GID.version & " dated " & GID.reference);
-    Put_Line (Standard_Error, "URL: " & GID.web);
-    New_Line (Standard_Error);
-    Put_Line (Standard_Error, "Syntax:");
-    Put_Line (Standard_Error, "to_bmp [-] [-<background_image_name>] <image_1> [<image_2>...]");
-    New_Line (Standard_Error);
-    Put_Line (Standard_Error, "Options:");
-    Put_Line (Standard_Error, "  '-': don't output image (testing only)");
-    Put_Line (Standard_Error, "  '-<background_image_name>':");
-    Put_Line (Standard_Error, "      use specifed background to mix with transparent images");
-    Put_Line (Standard_Error, "      (otherwise, trying with '" & default_bkg_name & "' or single color)");
-    New_Line (Standard_Error);
-    Put_Line (Standard_Error, "Output: "".dib"" is added the full input name(s)");
-    Put_Line (Standard_Error, "  Reason of the "".dib"" extension: it is an unknown synonym of "".bmp"";");
-    Put_Line (Standard_Error, "  just do ""del *.dib"" for cleanup");
-    New_Line (Standard_Error);
+    Put_Line (Current_Error, "To_BMP * Converts any image file to a BMP file");
+    Put_Line (Current_Error, "Simple test for the GID (Generic Image Decoder) package");
+    Put_Line (Current_Error, "Package version " & GID.version & " dated " & GID.reference);
+    Put_Line (Current_Error, "URL: " & GID.web);
+    New_Line (Current_Error);
+    Put_Line (Current_Error, "Syntax:");
+    Put_Line (Current_Error, "to_bmp [-] [-<background_image_name>] <image_1> [<image_2>...]");
+    New_Line (Current_Error);
+    Put_Line (Current_Error, "Options:");
+    Put_Line (Current_Error, "  '-': don't output image (testing only)");
+    Put_Line (Current_Error, "  '-<background_image_name>':");
+    Put_Line (Current_Error, "      use specifed background to mix with transparent images");
+    Put_Line (Current_Error, "      (otherwise, trying with '" & default_bkg_name & "' or single color)");
+    New_Line (Current_Error);
+    Put_Line (Current_Error, "Output: "".dib"" is added the full input name(s)");
+    Put_Line (Current_Error, "  Reason of the "".dib"" extension: it is an unknown synonym of "".bmp"";");
+    Put_Line (Current_Error, "  just do ""del *.dib"" for cleanup");
+    New_Line (Current_Error);
   end Blurb;
 
   --  Image used as background for displaying images having transparency
@@ -151,16 +151,16 @@ procedure To_BMP is
        alpha            : Primary_color_range)
     is
     pragma Inline (Put_Pixel_with_Unicolor_Bkg);
-      u_red  : constant := 200;
+      u_red   : constant := 200;
       u_green : constant := 133;
-      u_blue : constant := 32;
+      u_blue  : constant := 32;
     begin
       if alpha = 255 then
         buffer (idx .. idx + 2) := (blue, green, red);
       else  --  Blend with background color
-        buffer (idx)  := Primary_color_range ((U16 (alpha) * U16 (blue)  + U16 (255 - alpha) * u_blue) / 255);
+        buffer (idx)     := Primary_color_range ((U16 (alpha) * U16 (blue)  + U16 (255 - alpha) * u_blue)  / 255);
         buffer (idx + 1) := Primary_color_range ((U16 (alpha) * U16 (green) + U16 (255 - alpha) * u_green) / 255);
-        buffer (idx + 2) := Primary_color_range ((U16 (alpha) * U16 (red)   + U16 (255 - alpha) * u_red) / 255);
+        buffer (idx + 2) := Primary_color_range ((U16 (alpha) * U16 (red)   + U16 (255 - alpha) * u_red)   / 255);
       end if;
       idx := idx + 3;
       --  ^ GID requires us to look to next pixel on the right for next time.
@@ -182,12 +182,12 @@ procedure To_BMP is
         buffer (idx .. idx + 2) := (blue, green, red);
       else  --  Blend with background image
         bkg_idx := 3 * (mem_x mod bkg_width) + bkg_padded_line_size * (mem_y mod bkg_height);
-        b_blue := bkg_buf (bkg_idx);
+        b_blue  := bkg_buf (bkg_idx);
         b_green := bkg_buf (bkg_idx + 1);
-        b_red  := bkg_buf (bkg_idx + 2);
-        buffer (idx)  := Primary_color_range ((U16 (alpha) * U16 (blue)  + U16 (255 - alpha) * U16 (b_blue)) / 255);
+        b_red   := bkg_buf (bkg_idx + 2);
+        buffer (idx)     := Primary_color_range ((U16 (alpha) * U16 (blue)  + U16 (255 - alpha) * U16 (b_blue))  / 255);
         buffer (idx + 1) := Primary_color_range ((U16 (alpha) * U16 (green) + U16 (255 - alpha) * U16 (b_green)) / 255);
-        buffer (idx + 2) := Primary_color_range ((U16 (alpha) * U16 (red)   + U16 (255 - alpha) * U16 (b_red)) / 255);
+        buffer (idx + 2) := Primary_color_range ((U16 (alpha) * U16 (red)   + U16 (255 - alpha) * U16 (b_red))   / 255);
       end if;
       idx := idx + 3;
       --  ^ GID requires us to look to next pixel on the right for next time.
@@ -199,19 +199,19 @@ procedure To_BMP is
       so_far : constant Natural := percents / 5;
     begin
       for i in stars + 1 .. so_far loop
-        Put (Standard_Error, '*');
+        Put (Current_Error, '*');
       end loop;
       stars := so_far;
     end Feedback;
 
     --  Here, the exciting thing: the instantiation of
-    --  GID.Load_image_contents. In our case, we load the image
+    --  GID.Load_Image_Contents. In our case, we load the image
     --  into a 24-bit bitmap (because we provide a Put_Pixel
     --  that does that with the pixels), but we could do plenty
     --  of other things instead, like display the image live on a GUI.
 
     --  More exciting: for tuning performance, we have 3 different
-    --  instances of GID.Load_image_contents (each of them with the full
+    --  instances of GID.Load_Image_Contents (each of them with the full
     --  decoders for all formats, own specialized generic instances, inlines,
     --  etc.) depending on the transparency features.
 
@@ -269,11 +269,11 @@ procedure To_BMP is
     end if;
     --  -- For testing: white rectangle with a red half-frame.
     --  buffer.all:= (others => 255);
-    --  for x in 0..GID.Pixel_width(image)-1 loop
-    --    Put_Pixel_with_unicolor_bkg(x,0,255,0,0,255);
+    --  for x in 0 .. GID.Pixel_width (image) - 1 loop
+    --    Put_Pixel_with_Unicolor_Bkg (x, 0, 255, 0, 0, 255);
     --  end loop;
-    --  for y in 0..GID.Pixel_height(image)-1 loop
-    --    Put_Pixel_with_unicolor_bkg(0,y,255,0,0,255);
+    --  for y in 0 .. GID.Pixel_height (image) - 1 loop
+    --    Put_Pixel_with_Unicolor_Bkg (0, y, 255, 0, 0, 255);
     --  end loop;
   exception
     when others =>
@@ -293,32 +293,32 @@ procedure To_BMP is
   procedure Dump_BMP_24 (name : String; i : GID.Image_Descriptor) is
     f : Ada.Streams.Stream_IO.File_Type;
     type BITMAPFILEHEADER is record
-      bfType     : Unsigned_16;
-      bfSize     : Unsigned_32;
+      bfType      : Unsigned_16;
+      bfSize      : Unsigned_32;
       bfReserved1 : Unsigned_16 := 0;
       bfReserved2 : Unsigned_16 := 0;
-      bfOffBits  : Unsigned_32;
+      bfOffBits   : Unsigned_32;
     end record;
     --  ^ No packing needed
     BITMAPFILEHEADER_Bytes : constant := 14;
 
     type BITMAPINFOHEADER is record
-      biSize         : Unsigned_32;
-      biWidth        : Unsigned_32;
-      biHeight       : Unsigned_32;
-      biPlanes       : Unsigned_16 := 1;
-      biBitCount     : Unsigned_16;
-      biCompression  : Unsigned_32 := 0;
-      biSizeImage    : Unsigned_32;
+      biSize          : Unsigned_32;
+      biWidth         : Unsigned_32;
+      biHeight        : Unsigned_32;
+      biPlanes        : Unsigned_16 := 1;
+      biBitCount      : Unsigned_16;
+      biCompression   : Unsigned_32 := 0;
+      biSizeImage     : Unsigned_32;
       biXPelsPerMeter : Unsigned_32 := 0;
       biYPelsPerMeter : Unsigned_32 := 0;
-      biClrUsed      : Unsigned_32 := 0;
-      biClrImportant : Unsigned_32 := 0;
+      biClrUsed       : Unsigned_32 := 0;
+      biClrImportant  : Unsigned_32 := 0;
     end record;
     --  ^ No packing needed
     BITMAPINFOHEADER_Bytes : constant := 40;
 
-    FileInfo  : BITMAPINFOHEADER;
+    FileInfo   : BITMAPINFOHEADER;
     FileHeader : BITMAPFILEHEADER;
     --
     generic
@@ -396,7 +396,7 @@ procedure To_BMP is
           Ada.Streams.Write (Stream (f).all, SE_Buffer (0 .. Stream_Element_Offset (img_buf'Length - 1)));
         end;
       else
-        Byte_Array'Write (Stream (f), img_buf.all); -- the workaround is about this line...
+        Byte_Array'Write (Stream (f), img_buf.all);  --  The workaround is about this line...
       end if;
     end;
     Close (f);
@@ -416,7 +416,7 @@ procedure To_BMP is
     --  Load the image in its original format
     --
     Open (f, In_File, name);
-    Put_Line (Standard_Error, "Processing " & name & "...");
+    Put_Line (Current_Error, "Processing " & name & "...");
     --
     GID.Load_Image_Header
       (i,
@@ -426,57 +426,57 @@ procedure To_BMP is
          up_name (up_name'Last - 3 .. up_name'Last) = ".TGA");
     --
     Put_Line
-      (Standard_Error,
+      (Current_Error,
        "  Image format: " & GID.Format (i)'Image);
     Put_Line
-      (Standard_Error,
+      (Current_Error,
        "  Image detailed format: " & GID.Detailed_Format (i));
     Put_Line
-      (Standard_Error,
+      (Current_Error,
        "  Image sub-format ID (if any):" & GID.Subformat (i)'Image);
     Put_Line
-      (Standard_Error,
+      (Current_Error,
        "  Dimensions in pixels:" &
        GID.Pixel_Width (i)'Image & " x" &
        GID.Pixel_Height (i)'Image);
     Put_Line
-      (Standard_Error,
+      (Current_Error,
        "  Display orientation: " & GID.Display_Orientation (i)'Image);
     Put
-      (Standard_Error,
+      (Current_Error,
        "  Color depth:" & GID.Bits_per_Pixel (i)'Image & " bits");
 
     if GID.Bits_per_Pixel (i) <= 24 then
       Put_Line
-        (Standard_Error,
+        (Current_Error,
          ',' & Integer'Image (2**GID.Bits_per_Pixel (i)) & " colors");
     else
-      New_Line (Standard_Error);
+      New_Line (Current_Error);
     end if;
 
     Put_Line
-      (Standard_Error,
+      (Current_Error,
        "  Palette: " & GID.Has_Palette (i)'Image);
     Put_Line
-      (Standard_Error,
+      (Current_Error,
        "  Greyscale: " & GID.Greyscale (i)'Image);
     Put_Line
-      (Standard_Error,
+      (Current_Error,
        "  RLE encoding (if any): " & GID.Is_RLE_Encoded (i)'Image);
     Put_Line
-      (Standard_Error,
+      (Current_Error,
        "  Expect transparency: " & GID.Expect_Transparency (i)'Image);
 
     if GID.Format (i) = GID.GIF then
       null;  --  Interlaced-or-not choice is per frame in the GIF format.
     else
       Put_Line
-        (Standard_Error,
+        (Current_Error,
          "  Interlaced / Progressive: " & GID.Is_Progressive (i)'Image);
     end if;
 
-    Put_Line (Standard_Error, "1........10........20");
-    Put_Line (Standard_Error, "         |         | ");
+    Put_Line (Current_Error, "1........10........20");
+    Put_Line (Current_Error, "         |         | ");
     --
 
     T0 := Clock;
@@ -493,7 +493,7 @@ procedure To_BMP is
           Load_raw_image_270 (i, bkg_buf, next_frame);
       end case;
       bkg := i;
-      New_Line (Standard_Error);
+      New_Line (Current_Error);
     else
       mem_buffer_last := force_allocate;
 
@@ -512,9 +512,9 @@ procedure To_BMP is
         if not test_only then
           Dump_BMP_24 (name & '_' & Trim (current_frame'Image, Left), i);
         end if;
-        New_Line (Standard_Error);
+        New_Line (Current_Error);
         if in_error then
-          Put_Line (Standard_Error, "Error!");
+          Put_Line (Current_Error, "Error!");
         end if;
         exit Animation_Loop when next_frame = 0.0;
         current_frame := next_frame;
@@ -525,12 +525,12 @@ procedure To_BMP is
 
     Close (f);
     Put_Line
-      (Standard_Error,
+      (Current_Error,
        "Time elapsed:" & Duration'Image (T1 - T0) & " seconds.");
 
   exception
     when GID.unknown_image_format =>
-      Put_Line (Standard_Error, "  Image format is unknown!");
+      Put_Line (Current_Error, "  Image format is unknown!");
       if Is_Open (f) then
         Close (f);
       end if;
@@ -545,14 +545,15 @@ begin
     Blurb;
     return;
   end if;
-  Put_Line (Standard_Error, "To_BMP, using GID version " & GID.version & " dated " & GID.reference);
+  Put_Line
+    (Current_Error, "To_BMP, using GID version " & GID.version & " dated " & GID.reference);
   begin
     Process (default_bkg_name, True, False);
     --  if success:
     background_image_name := To_Unbounded_String (default_bkg_name);
   exception
     when Ada.Text_IO.Name_Error =>
-      null; -- nothing bad, just couldn't find default background
+      null;  --  nothing bad, we just couldn't find the default background
   end;
   for i in 1 .. Argument_Count loop
     declare
@@ -565,11 +566,11 @@ begin
           if opt = "" then
             test_only := True;
           else
-            Put_Line (Standard_Error, "Background image is " & opt);
+            Put_Line (Current_Error, "Background image is " & opt);
             Process (opt, True, False);
-            --  define this only after processing, otherwise
+            --  Define this only after processing, otherwise
             --  a transparent background will try to use
-            --  an undefined background
+            --  an undefined background.
             background_image_name := To_Unbounded_String (opt);
           end if;
         end;
