@@ -101,7 +101,7 @@ procedure Mini is
   procedure Dump_PNG (file_name : String; i : GID.Image_Descriptor) is
     f : Ada.Streams.Stream_IO.File_Type;
   begin
-    Create (f, Out_File, file_name & ".png");
+    Create (f, Out_File, file_name & ".gid.png");
     Dumb_PNG.Write (img_buf.all, GID.Pixel_Width (i), GID.Pixel_Height (i), Stream (f).all);
     Close (f);
   end Dump_PNG;
