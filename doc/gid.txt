@@ -28,9 +28,9 @@ ___
 Some existing or possible applications:
 
   - Image processing (interactive or not)
-  - Image analysis, text recognition
+  - Image analysis, text recognition (see the `recurve.adb` tool below)
   - A drawing program
-  - A web browser
+  - A web browser (see the Wasabee project)
   - Use of images as data for simulations
   - Thumbnail generation for a file manager
   - Conversion of compressed pictures to raw bitmaps for a user interface
