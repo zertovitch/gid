@@ -6,14 +6,15 @@
 
 with GID;
 
+with Dumb_PNG;
+
 with Ada.Calendar,
      Ada.Characters.Handling,
      Ada.Command_Line,
      Ada.Float_Text_IO,
      Ada.Numerics.Elementary_Functions,
      Ada.Streams.Stream_IO,
-     Ada.Text_IO,
-     Ada.Unchecked_Deallocation;
+     Ada.Text_IO;
 
 with Interfaces;
 
@@ -28,9 +29,8 @@ procedure Steg is
     Put_Line (Current_Error, "Syntax:");
     Put_Line (Current_Error, "  steg [e|d] <image_file_name> <data_file_name>");
     New_Line (Current_Error);
-    Put_Line (Current_Error, "  (e)ncoding: converts any image file to a PPM image file, with a data");
-    Put_Line (Current_Error, "              file hidden in it. The PPM image can then be converted");
-    Put_Line (Current_Error, "              to a lossless-compressed format like PNG or QOI.");
+    Put_Line (Current_Error, "  (e)ncoding: converts any image file to a new PNG image");
+    Put_Line (Current_Error, "              file, with a data file hidden in it.");
     New_Line (Current_Error);
     Put_Line (Current_Error, "  (d)ecoding: extracts a data file hidden in an image.");
     New_Line (Current_Error);
@@ -45,13 +45,13 @@ procedure Steg is
 
   use Interfaces;
 
-  type Byte_Array is array (Integer range <>) of Unsigned_8;
-  type p_Byte_Array is access Byte_Array;
-  procedure Dispose is new Ada.Unchecked_Deallocation (Byte_Array, p_Byte_Array);
+  subtype Byte_Array is Dumb_PNG.Byte_Array;
+  subtype p_Byte_Array is Dumb_PNG.p_Byte_Array;
+  procedure Dispose (X : in out p_Byte_Array) renames Dumb_PNG.Dispose;
 
   img_buf : p_Byte_Array := null;
 
-  --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
+  --  Load image into a 24-bit truecolor RGB raw bitmap (for a PNG output)
   procedure Load_Raw_Image
     (image      : in out GID.Image_Descriptor;
      buffer     : in out p_Byte_Array;
@@ -99,23 +99,15 @@ procedure Steg is
     Load_image (image, next_frame);
   end Load_Raw_Image;
 
-  procedure Dump_PPM (name : String; i : GID.Image_Descriptor) is
+  procedure Dump_PNG (file_name : String; i : GID.Image_Descriptor) is
     f : Ada.Streams.Stream_IO.File_Type;
-    ppm_name : constant String := name & ".ppm";
+    png_name : constant String := file_name & ".png";
   begin
-    Create (f, Out_File, ppm_name);
-    Put_Line (Current_Error, "Creating PPM image, name = " & ppm_name & " ...");
-    --  PPM Header:
-    String'Write
-      (Stream (f),
-       "P6 " &
-       Integer'Image (GID.Pixel_Width (i)) &
-       Integer'Image (GID.Pixel_Height (i)) & " 255" & ASCII.LF);
-    --  PPM raw BGR image:
-    Byte_Array'Write (Stream (f), img_buf.all);
-    --  ^ slow on some Ada systems, see to_bmp to have a faster version
+    Create (f, Out_File, png_name);
+    Put_Line (Current_Error, "Creating PNG image, name = " & png_name & " ...");
+    Dumb_PNG.Write (img_buf.all, GID.Pixel_Width (i), GID.Pixel_Height (i), Stream (f).all);
     Close (f);
-  end Dump_PPM;
+  end Dump_PNG;
 
   procedure Show_Sizes (data_size, available_size : Unsigned_64) is
     factor : constant Float := Float (data_size) / Float (available_size);
@@ -259,7 +251,7 @@ procedure Steg is
       when encoding =>
         Put_Line (Current_Error, "Encoding data...");
         Encode (GID.Pixel_Width (img), GID.Pixel_Height (img));
-        Dump_PPM (image_name, img);  --  Output encoded image
+        Dump_PNG (image_name, img);  --  Output encoded image
       when decoding =>
         Put_Line (Current_Error, "Decoding data...");
         Decode;

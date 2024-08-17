@@ -36,7 +36,7 @@ package body Color_Statistics is
     type p_Bitmap is access Bitmap;
     procedure Dispose is new Ada.Unchecked_Deallocation (Bitmap, p_Bitmap);
 
-    --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
+    --  Load image into a 24-bit truecolor RGB bitmap
     procedure Load_Raw_Image
       (image      : in out GID.Image_Descriptor;
        bmp        : in out Bitmap;
@@ -103,7 +103,7 @@ package body Color_Statistics is
     sum : array (stat'Range (1), stat'Range (2)) of RGB_Sum :=
       (others => (others => (others => 0)));
 
-    pixels_per_sample : array (stat'Range (1), stat'Range (2)) of Natural;
+    pixels_per_sample : array (stat'Range (1), stat'Range (2)) of Int_64;
 
     width_loc  : Positive;
     height_loc : Positive;
@@ -154,7 +154,7 @@ package body Color_Statistics is
             sum (xs, ys).b := sum (xs, ys).b + Int_64 (img.bitm (x, y).b);
           end loop;
         end loop;
-        pixels_per_sample (xs, ys) := (xp2 - xp1 + 1) * (yp2 - yp1 + 1);
+        pixels_per_sample (xs, ys) := Int_64 (xp2 - xp1 + 1) * Int_64 (yp2 - yp1 + 1);
         --  Put_Line
         --    (xs'Image & ys'Image &
         --     ": " &

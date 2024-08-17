@@ -115,7 +115,7 @@ procedure Benchmark is
       (Stream (f),
        "P6 " & GID.Pixel_Width (i)'Image & GID.Pixel_Height (i)'Image &
        " 255" & ASCII.LF);
-    --  PPM raw BGR image:
+    --  PPM raw RGB image:
     declare
       --  Workaround for the severe xxx'Read xxx'Write performance
       --  problems in the GNAT and ObjectAda compilers (as in 2009)

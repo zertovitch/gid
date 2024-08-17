@@ -29,7 +29,7 @@ is
   type p_Bitmap is access Bitmap;
   procedure Dispose is new Ada.Unchecked_Deallocation (Bitmap, p_Bitmap);
 
-  --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
+  --  Load image into a 24-bit truecolor RGB bitmap
   procedure Load_Raw_Image
     (image      : in out GID.Image_Descriptor;
      bmp        : in out Bitmap;

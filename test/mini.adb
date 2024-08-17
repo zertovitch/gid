@@ -1,5 +1,5 @@
 --
---  Convert any image or animation file to PPM file(s).
+--  Convert any image or animation file to PNG file(s).
 --
 --  Small-size demo for the GID (Generic Image Decoder) package.
 --  For a larger example, look for to_bmp.adb .
@@ -7,12 +7,13 @@
 
 with GID;
 
+with Dumb_PNG;
+
 with Ada.Calendar,
      Ada.Characters.Handling,
      Ada.Command_Line,
      Ada.Streams.Stream_IO,
-     Ada.Text_IO,
-     Ada.Unchecked_Deallocation;
+     Ada.Text_IO;
 
 with Interfaces;
 
@@ -22,7 +23,7 @@ procedure Mini is
 
   procedure Blurb is
   begin
-    Put_Line (Current_Error, "Mini * Converts any image file to a PPM file");
+    Put_Line (Current_Error, "Mini * Converts any image file to a PNG file");
     Put_Line (Current_Error, "Simple test for the GID (Generic Image Decoder) package");
     Put_Line (Current_Error, "Package version " & GID.version & " dated " & GID.reference);
     Put_Line (Current_Error, "URL: " & GID.web);
@@ -34,16 +35,13 @@ procedure Mini is
 
   use Interfaces;
 
-  type Byte_Array is array (Integer range <>) of Unsigned_8;
-  type p_Byte_Array is access Byte_Array;
-  procedure Dispose is new Ada.Unchecked_Deallocation (Byte_Array, p_Byte_Array);
+  subtype Byte_Array is Dumb_PNG.Byte_Array;
+  subtype p_Byte_Array is Dumb_PNG.p_Byte_Array;
+  procedure Dispose (X : in out p_Byte_Array) renames Dumb_PNG.Dispose;
 
-  img_buf : p_Byte_Array := null;
-
-  force_allocate : constant := -1;
   mem_buffer_last : Integer;
 
-  --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
+  --  Load image into a 24-bit truecolor RGB raw bitmap (for a PNG output)
   procedure Load_Raw_Image
     (image : in out GID.Image_Descriptor;
      buffer : in out p_Byte_Array;
@@ -97,25 +95,21 @@ procedure Mini is
     Load_Image (image, next_frame);
   end Load_Raw_Image;
 
-  procedure Dump_PPM (name : String; i : GID.Image_Descriptor) is
+  img_buf : p_Byte_Array := null;
+  force_allocate : constant := -1;
+
+  procedure Dump_PNG (file_name : String; i : GID.Image_Descriptor) is
     f : Ada.Streams.Stream_IO.File_Type;
   begin
-    Create (f, Out_File, name & ".ppm");
-    --  PPM Header:
-    String'Write
-      (Stream (f),
-       "P6 " & GID.Pixel_Width (i)'Image & GID.Pixel_Height (i)'Image &
-       " 255" & ASCII.LF);
-    --  PPM raw BGR image:
-    Byte_Array'Write (Stream (f), img_buf.all);
-    --  ^ slow on some Ada systems, see to_bmp to have a faster version
+    Create (f, Out_File, file_name & ".png");
+    Dumb_PNG.Write (img_buf.all, GID.Pixel_Width (i), GID.Pixel_Height (i), Stream (f).all);
     Close (f);
-  end Dump_PPM;
+  end Dump_PNG;
 
-  procedure Process (name : String) is
+  procedure Process (file_name : String) is
     f : Ada.Streams.Stream_IO.File_Type;
     i : GID.Image_Descriptor;
-    up_name : constant String := To_Upper (name);
+    up_name : constant String := To_Upper (file_name);
     --
     use Ada.Calendar;
     next_frame, current_frame : Day_Duration := 0.0;
@@ -124,16 +118,16 @@ procedure Mini is
     --
     --  Load the image in its original format.
     --  JPEG's EXIF orientation correction is not done
-    --  here (see to_bmp for that).
+    --  here (see `to_bmp` or `to_png` for that).
     --
-    Open (f, In_File, name);
-    Put_Line (Current_Error, "Processing " & name & "...");
+    Open (f, In_File, file_name);
+    Put_Line (Current_Error, "Processing " & file_name & "...");
     --
     GID.Load_Image_Header
       (i,
        Stream (f).all,
        try_tga =>
-         name'Length >= 4 and then
+         file_name'Length >= 4 and then
          up_name (up_name'Last - 3 .. up_name'Last) = ".TGA");
     Put_Line (Current_Error, ".........v.........v");
     --
@@ -146,7 +140,7 @@ procedure Mini is
       Put
         (Current_Error,
          "  Decoded in" & Duration'Image (t1 - t0) & " seconds");
-      Dump_PPM (name & current_frame'Image, i);
+      Dump_PNG (file_name & current_frame'Image, i);
       New_Line (Current_Error);
       exit Animation_Loop when next_frame = 0.0;
       current_frame := next_frame;

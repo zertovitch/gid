@@ -21,13 +21,13 @@ project GID is
        "Fast_unchecked", 
        "Small",
        "Smallest",
-       "Profiling"
-      );
+       "Profiling");
 
    GID_Build_Mode : GID_Build_Mode_Type := external ("GID_Build_Mode", "Debug");
 
    for Main use
-     ("to_bmp.adb",
+     ("to_png.adb",
+      "to_bmp.adb",
       "mini.adb",
       --  Tests / Tools
       "all_rgb.adb",

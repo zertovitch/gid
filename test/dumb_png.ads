@@ -1,3 +1,6 @@
+--  Minimal PNG encoder, without compression nor transparency channel.
+--  For a full-featured encoder, look at the Image_IO crate.
+
 with Ada.Streams;
 with Ada.Unchecked_Deallocation;
 
@@ -9,7 +12,7 @@ package Dumb_PNG is
   type p_Byte_Array is access Byte_Array;
   procedure Dispose is new Ada.Unchecked_Deallocation (Byte_Array, p_Byte_Array);
 
-  procedure write
+  procedure Write
     (data   : in     Byte_Array;  --  Raw, packed, 8-bit-per-channel RGB data
      width  : in     Integer;     --  Image width
      height : in     Integer;     --  Image height

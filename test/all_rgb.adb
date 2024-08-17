@@ -9,6 +9,7 @@
 with GID;
 
 with Color_Distances;
+with Dumb_PNG;
 
 with Ada.Calendar,
      Ada.Characters.Handling,
@@ -27,7 +28,7 @@ procedure All_RGB is
 
   procedure Blurb is
   begin
-    Put_Line (Standard_Error, "All_RGB * Creates an ""all RGB"" image (in .ppm format) similar to a given image");
+    Put_Line (Standard_Error, "All_RGB * Creates an ""all RGB"" image (in .png format) similar to a given image");
     Put_Line (Standard_Error, "            ""all RGB"" = 1 pixel per possible RGB colour (8-bit colour channels)");
     New_Line (Standard_Error);
     Put_Line (Standard_Error, "Simple test for the GID (Generic Image Decoder) package");
@@ -63,7 +64,7 @@ procedure All_RGB is
   type p_Bitmap is access Bitmap;
   procedure Dispose is new Ada.Unchecked_Deallocation (Bitmap, p_Bitmap);
 
-  --  Load image into a 24-bit truecolor RGB raw bitmap (for a PPM output)
+  --  Load image into a 24-bit truecolor RGB raw bitmap (for a PNG output)
   procedure Load_Raw_Image
     (image      : in out GID.Image_Descriptor;
      bmp        : in out Bitmap;
@@ -185,26 +186,24 @@ procedure All_RGB is
     end loop;
   end Transform;
 
-  procedure Dump_PPM (name : String; bmp : Bitmap) is
+  procedure Dump_PNG (name : String; bmp : Bitmap) is
     f : Ada.Streams.Stream_IO.File_Type;
+    use Dumb_PNG;
+    rgb_flat_map : p_Byte_Array;
+    idx : Integer := 1;
   begin
-    Create (f, Out_File, name & ".ppm");
-    --  PPM Header:
-    String'Write (
-      Stream (f),
-      "P6 " &
-      Integer'Image (bmp'Length (1)) &
-      Integer'Image (bmp'Length (2)) & " 255" & ASCII.LF
-    );
+    Create (f, Out_File, name & ".png");
+    rgb_flat_map := new Byte_Array (1 .. 3 * bmp'Length (1) * bmp'Length (2));
     for y in bmp'Range (2) loop
       for x in bmp'Range (1) loop
-        Unsigned_8'Write (Stream (f), bmp (x, y).r);
-        Unsigned_8'Write (Stream (f), bmp (x, y).g);
-        Unsigned_8'Write (Stream (f), bmp (x, y).b);
+        rgb_flat_map (idx) := bmp (x, y).r; idx := idx + 1;
+        rgb_flat_map (idx) := bmp (x, y).g; idx := idx + 1;
+        rgb_flat_map (idx) := bmp (x, y).b; idx := idx + 1;
       end loop;
     end loop;
+    Dumb_PNG.Write (rgb_flat_map.all, bmp'Length (1), bmp'Length (2), Stream (f).all);
     Close (f);
-  end Dump_PPM;
+  end Dump_PNG;
 
   procedure Process
     (name         : String;
@@ -266,7 +265,7 @@ procedure All_RGB is
       when L3   => Transform_L3   (src.all, dst.all, clears, iterations);
       when Linf => Transform_Linf (src.all, dst.all, clears, iterations);
     end case;
-    Dump_PPM
+    Dump_PNG
       (name (name'First .. name'Last - 4) & '_' &
        Dist_Type'Image (Lx) & '_' &
        iter_m_img (iter_m_img'First + 1 .. iter_m_img'Last) & 'M',

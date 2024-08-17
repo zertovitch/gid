@@ -64,15 +64,15 @@ in your project.
     gid.gpr             AdaCore GNAT/GCC project file - to be opened with
                           GNAT Studio or used with the command: gnatmake -P gid
 
-    gid_objectada.prj   ObjectAda (10.4+) project file
+    gid.prj             PTC ObjectAda (10.4+) project file
     
     gid_work.xls        This workbook contains GID's history, a list of open
                           bugs, technical informations about formats, etc.
     
     test/mini.adb       Small-size command-line demo, recommended for beginning.
-                          Decodes images of any supported type and writes PPM
-                          (Portable PixMap) files. File names are given as
-                          arguments (also works from a GUI file explorer
+                          Decodes images of any supported type and writes PNG
+                          (Portable Network Graphics) files. File names are
+                          given as arguments (also works from a GUI file explorer
                           with drag & drop). Typically, you put plenty of
                           images into the test folder and launch "mini *" to
                           convert them all.
@@ -89,6 +89,10 @@ in your project.
                           all 8-bit-per-channel colours are displayed.
 
     test/benchmark.adb  Performance benchmark against ImageMagick
+
+    test/color_avg.adb  Compute the average colour of an entire image,
+                          or create a mosaic with rectangles having average
+                          colour on each corresponding tile.
 
     test/comp_img.adb   Image comparison tool
                           (result is from 0: identical, to 1: black/white)

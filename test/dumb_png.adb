@@ -1,7 +1,7 @@
---  This is a mix of 3 sources with MIT and BSD license:
+--  This is a mix of 3 sources with MIT and BSD licenses:
 --  https://www.nayuki.io/page/dumb-png-output-java (MIT)
---  This project (GID)'s PNG decoder for CRC32 checksum (MIT)
---  https://github.com/jrcarter/Z_Compression for Adler32 checksum (BSD)
+--  This project (GID)'s PNG decoder, for the CRC32 checksum (MIT)
+--  https://github.com/jrcarter/Z_Compression, for the Adler32 checksum (BSD)
 
 package body Dumb_PNG is
 
@@ -12,40 +12,22 @@ package body Dumb_PNG is
      output :    out Byte_Array;
      last   :    out Integer);
 
-  procedure writeChunk
+  procedure Write_Chunk
     (chunk_type, chunk_data : in     Byte_Array;
      s                      : in out Root_Stream_Type'Class);
 
-  procedure writeInt32
-    (x : in     Unsigned_32;
-     s : in out Root_Stream_Type'Class);
-
-  package CRC32 is
-    procedure Init (crc : out Unsigned_32);
-    function  Final (crc : Unsigned_32) return Unsigned_32;
-    procedure Update (crc : in out Unsigned_32; in_buf : Byte_Array);
-  end CRC32;
-
   --
 
-  function To_Bytes_Big_Endian (x : Unsigned_32) return Byte_Array is
-    result : Byte_Array (1 .. 4);
-  begin
-    result (1) := Unsigned_8 (Shift_Right (x, 24));
-    result (2) := Unsigned_8 (Shift_Right (x, 16) and 255);
-    result (3) := Unsigned_8 (Shift_Right (x,  8) and 255);
-    result (4) := Unsigned_8              (x      and 255);
-    return result;
-  end To_Bytes_Big_Endian;
+  function To_Bytes_Big_Endian (x : Unsigned_32) return Byte_Array;
 
-  procedure write
+  procedure Write
     (data   : in     Byte_Array;  --  Raw, packed, 8-bit-per-channel RGB data
      width  : in     Integer;     --  Image width
      height : in     Integer;     --  Image height
      s      : in out Ada.Streams.Root_Stream_Type'Class)
   is
     ihdr          : Byte_Array (0 .. 12);
-    rowSize       : Integer;
+    row_size      : Integer;
     idat          : p_Byte_Array;
     idat_deflated : p_Byte_Array;
     index_data    : Integer;
@@ -76,17 +58,24 @@ package body Dumb_PNG is
     ihdr (10)      := 0;  --  Compression method: DEFLATE
     ihdr (11)      := 0;  --  Filter method: Adaptive
     ihdr (12)      := 0;  --  Interlace method: None
-    writeChunk (To_Bytes ("IHDR"), ihdr, s);
+    Write_Chunk (To_Bytes ("IHDR"), ihdr, s);
 
     --  IDAT chunk (pixel values and row filters)
     --  Note: One additional byte at the beginning of each
     --        row specifies the filtering method.
-    rowSize := width * 3 + 1;
-    idat := new Byte_Array (0 .. rowSize * height - 1);
+    row_size := width * 3 + 1;
+    idat := new Byte_Array (0 .. row_size * height - 1);
+    --
+    --  The extra buffer (idat) differs from the data
+    --  only for the additional 0 before each row.
+    --  We could simplify this at the expense of this
+    --  package's users' comfort. So we prefer to keep
+    --  this extra step.
+    --
     for y in 0 .. height - 1 loop
-      idat (y * rowSize) := 0;  --  Filter type: None
+      idat (y * row_size) := 0;  --  Filter type: None
       for x in  0 .. width - 1 loop
-        index := y * rowSize + 1 + x * 3;
+        index := y * row_size + 1 + x * 3;
         index_data := data'First + y * width * 3 + x * 3;
         idat (index + 0) := data (index_data + 0);  --  Red
         idat (index + 1) := data (index_data + 1);  --  Green
@@ -101,13 +90,13 @@ package body Dumb_PNG is
     idat_deflated := new Byte_Array (0 .. deflated_size);
 
     Deflate (idat.all, idat_deflated.all, deflated_last);
-    writeChunk (To_Bytes ("IDAT"), idat_deflated (0 .. deflated_last), s);
+    Write_Chunk (To_Bytes ("IDAT"), idat_deflated (0 .. deflated_last), s);
 
     Dispose (idat);
     Dispose (idat_deflated);
 
-    writeChunk (To_Bytes ("IEND"), (1 .. 0 => 0), s);
-  end write;
+    Write_Chunk (To_Bytes ("IEND"), (1 .. 0 => 0), s);
+  end Write;
 
   procedure Deflate
     (data   : in     Byte_Array;
@@ -120,12 +109,12 @@ package body Dumb_PNG is
       output (last) := b;
     end Write;
 
-    offset : Integer := 0;
-    start  : Integer;
-    curBlockSize : Integer;
-    Adler_1 : Unsigned_32 := 1;
-    Adler_2 : Unsigned_32 := 0;
-    Modulus : constant := 65521;
+    offset         : Integer := 0;
+    start          : Integer;
+    cur_block_size : Integer;
+    adler_1        : Unsigned_32 := 1;
+    adler_2        : Unsigned_32 := 0;
+    modulus        : constant := 65521;
   begin
     last := output'First - 1;
     --  zlib header
@@ -134,32 +123,42 @@ package body Dumb_PNG is
 
     --  Deflate data
     loop
-      curBlockSize := Integer'Min (data'Length - offset, 16#FFFF#);
+      cur_block_size := Integer'Min (data'Length - offset, 16#FFFF#);
       --  Block type: Store; final flag if last block.
-      Write (if offset + curBlockSize = data'Length then 1 else 0);
-      Write     (Unsigned_8  (curBlockSize        rem 256));
-      Write     (Unsigned_8 ((curBlockSize / 256) rem 256));
-      Write (not Unsigned_8  (curBlockSize        rem 256));
-      Write (not Unsigned_8 ((curBlockSize / 256) rem 256));
+      Write (if offset + cur_block_size = data'Length then 1 else 0);
+      Write     (Unsigned_8  (cur_block_size        rem 256));
+      Write     (Unsigned_8 ((cur_block_size / 256) rem 256));
+      Write (not Unsigned_8  (cur_block_size        rem 256));
+      Write (not Unsigned_8 ((cur_block_size / 256) rem 256));
       start := data'First + offset;
-      for i in start .. start + curBlockSize - 1 loop
+      for i in start .. start + cur_block_size - 1 loop
         Write (data (i));
       end loop;
-      offset := offset + curBlockSize;
+      offset := offset + cur_block_size;
       exit when offset >= data'Length;
     end loop;
 
     for b of data loop
-       Adler_1 := (Adler_1 + Unsigned_32 (b)) rem Modulus;
-       Adler_2 := (Adler_2 + Adler_1) rem Modulus;
+       adler_1 := (adler_1 + Unsigned_32 (b)) rem modulus;
+       adler_2 := (adler_2 + adler_1) rem modulus;
     end loop;
-    Write (Unsigned_8 (Adler_2  /  256));
-    Write (Unsigned_8 (Adler_2 rem 256));
-    Write (Unsigned_8 (Adler_1  /  256));
-    Write (Unsigned_8 (Adler_1 rem 256));
+    Write (Unsigned_8 (adler_2  /  256));
+    Write (Unsigned_8 (adler_2 rem 256));
+    Write (Unsigned_8 (adler_1  /  256));
+    Write (Unsigned_8 (adler_1 rem 256));
   end Deflate;
 
-  procedure writeChunk
+  package CRC32 is
+    procedure Init (crc : out Unsigned_32);
+    function  Final (crc : Unsigned_32) return Unsigned_32;
+    procedure Update (crc : in out Unsigned_32; in_buf : Byte_Array);
+  end CRC32;
+
+  procedure Write_U32
+    (x : in     Unsigned_32;
+     s : in out Root_Stream_Type'Class);
+
+  procedure Write_Chunk
     (chunk_type, chunk_data : in     Byte_Array;
      s                      : in out Root_Stream_Type'Class)
   is
@@ -168,19 +167,29 @@ package body Dumb_PNG is
     CRC32.Init (c);
     CRC32.Update (c, chunk_type);
     CRC32.Update (c, chunk_data);
-    writeInt32 (chunk_data'Length, s);
+    Write_U32 (chunk_data'Length, s);
     Byte_Array'Write (s'Access, chunk_type);
     Byte_Array'Write (s'Access, chunk_data);
-    writeInt32 (CRC32.Final (c), s);
-  end writeChunk;
+    Write_U32 (CRC32.Final (c), s);
+  end Write_Chunk;
 
-  procedure writeInt32
+  procedure Write_U32
     (x : in     Unsigned_32;
      s : in out Root_Stream_Type'Class)
   is
   begin
     Byte_Array'Write (s'Access, To_Bytes_Big_Endian (x));
-  end writeInt32;
+  end Write_U32;
+
+  function To_Bytes_Big_Endian (x : Unsigned_32) return Byte_Array is
+    result : Byte_Array (1 .. 4);
+  begin
+    result (1) := Unsigned_8 (Shift_Right (x, 24));
+    result (2) := Unsigned_8 (Shift_Right (x, 16) and 255);
+    result (3) := Unsigned_8 (Shift_Right (x,  8) and 255);
+    result (4) := Unsigned_8              (x      and 255);
+    return result;
+  end To_Bytes_Big_Endian;
 
   package body CRC32 is
 
