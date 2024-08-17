@@ -1,0 +1,12 @@
+with Ada.Streams;
+
+generic
+
+  type Byte is private;
+  type Byte_Array is array (Integer range <>) of Byte;
+
+package Fast_IO is
+
+  procedure Write (s : in out Ada.Streams.Root_Stream_Type'Class; b : in Byte_Array);
+
+end Fast_IO;

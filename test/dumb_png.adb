@@ -3,6 +3,8 @@
 --  This project (GID)'s PNG decoder, for the CRC32 checksum (MIT)
 --  https://github.com/jrcarter/Z_Compression, for the Adler32 checksum (BSD)
 
+with Fast_IO;
+
 package body Dumb_PNG is
 
   use Ada.Streams, Interfaces;
@@ -163,13 +165,14 @@ package body Dumb_PNG is
      s                      : in out Root_Stream_Type'Class)
   is
     c : Unsigned_32;
+    package U8_Fast_IO is new Fast_IO (Unsigned_8, Byte_Array);
   begin
     CRC32.Init (c);
     CRC32.Update (c, chunk_type);
     CRC32.Update (c, chunk_data);
     Write_U32 (chunk_data'Length, s);
     Byte_Array'Write (s'Access, chunk_type);
-    Byte_Array'Write (s'Access, chunk_data);
+    U8_Fast_IO.Write (s, chunk_data);
     Write_U32 (CRC32.Final (c), s);
   end Write_Chunk;
 

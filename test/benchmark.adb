@@ -1,5 +1,6 @@
 with GID,
-     Comp_Img_Fct;
+     Comp_Img_Fct,
+     Fast_IO;
 
 with Ada.Calendar,
      Ada.Characters.Handling,
@@ -108,6 +109,7 @@ procedure Benchmark is
 
   procedure Dump_PPM (name : String; i : GID.Image_Descriptor) is
     f : Ada.Streams.Stream_IO.File_Type;
+    package U8_Fast_IO is new Fast_IO (Unsigned_8, Byte_Array);
   begin
     Create (f, Out_File, name);
     --  PPM Header:
@@ -116,32 +118,7 @@ procedure Benchmark is
        "P6 " & GID.Pixel_Width (i)'Image & GID.Pixel_Height (i)'Image &
        " 255" & ASCII.LF);
     --  PPM raw RGB image:
-    declare
-      --  Workaround for the severe xxx'Read xxx'Write performance
-      --  problems in the GNAT and ObjectAda compilers (as in 2009)
-      --  This is possible if and only if Byte = Stream_Element and
-      --  arrays types are both packed the same way.
-      --
-      subtype Size_test_a is Byte_Array (1 .. 19);
-      subtype Size_test_b is Ada.Streams.Stream_Element_Array (1 .. 19);
-      workaround_possible : constant Boolean :=
-        Size_test_a'Size = Size_test_b'Size and then
-        Size_test_a'Alignment = Size_test_b'Alignment;
-      --
-    begin
-      if workaround_possible then
-        declare
-          use Ada.Streams;
-          SE_Buffer   : Stream_Element_Array (0 .. Stream_Element_Offset (img_buf'Length - 1));
-          for SE_Buffer'Address use img_buf.all'Address;
-          pragma Import (Ada, SE_Buffer);
-        begin
-          Ada.Streams.Write (Stream (f).all, SE_Buffer (0 .. Stream_Element_Offset (img_buf'Length - 1)));
-        end;
-      else
-        Byte_Array'Write (Stream (f), img_buf.all); -- the workaround is about this line...
-      end if;
-    end;
+    U8_Fast_IO.Write (Stream (f).all, img_buf.all);
     Close (f);
   end Dump_PPM;
 
