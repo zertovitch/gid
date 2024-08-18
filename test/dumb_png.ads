@@ -12,11 +12,16 @@ package Dumb_PNG is
   type p_Byte_Array is access Byte_Array;
   procedure Dispose is new Ada.Unchecked_Deallocation (Byte_Array, p_Byte_Array);
 
+  type Buffer_Mode is
+    (packed,    --  Raw, packed, 8-bit-per-channel RGB data.
+     padded);   --  Same but with a 0 byte at the beginning of each row (faster).
+
   procedure Write
-    (data   : in     Byte_Array;  --  Raw, packed, 8-bit-per-channel RGB data
-     width  : in     Integer;     --  Image width
-     height : in     Integer;     --  Image height
-     s      : in out Ada.Streams.Root_Stream_Type'Class);
+    (data      : in     Byte_Array;
+     data_mode : in     Buffer_Mode;
+     width     : in     Integer;     --  Image width
+     height    : in     Integer;     --  Image height
+     s         : in out Ada.Streams.Root_Stream_Type'Class);
 
 end Dumb_PNG;
 

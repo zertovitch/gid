@@ -23,19 +23,13 @@ package body Dumb_PNG is
   function To_Bytes_Big_Endian (x : Unsigned_32) return Byte_Array;
 
   procedure Write
-    (data   : in     Byte_Array;  --  Raw, packed, 8-bit-per-channel RGB data
-     width  : in     Integer;     --  Image width
-     height : in     Integer;     --  Image height
-     s      : in out Ada.Streams.Root_Stream_Type'Class)
+    (data      : in     Byte_Array;
+     data_mode : in     Buffer_Mode;
+     width     : in     Integer;     --  Image width
+     height    : in     Integer;     --  Image height
+     s         : in out Ada.Streams.Root_Stream_Type'Class)
   is
     ihdr          : Byte_Array (0 .. 12);
-    row_size      : Integer;
-    idat          : p_Byte_Array;
-    idat_deflated : p_Byte_Array;
-    index_data    : Integer;
-    index         : Integer;
-    deflated_size : Integer;
-    deflated_last : Integer;
 
     function To_Bytes (s : String) return Byte_Array is
       result : Byte_Array (s'Range);
@@ -45,6 +39,28 @@ package body Dumb_PNG is
       end loop;
       return result;
     end To_Bytes;
+
+    procedure Process_IDAT (idat : Byte_Array) is
+      idat_deflated : p_Byte_Array;
+      deflated_size : Integer;
+      deflated_last : Integer;
+    begin
+      --  The "compressed" size is larger than the uncompressed one :-)
+      --
+      deflated_size := 6 + idat'Length + 5 * (1 + idat'Length / 16#FFFF#);
+
+      idat_deflated := new Byte_Array (0 .. deflated_size);
+
+      Deflate (idat, idat_deflated.all, deflated_last);
+      Write_Chunk (To_Bytes ("IDAT"), idat_deflated (0 .. deflated_last), s);
+
+      Dispose (idat_deflated);
+    end Process_IDAT;
+
+    idat_composed : p_Byte_Array;
+    row_size      : Integer;
+    index_data    : Integer;
+    index         : Integer;
 
   begin
     --  PNG header
@@ -62,40 +78,37 @@ package body Dumb_PNG is
     ihdr (12)      := 0;  --  Interlace method: None
     Write_Chunk (To_Bytes ("IHDR"), ihdr, s);
 
-    --  IDAT chunk (pixel values and row filters)
-    --  Note: One additional byte at the beginning of each
-    --        row specifies the filtering method.
-    row_size := width * 3 + 1;
-    idat := new Byte_Array (0 .. row_size * height - 1);
-    --
-    --  The extra buffer (idat) differs from the data
-    --  only for the additional 0 before each row.
-    --  We could simplify this at the expense of this
-    --  package's users' comfort. So we prefer to keep
-    --  this extra step.
-    --
-    for y in 0 .. height - 1 loop
-      idat (y * row_size) := 0;  --  Filter type: None
-      for x in  0 .. width - 1 loop
-        index := y * row_size + 1 + x * 3;
-        index_data := data'First + y * width * 3 + x * 3;
-        idat (index + 0) := data (index_data + 0);  --  Red
-        idat (index + 1) := data (index_data + 1);  --  Green
-        idat (index + 2) := data (index_data + 2);  --  Blue
-      end loop;
-    end loop;
+    case data_mode is
 
-    --  The "compressed" size is larger than the uncompressed one :-)
-    --
-    deflated_size := 6 + idat'Length + 5 * (1 + idat'Length / 16#FFFF#);
+      when packed =>
+        --  IDAT chunk (pixel values and row filters)
+        --  Note: One additional byte at the beginning of each
+        --        row specifies the filtering method.
+        row_size := width * 3 + 1;
+        idat_composed := new Byte_Array (0 .. row_size * height - 1);
+        --
+        --  The extra buffer (idat_composed.all) differs from the data
+        --  only for the additional 0 before each row.
+        --
+        for y in 0 .. height - 1 loop
+          idat_composed (y * row_size) := 0;  --  Filter type: None
+          for x in  0 .. width - 1 loop
+            index := y * row_size + 1 + x * 3;
+            index_data := data'First + y * width * 3 + x * 3;
+            idat_composed (index + 0) := data (index_data + 0);  --  Red
+            idat_composed (index + 1) := data (index_data + 1);  --  Green
+            idat_composed (index + 2) := data (index_data + 2);  --  Blue
+          end loop;
+        end loop;
+        --
+        Process_IDAT (idat_composed.all);
+        Dispose (idat_composed);
 
-    idat_deflated := new Byte_Array (0 .. deflated_size);
+      when padded =>
+        --  Under this form, the data is already fit for being sent directly.
+        Process_IDAT (data);
 
-    Deflate (idat.all, idat_deflated.all, deflated_last);
-    Write_Chunk (To_Bytes ("IDAT"), idat_deflated (0 .. deflated_last), s);
-
-    Dispose (idat);
-    Dispose (idat_deflated);
+    end case;
 
     Write_Chunk (To_Bytes ("IEND"), (1 .. 0 => 0), s);
   end Write;

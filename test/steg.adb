@@ -105,7 +105,7 @@ procedure Steg is
   begin
     Create (f, Out_File, png_name);
     Put_Line (Current_Error, "Creating PNG image, name = " & png_name & " ...");
-    Dumb_PNG.Write (img_buf.all, GID.Pixel_Width (i), GID.Pixel_Height (i), Stream (f).all);
+    Dumb_PNG.Write (img_buf.all, Dumb_PNG.packed, GID.Pixel_Width (i), GID.Pixel_Height (i), Stream (f).all);
     Close (f);
   end Dump_PNG;
 

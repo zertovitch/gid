@@ -102,7 +102,7 @@ procedure Mini is
     f : Ada.Streams.Stream_IO.File_Type;
   begin
     Create (f, Out_File, file_name & ".gid.png");
-    Dumb_PNG.Write (img_buf.all, GID.Pixel_Width (i), GID.Pixel_Height (i), Stream (f).all);
+    Dumb_PNG.Write (img_buf.all, Dumb_PNG.packed, GID.Pixel_Width (i), GID.Pixel_Height (i), Stream (f).all);
     Close (f);
   end Dump_PNG;
 

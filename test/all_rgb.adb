@@ -192,7 +192,7 @@ procedure All_RGB is
     rgb_flat_map : p_Byte_Array;
     idx : Integer := 1;
   begin
-    Create (f, Out_File, name & ".png");
+    Create (f, Out_File, name & ".gid.png");
     rgb_flat_map := new Byte_Array (1 .. 3 * bmp'Length (1) * bmp'Length (2));
     for y in bmp'Range (2) loop
       for x in bmp'Range (1) loop
@@ -201,7 +201,7 @@ procedure All_RGB is
         rgb_flat_map (idx) := bmp (x, y).b; idx := idx + 1;
       end loop;
     end loop;
-    Dumb_PNG.Write (rgb_flat_map.all, bmp'Length (1), bmp'Length (2), Stream (f).all);
+    Dumb_PNG.Write (rgb_flat_map.all, packed, bmp'Length (1), bmp'Length (2), Stream (f).all);
     Close (f);
   end Dump_PNG;
 

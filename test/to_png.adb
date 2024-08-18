@@ -301,7 +301,10 @@ procedure To_PNG is
     end case;
 
     Create (f, Out_File, file_name & ".gid.png");
-    Dumb_PNG.Write (img_buf.all, dest_width, dest_height, Stream (f).all);
+    --
+    --  !!  Change .packed to .padded for better performance
+    --
+    Dumb_PNG.Write (img_buf.all, Dumb_PNG.packed, dest_width, dest_height, Stream (f).all);
     Close (f);
   end Dump_PNG;
 
