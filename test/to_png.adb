@@ -89,8 +89,8 @@ procedure To_PNG is
     subtype U16 is Unsigned_16;
     image_width  : constant Positive := GID.Pixel_Width (image);
     image_height : constant Positive := GID.Pixel_Height (image);
-    padded_line_size_x : constant Positive := 3 * image_width;
-    padded_line_size_y : constant Positive := 3 * image_height;
+    padded_line_size_x : constant Positive := 1 + 3 * image_width;
+    padded_line_size_y : constant Positive := 1 + 3 * image_height;
     --  (in bytes)
     idx : Integer;
     mem_x, mem_y : Natural;
@@ -105,13 +105,13 @@ procedure To_PNG is
     begin
       case correct_orientation is
         when Unchanged =>
-          idx := 3 * x     + padded_line_size_x * rev_y;
+          idx := 1 + 3 * x     + padded_line_size_x * rev_y;
         when Rotation_90 =>
-          idx := 3 * rev_y + padded_line_size_y * rev_x;
+          idx := 1 + 3 * rev_y + padded_line_size_y * rev_x;
         when Rotation_180 =>
-          idx := 3 * rev_x + padded_line_size_x * y;
+          idx := 1 + 3 * rev_x + padded_line_size_x * y;
         when Rotation_270 =>
-          idx := 3 * y     + padded_line_size_y * x;
+          idx := 1 + 3 * y     + padded_line_size_y * x;
       end case;
       mem_x := x;
       mem_y := y;
@@ -178,10 +178,12 @@ procedure To_PNG is
       if alpha = 255 then
         buffer (idx .. idx + 2) := (red, green, blue);
       else  --  Blend with background image
-        bkg_idx := 3 * (mem_x mod bkg_width) + bkg_padded_line_size * (mem_y mod bkg_height);
-        b_blue  := bkg_buf (bkg_idx);
+        bkg_idx :=
+          1 + 3 * (mem_x mod bkg_width) +
+          bkg_padded_line_size * (bkg_height - 1 - (mem_y mod bkg_height));
+        b_red   := bkg_buf (bkg_idx);
         b_green := bkg_buf (bkg_idx + 1);
-        b_red   := bkg_buf (bkg_idx + 2);
+        b_blue  := bkg_buf (bkg_idx + 2);
         buffer (idx)     := Primary_color_range ((U16 (alpha) * U16 (red)   + U16 (255 - alpha) * U16 (b_red))   / 255);
         buffer (idx + 1) := Primary_color_range ((U16 (alpha) * U16 (green) + U16 (255 - alpha) * U16 (b_green)) / 255);
         buffer (idx + 2) := Primary_color_range ((U16 (alpha) * U16 (blue)  + U16 (255 - alpha) * U16 (b_blue))  / 255);
@@ -251,13 +253,24 @@ procedure To_PNG is
       buffer := new Byte_Array (0 .. buffer_last);
       mem_buffer_last := buffer_last;
     end if;
+    case correct_orientation is
+      --  Set the PNG filter byte to 0 at the start of each destination line.
+      when GID.Unchanged | GID.Rotation_180 =>
+        for y in 0 .. image_height - 1 loop
+          buffer (y * padded_line_size_x) := 0;
+        end loop;
+      when GID.Rotation_90 | GID.Rotation_270 =>
+        for y in 0 .. image_width - 1 loop
+          buffer (y * padded_line_size_y) := 0;
+        end loop;
+    end case;
     if GID.Expect_Transparency (image) then
       if background_image_name = Null_Unbounded_String then
         PNG_Load_with_Unicolor_Bkg (image, next_frame);
       else
         bkg_width  := GID.Pixel_Width (bkg);
         bkg_height := GID.Pixel_Height (bkg);
-        bkg_padded_line_size := 3 * bkg_width;
+        bkg_padded_line_size := 1 + 3 * bkg_width;
         PNG_Load_with_Image_Bkg (image, next_frame);
       end if;
     else
@@ -301,10 +314,7 @@ procedure To_PNG is
     end case;
 
     Create (f, Out_File, file_name & ".gid.png");
-    --
-    --  !!  Change .packed to .padded for better performance
-    --
-    Dumb_PNG.Write (img_buf.all, Dumb_PNG.packed, dest_width, dest_height, Stream (f).all);
+    Dumb_PNG.Write (img_buf.all, Dumb_PNG.padded, dest_width, dest_height, Stream (f).all);
     Close (f);
   end Dump_PNG;
 
