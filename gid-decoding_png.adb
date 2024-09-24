@@ -99,70 +99,6 @@ package body GID.Decoding_PNG is
     end if;
   end Read_Chunk_Header;
 
-  package CRC32 is
-
-    procedure Init (CRC : out Unsigned_32);
-
-    function  Final (CRC : Unsigned_32) return Unsigned_32;
-
-    procedure Update (CRC : in out Unsigned_32; InBuf : Byte_Array);
-    pragma Inline (Update);
-
-  end CRC32;
-
-  package body CRC32 is
-
-    CRC32_Table : array (Unsigned_32'(0) .. 255) of Unsigned_32;
-
-    procedure Prepare_Table is
-      --  CRC-32 algorithm, ISO-3309
-      Seed : constant := 16#EDB88320#;
-      l : Unsigned_32;
-    begin
-      for i in CRC32_Table'Range loop
-        l := i;
-        for bit in 0 .. 7 loop
-          if (l and 1) = 0 then
-            l := Shift_Right (l, 1);
-          else
-            l := Shift_Right (l, 1) xor Seed;
-          end if;
-        end loop;
-        CRC32_Table (i) := l;
-      end loop;
-    end Prepare_Table;
-
-    procedure Update (CRC : in out Unsigned_32; InBuf : Byte_Array) is
-      local_CRC : Unsigned_32;
-    begin
-      local_CRC := CRC;
-      for i in InBuf'Range loop
-        local_CRC :=
-          CRC32_Table (16#FF# and (local_CRC xor Unsigned_32 (InBuf (i))))
-          xor
-          Shift_Right (local_CRC, 8);
-      end loop;
-      CRC := local_CRC;
-    end Update;
-
-    table_empty : Boolean := True;
-
-    procedure Init (CRC : out Unsigned_32) is
-    begin
-      if table_empty then
-        Prepare_Table;
-        table_empty := False;
-      end if;
-      CRC := 16#FFFF_FFFF#;
-    end Init;
-
-    function Final (CRC : Unsigned_32) return Unsigned_32 is
-    begin
-      return not CRC;
-    end Final;
-
-  end CRC32;
-
   ----------
   -- Load --
   ----------
@@ -741,7 +677,9 @@ package body GID.Decoding_PNG is
         slide : Byte_Array (0 .. wsize);
         slide_index : Integer := 0;  --  Current Position in slide
         Zip_EOF  : constant Boolean := False;
-        crc32val : Unsigned_32;  --  CRC calculated from data
+        adler_1  : Unsigned_32;
+        adler_2  : Unsigned_32;
+        modulus  : constant := 65521;
       end UnZ_Glob;
 
       package UnZ_IO is
@@ -793,7 +731,8 @@ package body GID.Decoding_PNG is
         begin
           UnZ_Glob.slide_index := 0;
           Bit_buffer.Init;
-          CRC32.Init (UnZ_Glob.crc32val);
+          UnZ_Glob.adler_1 := 1;
+          UnZ_Glob.adler_2 := 0;
         end Init_Buffers;
 
         procedure Read_raw_byte (bt : out U8) is
@@ -880,7 +819,11 @@ package body GID.Decoding_PNG is
           if full_trace then
             Ada.Text_IO.Put ("[Flush..." & x'Image);
           end if;
-          CRC32.Update (UnZ_Glob.crc32val, UnZ_Glob.slide (0 .. x - 1));
+          for slide_idx in 0 .. x - 1 loop
+            UnZ_Glob.adler_1 := (UnZ_Glob.adler_1 + Unsigned_32 (UnZ_Glob.slide (slide_idx))) rem UnZ_Glob.modulus;
+            UnZ_Glob.adler_2 := (UnZ_Glob.adler_2 + UnZ_Glob.adler_1) rem UnZ_Glob.modulus;
+          end loop;
+
           if old_bytes > 0 then
             declare
               app : constant Byte_Array :=
@@ -1372,7 +1315,6 @@ package body GID.Decoding_PNG is
           if some_trace then
             Ada.Text_IO.Put ("# blocks:" & Integer'Image (blocks));
           end if;
-          UnZ_Glob.crc32val := CRC32.Final (UnZ_Glob.crc32val);
         end Inflate;
 
       end UnZ_Meth;
@@ -1381,32 +1323,31 @@ package body GID.Decoding_PNG is
       -- End of the Decompression part, and of UnZip.Decompress excerpt --
       --------------------------------------------------------------------
 
-      b : U8;
-      z_crc, dummy : U32;
-
       procedure Decompress_Data is
+        dummy, b : U8;
+        adler_ok : Boolean;
       begin
-        UnZ_IO.Read_raw_byte (b);  --  zlib compression method/flags code
-        UnZ_IO.Read_raw_byte (b);  --  Additional flags/check bits
+        UnZ_IO.Read_raw_byte (dummy);  --  zlib compression method/flags code
+        UnZ_IO.Read_raw_byte (dummy);  --  Additional flags/check bits
         --
         UnZ_IO.Init_Buffers;
         --  ^ we indicate that we have a byte reserve of chunk's length,
         --    minus both zlib header bytes.
         UnZ_Meth.Inflate;
-        z_crc := 0;
-        for i in 1 .. 4 loop
-          UnZ_IO.Read_raw_byte (b);
-          z_crc := z_crc * 256 + U32 (b);
-        end loop;
-        --  z_crc : zlib Check value
-        --  if z_crc /= U32(UnZ_Glob.crc32val) then
-        --    ada.text_io.put(z_crc 'img &  UnZ_Glob.crc32val'img);
-        --    raise
-        --      error_in_image_data with
-        --      "PNG: deflate stream corrupt";
-        --  end if;
-        --  ** Mystery: this check fails even with images which decompress perfectly
-        --  ** Is CRC init value different between zip and zlib ? Is it Adler32 ?
+
+        UnZ_IO.Read_raw_byte (b);
+        adler_ok :=              b = U8 (UnZ_Glob.adler_2  /  256);
+        UnZ_IO.Read_raw_byte (b);
+        adler_ok := adler_ok and b = U8 (UnZ_Glob.adler_2 rem 256);
+        UnZ_IO.Read_raw_byte (b);
+        adler_ok := adler_ok and b = U8 (UnZ_Glob.adler_1  /  256);
+        UnZ_IO.Read_raw_byte (b);
+        adler_ok := adler_ok and b = U8 (UnZ_Glob.adler_1 rem 256);
+
+        if not adler_ok then
+          raise error_in_image_data with "PNG: deflate stream corrupt (Adler32 test failed)";
+        end if;
+
       end Decompress_Data;
 
     begin
@@ -1645,11 +1586,11 @@ package body GID.Decoding_PNG is
           --      can have a chunk crc, and a new IDAT header!...
           begin
             Load_Frame;
-          exception
-            when error_in_image_data =>
-              --  Vicious IEND at the wrong place
-              --  basi4a08.png test image (corrupt, imho)
-              null;
+            --  exception
+            --    when error_in_image_data =>
+            --      --  Vicious IEND at the wrong place
+            --      --  basi4a08.png test image (corrupt, imho)
+            --      null;
           end;
           pause_chunk_processing := True;  --  Come back on next frame...
         when tEXt =>
