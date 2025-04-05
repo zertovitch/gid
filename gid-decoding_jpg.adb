@@ -1020,7 +1020,7 @@ package body GID.Decoding_JPG is
         y_val_8 : U8;
       begin
         for ymb in flat'Range (2) loop
-          exit when y0 + Integer_32 (ymb) >= image.height;
+          exit when y0 + Integer_32 (ymb) >= image.height or else x0 >= image.width;
           Set_X_Y (Integer (x0), Integer (image.height - 1 - (y0 + Integer_32 (ymb))));
           for xmb in flat'Range (1) loop
             exit when x0 + Integer_32 (xmb) >= image.width;
@@ -1291,7 +1291,7 @@ package body GID.Decoding_JPG is
               declare
                 info : JPEG_Defs.Info_per_Component_A
                   renames image.JPEG_stuff.info (c);
-                block_x, block_y, delta_x, delta_y : Natural_32;
+                block_x, block_y, x_delta_x, y_delta_y : Natural_32;
                 new_bit : Integer;
               begin
                 --  (x, y) coordinates, on the image, of current MCU's corner
@@ -1314,14 +1314,16 @@ package body GID.Decoding_JPG is
                   --  Coordinates of the block on the current MCU
                   block_x := Natural_32 (block_count mod info.ups.samples_hor);
                   block_y := Natural_32 (block_count  /  info.ups.samples_hor);
-                  delta_x := 8 * block_x;
-                  delta_y := 8 * block_y;
+                  x_delta_x := x + 8 * block_x;
+                  y_delta_y := y + 8 * block_y;
                   if refining then
                     --  Refining scan for the DC values
                     new_bit := Get_Bits (1);
-                    image_array (x + delta_x, y + delta_y, compo_idx) :=
-                      image_array (x + delta_x, y + delta_y, compo_idx) +
-                        new_bit * (2 ** bit_position_low);
+                    if x_delta_x <= image_array'Last (1) and then y_delta_y <= image_array'Last (2) then
+                      image_array (x_delta_x, y_delta_y, compo_idx) :=
+                        image_array (x_delta_x, y_delta_y, compo_idx) +
+                          new_bit * (2 ** bit_position_low);
+                    end if;
                   else
                     --  Decode DC value
                     Get_VLC
@@ -1332,17 +1334,18 @@ package body GID.Decoding_JPG is
                     info_B (c).dc_predictor := dc_value;
                     --  Store the partial DC value on the image array
                     --  Note that dc_value can be (and is often) negative.
-                    image_array (x + delta_x, y + delta_y, compo_idx) :=
-                      dc_value * (2 ** bit_position_low);
+
+                    if x_delta_x <= image_array'Last (1) and then y_delta_y <= image_array'Last (2) then
+                      image_array (x_delta_x, y_delta_y, compo_idx) := dc_value * (2 ** bit_position_low);
+                    end if;
                   end if;
                   if full_trace then
                     Put_Line
                       (dump_file,
                        dump_sep & dump_sep & dump_sep &
-                       Integer_32'Image (x + delta_x) & dump_sep &
-                       Integer_32'Image (y + delta_y) & dump_sep &
-                       image_array
-                         (x + delta_x, y + delta_y, compo_idx)'Image);
+                       Integer_32'Image (x_delta_x) & dump_sep &
+                       Integer_32'Image (y_delta_y) & dump_sep &
+                       image_array (x_delta_x, y_delta_y, compo_idx)'Image);
                   end if;
                 end loop;
               end;
@@ -1756,7 +1759,7 @@ package body GID.Decoding_JPG is
       --  for the upsampling, which gives a bit more complexity, especially
       --  since it depends on settings *per component*...
       x_image_array, y_image_array :
-        array (Component) of Integer_32 := (others => 0);
+        array (Component) of Natural_32 := (others => 0);
 
       qt_zz : array (Component) of JPEG_Defs.Quantization_Table;
 
@@ -1799,17 +1802,20 @@ package body GID.Decoding_JPG is
                 declare
                   block : Block_8x8 renames mb (c, sbx, sby);
                   qt_local : JPEG_Defs.Quantization_Table renames qt_zz (c);
+                  x_base : constant Natural_32 := x_image_array (c) + Integer_32 (8 * (sbx - 1));
+                  y_base : constant Natural_32 := y_image_array (c) + Integer_32 (8 * (sby - 1));
                 begin
-                  --  Copy block data:
-                  for yb in reverse 0 .. 7 loop
-                    for xb in reverse 0 .. 7 loop
-                      block (xb + yb * 8) :=
-                        image_array
-                          (x_image_array (c) + Integer_32 (8 * (sbx - 1) + xb),
-                           y_image_array (c) + Integer_32 (8 * (sby - 1) + yb),
-                           c_idx);
+                  if x_base + 7 <= image_array'Last (1) and then y_base + 7 <= image_array'Last (2) then
+                    --  Copy block data:
+                    for yb in reverse 0 .. 7 loop
+                      for xb in reverse 0 .. 7 loop
+                        block (xb + yb * 8) :=
+                          image_array (x_base + Natural_32 (xb), y_base + Natural_32 (yb), c_idx);
+                      end loop;
                     end loop;
-                  end loop;
+                  else
+                    block := (others => 0);
+                  end if;
                   --  Undo quantization on the block:
                   for i in reverse 0 .. 63 loop
                     block (i) := block (i) * qt_local (i);
