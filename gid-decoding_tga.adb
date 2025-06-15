@@ -33,10 +33,10 @@ package body GID.Decoding_TGA is
     generic
       bpp : Positive;
       pal : Boolean;
-    procedure Get_pixel;
-    pragma Inline (Get_pixel);
+    procedure Get_Pixel;
+    pragma Inline (Get_Pixel);
     --
-    procedure Get_pixel is
+    procedure Get_Pixel is
       idx : Natural;
       p1, p2, c, d : U8;
     begin
@@ -77,7 +77,7 @@ package body GID.Decoding_TGA is
             null;
         end case;
       end if;
-    end Get_pixel;
+    end Get_Pixel;
 
     generic
       rle_bpp : Positive;
@@ -87,11 +87,11 @@ package body GID.Decoding_TGA is
     --
     procedure RLE_Pixel is
       tmp : U8;
-      procedure Get_pixel_for_RLE is new Get_pixel (rle_bpp, rle_pal);
+      procedure Get_Plain_Pixel_for_RLE is new Get_Pixel (rle_bpp, rle_pal);
     begin
-      if RLE_pixels_remaining = 0 then -- load RLE code
+      if RLE_pixels_remaining = 0 then  --  Load RLE code
         Get_Byte (image.buffer, tmp);
-        Get_pixel_for_RLE;
+        Get_Plain_Pixel_for_RLE;
         RLE_pixels_remaining := U8'Pos (tmp and 16#7F#);
         is_run_packet := (tmp and 16#80#) /= 0;
         if is_run_packet then
@@ -101,18 +101,18 @@ package body GID.Decoding_TGA is
         if is_run_packet then
           pix := pix_mem;
         else
-          Get_pixel_for_RLE;
+          Get_Plain_Pixel_for_RLE;
         end if;
         RLE_pixels_remaining := RLE_pixels_remaining - 1;
       end if;
     end RLE_Pixel;
 
-    procedure RLE_pixel_32      is new RLE_Pixel (32, False);
-    procedure RLE_pixel_24      is new RLE_Pixel (24, False);
-    procedure RLE_pixel_16      is new RLE_Pixel (16, False);
-    procedure RLE_pixel_15      is new RLE_Pixel (15, False);
-    procedure RLE_pixel_8       is new RLE_Pixel (8,  False);
-    procedure RLE_pixel_palette is new RLE_Pixel (1,  True); -- 1: dummy
+    procedure RLE_Pixel_32      is new RLE_Pixel (32, False);
+    procedure RLE_Pixel_24      is new RLE_Pixel (24, False);
+    procedure RLE_Pixel_16      is new RLE_Pixel (16, False);
+    procedure RLE_Pixel_15      is new RLE_Pixel (15, False);
+    procedure RLE_Pixel_Gray    is new RLE_Pixel (8,  False);
+    procedure RLE_Pixel_Palette is new RLE_Pixel (1,  True);  -- 1: dummy
 
     procedure Output_Pixel is
     pragma Inline (Output_Pixel);
@@ -142,83 +142,35 @@ package body GID.Decoding_TGA is
       end case;
     end Output_Pixel;
 
-    procedure Get_RGBA is -- 32 bits : R, G, B, A use 8 bits each.
-      procedure Get_pixel_32 is new Get_pixel (32, False);
-    begin
-      for y in 0 .. Integer (image.height) - 1 loop
-        Row_start (y);
-        for x in 0 .. Integer (image.width) - 1 loop
-          Get_pixel_32;
-          Output_Pixel;
-        end loop;
-        Feedback (((y + 1) * 100) / Integer (image.height));
-      end loop;
-    end Get_RGBA;
+    generic
+      with procedure Get_Pixel_Any_Format;
+    procedure Get_Bitmap_Uncompressed;
 
-    procedure Get_RGB is -- 24 bits : R, G, B use 8 bits each.
-      procedure Get_pixel_24 is new Get_pixel (24, False);
+    procedure Get_Bitmap_Uncompressed is
     begin
       for y in 0 .. Integer (image.height) - 1 loop
         Row_start (y);
         for x in 0 .. Integer (image.width) - 1 loop
-          Get_pixel_24;
+          Get_Pixel_Any_Format;
           Output_Pixel;
         end loop;
         Feedback (((y + 1) * 100) / Integer (image.height));
       end loop;
-    end Get_RGB;
+    end Get_Bitmap_Uncompressed;
 
-    procedure Get_16 is -- 16 bits
-      procedure Get_pixel_16 is new Get_pixel (16, False);
-    begin
-      for y in 0 .. Integer (image.height) - 1 loop
-        Row_start (y);
-        for x in 0 .. Integer (image.width) - 1 loop
-          Get_pixel_16;
-          Output_Pixel;
-        end loop;
-        Feedback (((y + 1) * 100) / Integer (image.height));
-      end loop;
-    end Get_16;
+    procedure Get_Pixel_32      is new Get_Pixel (32, False);
+    procedure Get_Pixel_24      is new Get_Pixel (24, False);
+    procedure Get_Pixel_16      is new Get_Pixel (16, False);
+    procedure Get_Pixel_15      is new Get_Pixel (15, False);
+    procedure Get_Pixel_Gray    is new Get_Pixel (8,  False);
+    procedure Get_Pixel_Palette is new Get_Pixel (1,  True);  --  1: dummy
 
-    procedure Get_15 is -- 15 bits
-      procedure Get_pixel_15 is new Get_pixel (15, False);
-    begin
-      for y in 0 .. Integer (image.height) - 1 loop
-        Row_start (y);
-        for x in 0 .. Integer (image.width) - 1 loop
-          Get_pixel_15;
-          Output_Pixel;
-        end loop;
-        Feedback (((y + 1) * 100) / Integer (image.height));
-      end loop;
-    end Get_15;
-
-    procedure Get_Gray is
-      procedure Get_pixel_8  is new Get_pixel (8, False);
-    begin
-      for y in 0 .. Integer (image.height) - 1 loop
-        Row_start (y);
-        for x in 0 .. Integer (image.width) - 1 loop
-          Get_pixel_8;
-          Output_Pixel;
-        end loop;
-        Feedback (((y + 1) * 100) / Integer (image.height));
-      end loop;
-    end Get_Gray;
-
-    procedure Get_with_palette is
-      procedure Get_pixel_palette  is new Get_pixel (1, True); -- 1: dummy
-    begin
-      for y in 0 .. Integer (image.height) - 1 loop
-        Row_start (y);
-        for x in 0 .. Integer (image.width) - 1 loop
-          Get_pixel_palette;
-          Output_Pixel;
-        end loop;
-        Feedback (((y + 1) * 100) / Integer (image.height));
-      end loop;
-    end Get_with_palette;
+    procedure Get_RGBA         is new Get_Bitmap_Uncompressed (Get_Pixel_32);
+    procedure Get_RGB          is new Get_Bitmap_Uncompressed (Get_Pixel_24);
+    procedure Get_16           is new Get_Bitmap_Uncompressed (Get_Pixel_16);
+    procedure Get_15           is new Get_Bitmap_Uncompressed (Get_Pixel_15);
+    procedure Get_Gray         is new Get_Bitmap_Uncompressed (Get_Pixel_Gray);
+    procedure Get_with_Palette is new Get_Bitmap_Uncompressed (Get_Pixel_Palette);
 
   begin
     pix.alpha := 255; -- opaque is default
@@ -231,34 +183,34 @@ package body GID.Decoding_TGA is
         Row_start (y);
         if image.palette /= null then
           for x in 0 .. Integer (image.width) - 1 loop
-            RLE_pixel_palette;
+            RLE_Pixel_Palette;
             Output_Pixel;
           end loop;
         else
           case image.bits_per_pixel is
             when 32 =>
               for x in 0 .. image.width - 1 loop
-                RLE_pixel_32;
+                RLE_Pixel_32;
                 Output_Pixel;
               end loop;
             when 24 =>
               for x in 0 .. image.width - 1 loop
-                RLE_pixel_24;
+                RLE_Pixel_24;
                 Output_Pixel;
               end loop;
             when 16 =>
               for x in 0 .. image.width - 1 loop
-                RLE_pixel_16;
+                RLE_Pixel_16;
                 Output_Pixel;
               end loop;
             when 15 =>
               for x in 0 .. image.width - 1 loop
-                RLE_pixel_15;
+                RLE_Pixel_15;
                 Output_Pixel;
               end loop;
             when 8  =>
               for x in 0 .. image.width - 1 loop
-                RLE_pixel_8;
+                RLE_Pixel_Gray;
                 Output_Pixel;
               end loop;
             when others => null;
@@ -267,7 +219,7 @@ package body GID.Decoding_TGA is
         Feedback (((y + 1) * 100) / Integer (image.height));
       end loop;
     elsif image.palette /= null then
-      Get_with_palette;
+      Get_with_Palette;
     else
       case image.bits_per_pixel is
         when 32 =>
