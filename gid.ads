@@ -26,7 +26,7 @@
 --
 --     More credits in gid_work.xls, sheet "credits".
 --
---  Copyright (c) Gautier de Montmollin 2010 .. 2024
+--  Copyright (c) Gautier de Montmollin 2010 .. 2025
 --
 --  Permission is hereby granted, free of charge, to any person obtaining a copy
 --  of this software and associated documentation files (the "Software"), to deal
@@ -66,7 +66,7 @@ package GID is
      from    : in out Ada.Streams.Root_Stream_Type'Class;
      try_tga :        Boolean := False);
 
-  --  try_tga: if no known signature is found, assume it might be
+  --  ^ try_tga: if no known signature is found, assume it might be
   --  the TGA format (which hasn't a signature) and try to load an
   --  image of this format
 
@@ -85,11 +85,10 @@ package GID is
   function Pixel_Width (image : Image_Descriptor) return Positive;
   function Pixel_Height (image : Image_Descriptor) return Positive;
 
-  --  "Unchanged" orientation has origin at top left
-
   type Orientation is
     (Unchanged,
      Rotation_90, Rotation_180, Rotation_270);
+  --  ^ "Unchanged" orientation has origin at top left.
 
   function Display_Orientation (image : Image_Descriptor) return Orientation;
 
@@ -99,12 +98,13 @@ package GID is
   --------------------------------------------------------------------
 
   type Display_Mode is (fast, redundant);
-  --  For both display modes the final result is exactly the same.
+
+  --  ^ For both display modes the final result is exactly the same.
   --
   --  However, for progressive or interlaced image formats, inaccurate
-  --  versions of the image will be displayed during decoding as
+  --  versions of the image will be displayed during the decoding as
   --  foreseen by those formats. The inaccurate display is covering
-  --  completely the image's frame.
+  --  completely the image's frame for a short while.
   --  The advantage of the `redundant` mode is that if the stream is
   --  slow or the image is huge, the person contemplating the image
   --  can see earlier most characteristics of the image. The downside
@@ -112,35 +112,64 @@ package GID is
   --  and part of the pixels at the same position will be displayed
   --  multiple times.
   --
-  --  So, for prioritizing speed, choose the `fast` mode.
+  --  So, for prioritizing speed, you may want to choose the `fast` mode.
 
   generic
+
     type Primary_Color_Range is mod <>;
-    --  Coding of primary colors (red, green or blue)
-    --     and of opacity (also known as alpha channel), on the target "device".
-    --  Currently, only 8-bit and 16-bit are admitted.
-    --      8-bit coding is usual: TrueColor, PC graphics, etc.;
-    --     16-bit coding is seen in some high-end apps/devices/formats.
-    --
+
+    --  ^ Coding of primary colors (red, green or blue)
+    --      and of opacity (also known as alpha channel), on the target "device".
+    --    Currently, only 8-bit and 16-bit are admitted.
+    --        8-bit coding is usual: TrueColor, PC graphics, etc.;
+    --       16-bit coding is seen in some high-end apps/devices/formats.
+
     with procedure Set_X_Y (x, y : Natural);
-    --  After Set_X_Y, next pixel is meant to be displayed at position (x,y)
-    --  TBD: switch to Natural_32 for ensuring dimensions larger than 32767.
+
+    --  ^ After Set_X_Y, the next pixel will be displayed at position (x, y).
+    --    TBD: switch to Natural_32 for ensuring dimensions larger than 32767
+    --         for compilers where Integer is 16 bits.
+
     with procedure Put_Pixel
       (red, green, blue : Primary_Color_Range;
        alpha            : Primary_Color_Range);
-    --  When Put_Pixel is called twice without a Set_X_Y inbetween,
-    --  the pixel must be displayed on the next X position after the last one.
-    --  [ Rationale: if the image lands into an array with contiguous pixels
-    --    on the X axis, this approach allows full address calculation to be
-    --    made only at the beginning of each row, which is much faster ]
+
+    --  ^ After a call to Put_Pixel, the position is *implicitly* moved
+    --    from (x, y) to (x + 1, y).
     --
+    --    On your implementation, you need to take that assumption into account.
+    --    Rationale: the vast majority of pixels, whatever the format, are decoded
+    --    on rows, left to right. We leverage that fact for improving performance.
+    --
+    --      1) The assumption saves lots of Set_X_Y calls.
+    --
+    --      2) If the decoding happens into a one-dimensional buffer, the
+    --          horizontal increment from (x, y) to (x + 1, y) is very simple.
+    --
+    --          Example: test/steg.adb:
+    --          -------
+    --             procedure Set_X_Y (x, y : Natural) is
+    --             begin
+    --               idx := 3 * (x + image_width * (image_height - 1 - y));
+    --             end Set_X_Y;
+    --
+    --             procedure Put_Pixel
+    --               (red, green, blue : Primary_Color_Range;
+    --                alpha            : Primary_Color_Range)
+    --             is
+    --             begin
+    --               buffer (idx .. idx + 2) := (red, green, blue);
+    --               idx := idx + 3;  --  <=== Horizontal increment.
+    --             end Put_Pixel;
+
     with procedure Feedback (percents : Natural);
-    --
+
     mode : Display_Mode;
-    --
+
   procedure Load_Image_Contents
     (image      : in out Image_Descriptor;
      next_frame :    out Ada.Calendar.Day_Duration);
+
      --  ^ Animation: real time lapse foreseen between the first image
      --    and the image right after this one.
      --
@@ -198,7 +227,7 @@ package GID is
   ----------------------------------------------------------------
 
   version   : constant String := "013";
-  reference : constant String := "02-Mar-2024";
+  reference : constant String := "15-Jun-2025";
   web       : constant String := "http://gen-img-dec.sf.net/";
   --  Hopefully the latest version is at that URL..........^
   --
