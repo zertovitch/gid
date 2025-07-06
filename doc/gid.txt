@@ -103,6 +103,11 @@ in your project.
 
     test/steg.adb       Steganography tool: Steg hides a data into an image.
 
+    test/img/           Folder with some test images
+    test/img/bugs       Folder with some images (bug*) which are decoded
+                        incorrectly by GID.
+                        NB: in most cases the bug is in the *encoder* and the image
+                        is incorrect, but other decoders have work-arounds or luck.
 
 How to use GID in your programs
 ===============================
