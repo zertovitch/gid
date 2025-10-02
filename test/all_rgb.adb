@@ -52,8 +52,7 @@ procedure All_RGB is
 
   use Color_Distances_8_Bit;
 
-  procedure Swap (p, q : in out RGB) is
-  pragma Inline (Swap);
+  procedure Swap (p, q : in out RGB) with Inline is
     tmp : constant RGB := p;
   begin
     p := q;
@@ -64,7 +63,7 @@ procedure All_RGB is
   type p_Bitmap is access Bitmap;
   procedure Dispose is new Ada.Unchecked_Deallocation (Bitmap, p_Bitmap);
 
-  --  Load image into a 24-bit truecolor RGB raw bitmap (for a PNG output)
+  --  Load image into a 24-bit truecolor RGB raw bitmap.
   procedure Load_Raw_Image
     (image      : in out GID.Image_Descriptor;
      bmp        : in out Bitmap;
@@ -72,17 +71,16 @@ procedure All_RGB is
   is
     subtype Primary_color_range is Unsigned_8;
     pos_x, pos_y, max_y : Natural;
-    --
+
     procedure Set_X_Y (x, y : Natural) is
     begin
       pos_x := x;
       pos_y := y;
     end Set_X_Y;
-    --
-    procedure Put_Pixel (
-      red, green, blue : Primary_color_range;
-      alpha            : Primary_color_range
-    )
+
+    procedure Put_Pixel
+      (red, green, blue : Primary_color_range;
+       alpha            : Primary_color_range)
     is
     pragma Unreferenced (alpha);
     begin
@@ -148,15 +146,17 @@ procedure All_RGB is
     else
       mix_phase := 0;
     end if;
-    --
+
     Reset (gen);
     total_iter := mix_phase + tr_iterations;
     tick := total_iter / 10;
+
     for i in 1 .. total_iter loop
       x1 := Random (gen);
       y1 := Random (gen);
       x2 := Random (gen);
       y2 := Random (gen);
+
       if i <= mix_phase then
         --  In the initial phase (mix phase) we always swap pixels, in
         --  order to have an uniform looking, randomized background.
@@ -177,9 +177,11 @@ procedure All_RGB is
         --  A consequence is that we do not have the risk having pixels
         --  that are prematurely stuck in a local optimum.
       end if;
+
       if do_swap  then
         Swap (dst (x1, y1), dst (x2, y2));
       end if;
+
       if i rem tick = 0 then
         Put (Standard_Error, '*');
       end if;
@@ -211,7 +213,9 @@ procedure All_RGB is
      iterations   : Integer;
      startup_name : String)
   is
+
     use Ada.Calendar, Ada.Characters.Handling;
+
     f : Ada.Streams.Stream_IO.File_Type;
     i : GID.Image_Descriptor;
     up_name : constant String := To_Upper (name);
@@ -224,15 +228,18 @@ procedure All_RGB is
     try_tga_startup : constant Boolean :=
       startup_name'Length >= 4 and then
       up_startup_name (up_startup_name'Last - 3 .. up_startup_name'Last) = ".TGA";
-    --
+
     next_frame : Day_Duration := 0.0;
     T0, T1 : Time;
+
     procedure Transform_L1   is new Transform (L1);
     procedure Transform_L2   is new Transform (L2);
     procedure Transform_L3   is new Transform (L3);
     procedure Transform_Linf is new Transform (Linf);
+
     src, dst : p_Bitmap := null;
     iter_m_img : constant String := Integer'Image (iterations / 1e6);
+
   begin
     --
     --  Load the image in its original format
@@ -246,30 +253,36 @@ procedure All_RGB is
     end if;
     Put_Line (Standard_Error, ".........v.........v");
     T0 := Clock;
-    --
+
     src :=
       new Bitmap
         (0 .. GID.Pixel_Width (i) - 1, 0 .. GID.Pixel_Height (i) - 1);
+
     Load_Raw_Image (i, src.all, next_frame);
     Close (f);
+
     dst := new Bitmap (All_RGB_Range, All_RGB_Range);
+
     if use_startup then
       Open (f, In_File, startup_name);
       GID.Load_Image_Header (i, Stream (f).all, try_tga_startup);
       Load_Raw_Image (i, dst.all, next_frame);
       Close (f);
     end if;
+
     case Lx is
       when L1   => Transform_L1   (src.all, dst.all, clears, iterations);
       when L2   => Transform_L2   (src.all, dst.all, clears, iterations);
       when L3   => Transform_L3   (src.all, dst.all, clears, iterations);
       when Linf => Transform_Linf (src.all, dst.all, clears, iterations);
     end case;
+
     Dump_PNG
       (name (name'First .. name'Last - 4) & '_' &
        Dist_Type'Image (Lx) & '_' &
        iter_m_img (iter_m_img'First + 1 .. iter_m_img'Last) & 'M',
        dst.all);
+
     Dispose (src);
     Dispose (dst);
     T1 := Clock;
@@ -289,25 +302,35 @@ begin
     Blurb;
     return;
   end if;
+
   for i in 1 .. Argument_Count loop
     declare
       arg : constant String := Argument (i);
     begin
+
       if arg'Length >= 3 and then arg (arg'First) = '-' then
+
         case arg (arg'First + 1) is
+
           when 'l' =>
             Lx := Dist_Type'Value (arg (arg'First + 1 .. arg'Last));
+
           when 'i' =>
             iter := 1e6 * Integer'Value (arg (arg'First + 2 .. arg'Last));
+
           when 's' =>
             startup := To_Unbounded_String (arg (arg'First + 2 .. arg'Last));
+
           when others =>
             Blurb;
             return;
+
         end case;
+
       else
         Process (Argument (i), Lx, iter, To_String (startup));
       end if;
+
     end;
   end loop;
 end All_RGB;
