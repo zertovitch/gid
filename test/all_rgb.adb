@@ -31,7 +31,7 @@ procedure All_RGB is
     Put_Line (Standard_Error, "All_RGB * Creates an ""all RGB"" image (in .png format) similar to a given image");
     Put_Line (Standard_Error, "            ""all RGB"" = 1 pixel per possible RGB colour (8-bit colour channels)");
     New_Line (Standard_Error);
-    Put_Line (Standard_Error, "Simple test for the GID (Generic Image Decoder) package");
+    Put_Line (Standard_Error, "Demo for the GID (Generic Image Decoder) package");
     Put_Line (Standard_Error, "Package version " & GID.version & " dated " & GID.reference);
     Put_Line (Standard_Error, "URL: " & GID.web);
     New_Line (Standard_Error);
@@ -41,7 +41,7 @@ procedure All_RGB is
     Put_Line (Standard_Error, "Options:");
     Put_Line (Standard_Error, "  -lp: set Lp distance (l1, l2, l3, linf); default: -l2");
     Put_Line (Standard_Error, "  -ix: set number of iterations (x = 1 million iterations); default: -x100");
-    Put_Line (Standard_Error, "  -s<img>: set start image as ""<img>"" instead of a trivial, then randomized, image");
+    Put_Line (Standard_Error, "  -s<img>: set start image as another all-RGB image named ""<img>"" instead of a trivial, then randomized, image");
     New_Line (Standard_Error);
   end Blurb;
 
@@ -114,10 +114,10 @@ procedure All_RGB is
   generic
     transform_dist_choice : Dist_Type;
   procedure Transform
-    (src : in Bitmap; dst : out Bitmap; do_clear : Boolean; tr_iterations : Integer);
+    (src : in Bitmap; dst : out Bitmap; do_clear_destination : Boolean; tr_iterations : Integer);
 
   procedure Transform
-    (src : in Bitmap; dst : out Bitmap; do_clear : Boolean; tr_iterations : Integer)
+    (src : in Bitmap; dst : out Bitmap; do_clear_destination : Boolean; tr_iterations : Integer)
   is
     x1, y1, x2, y2 : Integer;
     s1, s2 : RGB;
@@ -132,7 +132,8 @@ procedure All_RGB is
     tick : Integer;
     --
   begin
-    if do_clear then
+
+    if do_clear_destination then
       --  Deterministic bitmap with all possible 8-bit-per-channel colours.
       for r in Unsigned_8 loop
         for g in Unsigned_8 loop
@@ -148,6 +149,7 @@ procedure All_RGB is
     end if;
 
     Reset (gen);
+
     total_iter := mix_phase + tr_iterations;
     tick := total_iter / 10;
 
@@ -186,6 +188,7 @@ procedure All_RGB is
         Put (Standard_Error, '*');
       end if;
     end loop;
+
   end Transform;
 
   procedure Dump_PNG (name : String; bmp : Bitmap) is
@@ -194,7 +197,7 @@ procedure All_RGB is
     rgb_flat_map : p_Byte_Array;
     idx : Integer := 1;
   begin
-    Create (f, Out_File, name & ".gid.png");
+    Create (f, Out_File, name & ".png");
     rgb_flat_map := new Byte_Array (1 .. 3 * bmp'Length (1) * bmp'Length (2));
     for y in bmp'Range (2) loop
       for x in bmp'Range (1) loop
@@ -222,8 +225,8 @@ procedure All_RGB is
     try_tga : constant Boolean :=
       name'Length >= 4 and then
       up_name (up_name'Last - 3 .. up_name'Last) = ".TGA";
-    clears      : constant Boolean := startup_name = "";
-    use_startup : constant Boolean := not clears;
+    use_startup : constant Boolean := startup_name /= "";
+    do_clear    : constant Boolean := not use_startup;
     up_startup_name : constant String := To_Upper (startup_name);
     try_tga_startup : constant Boolean :=
       startup_name'Length >= 4 and then
@@ -271,10 +274,10 @@ procedure All_RGB is
     end if;
 
     case Lx is
-      when L1   => Transform_L1   (src.all, dst.all, clears, iterations);
-      when L2   => Transform_L2   (src.all, dst.all, clears, iterations);
-      when L3   => Transform_L3   (src.all, dst.all, clears, iterations);
-      when Linf => Transform_Linf (src.all, dst.all, clears, iterations);
+      when L1   => Transform_L1   (src.all, dst.all, do_clear, iterations);
+      when L2   => Transform_L2   (src.all, dst.all, do_clear, iterations);
+      when L3   => Transform_L3   (src.all, dst.all, do_clear, iterations);
+      when Linf => Transform_Linf (src.all, dst.all, do_clear, iterations);
     end case;
 
     Dump_PNG
@@ -308,24 +311,32 @@ begin
       arg : constant String := Argument (i);
     begin
 
-      if arg'Length >= 3 and then arg (arg'First) = '-' then
+      if arg'Length >= 2 and then arg (arg'First) = '-' then
+        if arg'Length >= 3 then
 
-        case arg (arg'First + 1) is
+          case arg (arg'First + 1) is
 
-          when 'l' =>
-            Lx := Dist_Type'Value (arg (arg'First + 1 .. arg'Last));
+            when 'l' =>
+              Lx := Dist_Type'Value (arg (arg'First + 1 .. arg'Last));
 
-          when 'i' =>
-            iter := 1e6 * Integer'Value (arg (arg'First + 2 .. arg'Last));
+            when 'i' =>
+              iter := 1e6 * Integer'Value (arg (arg'First + 2 .. arg'Last));
 
-          when 's' =>
-            startup := To_Unbounded_String (arg (arg'First + 2 .. arg'Last));
+            when 's' =>
+              startup := To_Unbounded_String (arg (arg'First + 2 .. arg'Last));
 
-          when others =>
-            Blurb;
-            return;
+            when others =>
+              Blurb;
+              return;
 
-        end case;
+          end case;
+
+        else
+          Put_Line
+            (Standard_Error,
+             "Option " & arg (arg'First .. arg'First + 1) & ": missing argument");
+          return;
+        end if;
 
       else
         Process (Argument (i), Lx, iter, To_String (startup));
