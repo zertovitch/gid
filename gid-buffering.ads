@@ -1,12 +1,11 @@
 private package GID.Buffering is
 
   --  Attach a buffer to a stream.
-  procedure Attach_Stream (
-    b   :    out Input_Buffer;
-    stm : in     Stream_Access
-  );
+  procedure Attach_Stream
+    (b   : in out Input_Buffer;
+     stm : in     Stream_Access);
 
-  function Is_stream_attached (b : Input_Buffer) return Boolean;
+  function Is_Stream_Attached (b : Input_Buffer) return Boolean;
 
   --  From the first call to Get_Byte, subsequent bytes must be read
   --  through Get_Byte as well since the stream is partly read in advance

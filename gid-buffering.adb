@@ -9,10 +9,9 @@ package body GID.Buffering is
   procedure Fill_Buffer (b : in out Input_Buffer)
   is
     --
-    procedure BlockRead (
-      buffer       :    out Byte_Array;
-      actually_read :    out Natural
-    )
+    procedure Block_Read
+      (buffer        : out Byte_Array;
+       actually_read : out Natural)
     is
       use Ada.Streams;
       Last_Read : Stream_Element_Offset;
@@ -38,42 +37,47 @@ package body GID.Buffering is
         end;
       end if;
       actually_read := Natural (Last_Read);
-    end BlockRead;
+    end Block_Read;
     --
   begin
-    BlockRead (
-      buffer        => b.data,
-      actually_read => b.MaxInBufIdx
-    );
-    b.InputEoF := b.MaxInBufIdx = 0;
-    b.InBufIdx := 1;
+    Block_Read
+      (buffer        => b.data,
+       actually_read => b.max_input_index);
+    b.input_end_of_stream := b.max_input_index = 0;
+    b.input_index := 1;
   end Fill_Buffer;
 
-  procedure Attach_Stream (
-    b   :    out Input_Buffer;
-    stm : in     Stream_Access
-  )
+  procedure Reset (b : in out Input_Buffer) is
+  begin
+    b.input_index     := 1;
+    b.max_input_index := 0;
+  end Reset;
+
+  procedure Attach_Stream
+    (b   : in out Input_Buffer;
+     stm : in     Stream_Access)
   is
   begin
+    Reset (b);
+    --  Fill_Buffer (b) will be performed on first call of Get_Byte.
     b.stream := stm;
-    --  Fill_Buffer(b) will be performed on first call of Get_Byte
   end Attach_Stream;
 
-  function Is_stream_attached (b : Input_Buffer) return Boolean is
+  function Is_Stream_Attached (b : Input_Buffer) return Boolean is
   begin
     return b.stream /= null;
-  end Is_stream_attached;
+  end Is_Stream_Attached;
 
   procedure Get_Byte (b : in out Input_Buffer; byte : out U8) is
   begin
-    if b.InBufIdx > b.MaxInBufIdx then
+    if b.input_index > b.max_input_index then
       Fill_Buffer (b);
-      if b.InputEoF then
+      if b.input_end_of_stream then
         raise Ada.IO_Exceptions.End_Error;
       end if;
     end if;
-    byte := b.data (b.InBufIdx);
-    b.InBufIdx := b.InBufIdx + 1;
+    byte := b.data (b.input_index);
+    b.input_index := b.input_index + 1;
   end Get_Byte;
 
 end GID.Buffering;

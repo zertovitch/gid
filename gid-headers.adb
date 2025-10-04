@@ -427,13 +427,13 @@ package body GID.Headers is
   -----------------
 
   procedure Load_JPEG_Header (image : in out Image_Descriptor) is
-    use Decoding_JPG, Buffering, Ada.Text_IO;
+    use Decoding_JPG, Ada.Text_IO;
     head : Segment_Head;
     b : U8;
   begin
     --  We have already passed the SOI (Start of Image) segment marker (FFD8).
     image.JPEG_stuff.restart_interval := 0;
-    Attach_Stream (image.buffer, image.stream);
+    Buffering.Attach_Stream (image.buffer, image.stream);
     loop
       Read (image, False, 0, head);
       case head.kind is
@@ -458,7 +458,7 @@ package body GID.Headers is
             New_Line;
             Put_Line ("JPEG Comment (during Load_JPEG_Header):  --------");
             for i in 1 .. head.length loop
-              Get_Byte (image.buffer, b);
+              Buffering.Get_Byte (image.buffer, b);
               Put (Character'Val (b));
             end loop;
             New_Line;

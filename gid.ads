@@ -227,11 +227,12 @@ package GID is
   ----------------------------------------------------------------
 
   version   : constant String := "013";
-  reference : constant String := "15-Jun-2025";
+  reference : constant String := "04-Oct-2025";
+  --  Hopefully the latest version can be acquired from one of those URLs:
   web       : constant String := "http://gen-img-dec.sf.net/";
-  --  Hopefully the latest version is at that URL..........^
-  --
-  --  There is a mirror too @ https://github.com/zertovitch/gid
+  web2      : constant String := "https://sourceforge.net/projects/gen-img-dec/";
+  web3      : constant String := "https://github.com/zertovitch/gid";
+  web4      : constant String := "https://alire.ada.dev/crates/gid";
 
 private
 
@@ -268,11 +269,11 @@ private
   type Byte_Array is array (Integer range <>) of U8;
 
   type Input_Buffer is record
-    data        : Byte_Array (1 .. 1024);
-    stream      : Stream_Access := null;
-    InBufIdx    : Positive := 1;  --  Points to next char in buffer to be read
-    MaxInBufIdx : Natural := 0;   --  Count of valid chars in input buffer
-    InputEoF    : Boolean;        --  End of file indicator
+    data                : Byte_Array (1 .. 1024);
+    stream              : Stream_Access := null;
+    input_index         : Positive := 1;     --  Points to next char in buffer to be read
+    max_input_index     : Natural  := 0;     --  Count of valid chars in input buffer
+    input_end_of_stream : Boolean  := True;  --  End of stream indicator
   end record;
   --  Initial values ensure call to Fill_Buffer on first Get_Byte
 
