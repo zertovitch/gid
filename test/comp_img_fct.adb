@@ -23,7 +23,7 @@ is
 
   use Color_Distances_8_Bit;
 
-  function Normalized_L1_Distance is new Normalized_Distance (L1);
+  function Normalized_L1_Distance is new Normalized_Distance_No_Root_1 (L1);
 
   type Bitmap is array (Integer range <>, Integer range <>) of RGB;
   type p_Bitmap is access Bitmap;

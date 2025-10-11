@@ -125,7 +125,7 @@ procedure All_RGB is
     use Side_Random;
     gen : Generator;
     dist_no_swap, dist_swap : Natural;
-    function M_Funct_Dist_Lx is new Distance (transform_dist_choice);
+    function M_Funct_Dist_Lx is new Distance_No_Root_1 (transform_dist_choice);
     mix_phase : Integer := 3 * 4096 ** 2;
     do_swap : Boolean;
     total_iter : Integer;
@@ -259,7 +259,8 @@ procedure All_RGB is
 
     src :=
       new Bitmap
-        (0 .. GID.Pixel_Width (i) - 1, 0 .. GID.Pixel_Height (i) - 1);
+        (0 .. GID.Pixel_Width  (i) - 1,
+         0 .. GID.Pixel_Height (i) - 1);
 
     Load_Raw_Image (i, src.all, next_frame);
     Close (f);
