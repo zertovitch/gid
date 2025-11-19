@@ -43,6 +43,8 @@ procedure All_RGB is
     Put_Line (Standard_Error, "  -ix: set number of iterations (x = 1 million iterations); default: -x100");
     Put_Line (Standard_Error, "  -s<img>: set start image as another all-RGB image named ""<img>"" instead of a trivial, then randomized, image");
     New_Line (Standard_Error);
+    Put (Standard_Error, "Press Return");
+    Skip_Line;
   end Blurb;
 
   use Interfaces;

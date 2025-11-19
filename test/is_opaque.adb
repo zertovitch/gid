@@ -29,6 +29,9 @@ procedure Is_opaque is
     Put_Line (Current_Error, "Syntax:");
     Put_Line (Current_Error, "is_opaque <image_1> [<image_2>...]");
     New_Line (Current_Error);
+    Put (Current_Error, "Press Return");
+    Skip_Line;
+    return;
   end Blurb;
 
   procedure Check_raw_image (

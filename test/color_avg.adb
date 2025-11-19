@@ -68,7 +68,7 @@ begin
     Put_Line (Current_Error, "Options:");
     Put_Line (Current_Error, "  -m x y   : create an HTML file with an x*y mosaic of averaged colors");
     New_Line (Current_Error);
-    Put ("Press return");
+    Put (Current_Error, "Press Return");
     Skip_Line;
     return;
   end if;

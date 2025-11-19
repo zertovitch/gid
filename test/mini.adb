@@ -31,6 +31,9 @@ procedure Mini is
     Put_Line (Current_Error, "Syntax:");
     Put_Line (Current_Error, "mini <image_1> [<image_2>...]");
     New_Line (Current_Error);
+    Put (Current_Error, "Press Return");
+    Skip_Line;
+    return;
   end Blurb;
 
   use Interfaces;

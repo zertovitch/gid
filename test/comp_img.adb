@@ -8,6 +8,9 @@ procedure Comp_Img is
 begin
   if Argument_Count < 2 then
     Put_Line ("Usage: comp_img image1 image2");
+    New_Line;
+    Put ("Press Return");
+    Skip_Line;
     return;
   end if;
   Put_Line

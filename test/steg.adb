@@ -39,7 +39,7 @@ procedure Steg is
     Put_Line (Current_Error, "GID version " & GID.version & " dated " & GID.reference);
     Put_Line (Current_Error, "URL: " & GID.web);
     New_Line (Current_Error);
-    Put ("Press return");
+    Put (Current_Error, "Press Return");
     Skip_Line;
   end Blurb;
 

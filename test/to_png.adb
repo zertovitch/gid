@@ -52,6 +52,8 @@ procedure To_PNG is
     New_Line (Current_Error);
     Put_Line (Current_Error, "Output: "".gid.png"" is added the full input name(s)");
     New_Line (Current_Error);
+    Put (Current_Error, "Press Return");
+    Skip_Line;
   end Blurb;
 
   --  Image used as background for displaying images having transparency

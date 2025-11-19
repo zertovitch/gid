@@ -40,6 +40,8 @@ procedure Benchmark is
     Put_Line ("directory) is expected by the program for reading the test images.");
     Put_Line ("This test might take 10 minutes or more. Be patient!");
     New_Line;
+    Put ("Press Return");
+    Skip_Line;
   end Blurb;
 
   --  The following code is copy-pasted from mini.adb.

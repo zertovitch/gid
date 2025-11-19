@@ -49,6 +49,8 @@ procedure Clusters is
     Put_Line (Standard_Error, "  -xN: set number of horizontal segments (default: 10)");
     Put_Line (Standard_Error, "  -yN: set number of vertical segments (default: 10)");
     New_Line (Standard_Error);
+    Put (Standard_Error, "Press Return");
+    Skip_Line;
   end Blurb;
 
   use Interfaces;

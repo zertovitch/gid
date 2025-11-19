@@ -59,6 +59,8 @@ procedure Recurve is
     Put_Line (Standard_Error, "Output:");
     Put_Line (Standard_Error, " <image1>.csv, <image2>.csv, ...");
     New_Line (Standard_Error);
+    Put (Standard_Error, "Press Return");
+    Skip_Line;
   end Blurb;
 
   use Interfaces;

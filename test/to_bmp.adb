@@ -54,6 +54,8 @@ procedure To_BMP is
     Put_Line (Current_Error, "  Reason of the "".dib"" extension: it is an unknown synonym of "".bmp"";");
     Put_Line (Current_Error, "  just do ""del *.dib"" for cleanup");
     New_Line (Current_Error);
+    Put (Current_Error, "Press Return");
+    Skip_Line;
   end Blurb;
 
   --  Image used as background for displaying images having transparency
