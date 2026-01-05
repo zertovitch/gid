@@ -40,7 +40,7 @@ procedure All_RGB is
     New_Line (Standard_Error);
     Put_Line (Standard_Error, "Options:");
     Put_Line (Standard_Error, "  -lp: set Lp distance (l1, l2, l3, linf); default: -l2");
-    Put_Line (Standard_Error, "  -ix: set number of iterations (x = 1 million iterations); default: -x100");
+    Put_Line (Standard_Error, "  -ix: set number of iterations (x = 1 million iterations); default: -i100");
     Put_Line (Standard_Error, "  -s<img>: set start image as another all-RGB image named ""<img>"" instead of a trivial, then randomized, image");
     New_Line (Standard_Error);
     Put (Standard_Error, "Press Return");
@@ -116,10 +116,10 @@ procedure All_RGB is
   generic
     transform_dist_choice : Dist_Type;
   procedure Transform
-    (src : in Bitmap; dst : out Bitmap; do_clear_destination : Boolean; tr_iterations : Integer);
+    (src : in Bitmap; dst : out Bitmap; do_clear_destination : Boolean; tr_iterations : Integer_64);
 
   procedure Transform
-    (src : in Bitmap; dst : out Bitmap; do_clear_destination : Boolean; tr_iterations : Integer)
+    (src : in Bitmap; dst : out Bitmap; do_clear_destination : Boolean; tr_iterations : Integer_64)
   is
     x1, y1, x2, y2 : Integer;
     s1, s2 : RGB;
@@ -128,10 +128,10 @@ procedure All_RGB is
     gen : Generator;
     dist_no_swap, dist_swap : Natural;
     function M_Funct_Dist_Lx is new Distance_No_Root_1 (transform_dist_choice);
-    mix_phase : Integer := 3 * 4096 ** 2;
+    mix_phase : Integer_64 := 3 * 4096 ** 2;
     do_swap : Boolean;
-    total_iter : Integer;
-    tick : Integer;
+    total_iter : Integer_64;
+    tick : Integer_64;
     --
   begin
 
@@ -156,6 +156,7 @@ procedure All_RGB is
     tick := total_iter / 10;
 
     for i in 1 .. total_iter loop
+      --  Choose points (x1, y1) and (x2, y2) as random positions:
       x1 := Random (gen);
       y1 := Random (gen);
       x2 := Random (gen);
@@ -215,7 +216,7 @@ procedure All_RGB is
   procedure Process
     (name         : String;
      Lx           : Dist_Type;
-     iterations   : Integer;
+     iterations   : Integer_64;
      startup_name : String)
   is
 
@@ -243,7 +244,7 @@ procedure All_RGB is
     procedure Transform_Linf is new Transform (Linf);
 
     src, dst : p_Bitmap := null;
-    iter_m_img : constant String := Integer'Image (iterations / 1e6);
+    iter_m_img : constant String := Integer_64'Image (iterations / 1e6);
 
   begin
     --
@@ -299,7 +300,7 @@ procedure All_RGB is
   end Process;
 
   Lx : Dist_Type := L2;
-  iter : Integer := 100e6;
+  iter : Integer_64 := 100e6;
   use Ada.Command_Line, Ada.Strings.Unbounded;
   startup : Unbounded_String;
 
@@ -323,7 +324,7 @@ begin
               Lx := Dist_Type'Value (arg (arg'First + 1 .. arg'Last));
 
             when 'i' =>
-              iter := 1e6 * Integer'Value (arg (arg'First + 2 .. arg'Last));
+              iter := 1e6 * Integer_64'Value (arg (arg'First + 2 .. arg'Last));
 
             when 's' =>
               startup := To_Unbounded_String (arg (arg'First + 2 .. arg'Last));
