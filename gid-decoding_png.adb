@@ -7,7 +7,7 @@
 --        process with step 9.
 --   9: Read filter code (row begin), or unfilter bytes, go with step 8
 --   8: Display pixels these bytes represent;
---        eventually, locate the interlaced image current point
+--        possibly, locate the interlaced image current point
 --
 --  Reference: Portable Network Graphics (PNG) Specification (Third Edition)
 --  W3C Recommendation 21 September 2023

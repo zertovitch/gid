@@ -1,4 +1,4 @@
---  GIF Decoder by André van Splunter
+--  GIF Decoder by Andre van Splunter
 --
 --  A GIF stream is made of several "blocks".
 --  The image itself is contained in an Image Descriptor block.
@@ -44,7 +44,7 @@ package body GID.Decoding_GIF is
      next_frame :    out Ada.Calendar.Day_Duration)
   is
     local : Image_Descriptor;
-    --  With GIF, each frame is a local image with an eventual
+    --  With GIF, each frame is a local image with a possible
     --  palette, different dimensions, etc. ...
 
     use GID.Buffering;
